@@ -336,7 +336,7 @@ private:
                                                 Handle lockObject,
                                                 bool* throw_circularity_error);
 
-  static void define_instance_class(InstanceKlass* k, Handle class_loader, TRAPS);
+
   static InstanceKlass* find_or_define_helper(Symbol* class_name,
                                               Handle class_loader,
                                               InstanceKlass* k, TRAPS);
@@ -359,8 +359,15 @@ private:
                                                Handle protection_domain, TRAPS);
   // Second part of load_shared_class
   static void load_shared_class_misc(InstanceKlass* ik, ClassLoaderData* loader_data) NOT_CDS_RETURN;
+public:
+#if INCLUDE_CDS
+  static void dump_class_and_loader_relationship(InstanceKlass* k, ClassLoaderData* initiating_loader_data, TRAPS);
+  static bool should_not_dump_class(InstanceKlass* k);
+#endif
+  static bool is_parallelCapable(Handle class_loader);
 protected:
-  // Used by SystemDictionaryShared
+  // Used by SystemDictionaryShare
+  static void define_instance_class(InstanceKlass* k, Handle class_loader, TRAPS);
 
   static bool add_loader_constraint(Symbol* name, Klass* klass_being_linked,  Handle loader1,
                                     Handle loader2);
@@ -413,9 +420,11 @@ protected:
                                 InstanceKlass* k, Handle loader);
 
 public:
+  static bool invalid_class_name_for_EagerAppCDS(const char* name);
+
   static TableStatistics placeholders_statistics();
   static TableStatistics loader_constraints_statistics();
   static TableStatistics protection_domain_cache_statistics();
 };
-
+#define DOUBLE_DOLLAR_STR "$$"
 #endif // SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP

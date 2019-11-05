@@ -204,6 +204,9 @@ class InstanceKlass: public Klass {
   // it is stored in the instanceklass as a NULL-terminated UTF-8 string
   const char*     _source_debug_extension;
 
+  // source file path, e.g. /home/xxx/liba.jar
+  Symbol*         _source_file_path;
+
   // Number of heapOopSize words used by non-static fields in this klass
   // (including inherited fields but after header_size()).
   int             _nonstatic_field_size;
@@ -711,6 +714,12 @@ public:
   // source debug extension
   const char* source_debug_extension() const { return _source_debug_extension; }
   void set_source_debug_extension(const char* array, int length);
+
+  Symbol* source_file_path()               { return _source_file_path; }
+  void set_source_file_path(Symbol* value) {
+    _source_file_path = value;
+    if (_source_file_path != NULL) _source_file_path->increment_refcount();
+  }
 
   // nonstatic oop-map blocks
   static int nonstatic_oop_map_size(unsigned int oop_map_count) {

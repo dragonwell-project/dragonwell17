@@ -34,8 +34,13 @@
 #include "java_lang_ClassLoader.h"
 #include <string.h>
 
+#define CLD "Ljava/lang/ClassLoader;"
+#define PD  "Ljava/security/ProtectionDomain;"
+#define CLS "Ljava/lang/Class;"
+
 static JNINativeMethod methods[] = {
-    {"retrieveDirectives",  "()Ljava/lang/AssertionStatusDirectives;", (void *)&JVM_AssertionStatusDirectives}
+    {"retrieveDirectives",  "()Ljava/lang/AssertionStatusDirectives;", (void *)&JVM_AssertionStatusDirectives},
+    {"defineClassFromCDS0", "("CLD PD "J)"CLS,                         (void *)&JVM_DefineClassFromCDS}
 };
 
 JNIEXPORT void JNICALL

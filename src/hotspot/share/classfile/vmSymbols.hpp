@@ -393,6 +393,8 @@
   template(run_finalization_name,                     "runFinalization")                          \
   template(dispatchUncaughtException_name,            "dispatchUncaughtException")                \
   template(loadClass_name,                            "loadClass")                                \
+  template(loadClassFromCDS_name,                     "loadClassFromCDS")                         \
+  template(loadClassFromCDS_signature,                "(Ljava/lang/String;Ljava/lang/String;JI)Ljava/lang/Class;") \
   template(get_name,                                  "get")                                      \
   template(refersTo0_name,                            "refersTo0")                                \
   template(put_name,                                  "put")                                      \
@@ -708,6 +710,10 @@
   template(toFileURL_signature,                             "(Ljava/lang/String;)Ljava/net/URL;")                 \
   template(url_void_signature,                              "(Ljava/net/URL;)V")                                  \
                                                                                                                   \
+  /* CDS support */                                                                                               \
+  template(com_alibaba_cds_NotFoundClassSet,           "com/alibaba/cds/NotFoundClassSet")                        \
+  template(isNotFound_name,                            "isNotFound")                                              \
+  template(isNotFound_signature,                       "(Ljava/lang/String;I)Z")                                  \
   /*end*/
 
 // enum for figuring positions and size of Symbol::_vm_symbols[]

@@ -102,6 +102,7 @@
 
 ===============================================================================*/
 #define UNREGISTERED_INDEX -9999
+#define NOT_FOUND_CLASS "not.found.class"
 
 class BootstrapInfo;
 class ClassFileStream;
@@ -201,6 +202,7 @@ private:
                                              ModuleEntry* mod, TRAPS);
 
   static void atomic_set_array_index(OopHandle array, int index, oop o);
+  static bool check_class_not_found(const Symbol *class_name, int hash_value, TRAPS);
 
   static oop shared_protection_domain(int index);
   static void atomic_set_shared_protection_domain(int index, oop pd) {
@@ -248,6 +250,10 @@ public:
   static Handle init_security_info(Handle class_loader, InstanceKlass* ik, PackageEntry* pkg_entry, TRAPS);
   static InstanceKlass* find_builtin_class(Symbol* class_name);
 
+
+  // static const RunTimeSharedClassInfo* find_record_for_unregistered_loader(const Symbol* name,
+  //                                                                          int clsfile_size,
+  //                                                                          int clsfile_crc32);
   static const RunTimeSharedClassInfo* find_record(RunTimeSharedDictionary* static_dict,
                                                    RunTimeSharedDictionary* dynamic_dict,
                                                    Symbol* name);
@@ -277,13 +283,24 @@ public:
   }
 
   static void update_shared_entry(InstanceKlass* klass, int id);
-  static void set_shared_class_misc_info(InstanceKlass* k, ClassFileStream* cfs);
+  static void set_shared_class_misc_info(InstanceKlass* k, ClassFileStream* cfs, int defining_loader_hash, int initiating_loader_hash);
 
+  static void log_not_found_klass(Symbol* name, Handle class_loader, TRAPS);
   static InstanceKlass* lookup_from_stream(Symbol* class_name,
                                            Handle class_loader,
                                            Handle protection_domain,
                                            const ClassFileStream* st,
                                            TRAPS);
+  static InstanceKlass* load_class_from_cds(const Symbol* class_name, Handle class_loader, InstanceKlass* ik, int hash, TRAPS);
+
+  static InstanceKlass* lookup_shared(Symbol* class_name, Handle class_loader,
+                                      bool& not_found, TRAPS);
+
+  static InstanceKlass* define_class_from_cds(InstanceKlass *ik,
+                                              Handle class_loader,
+                                              Handle protection_domain,
+                                              TRAPS);
+
   // "verification_constraints" are a set of checks performed by
   // VerificationType::is_reference_assignable_from when verifying a shared class during
   // dump time.

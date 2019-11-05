@@ -778,6 +778,19 @@ ClassPathZipEntry* ClassLoader::create_class_path_zip_entry(const char *path, bo
   return NULL;
 }
 
+// returns true if entry already on class path
+bool ClassLoader::contains_append_entry(const char* name) {
+  ClassPathEntry* e = _first_append_entry_list;
+  while (e != NULL) {
+    // assume zip entries have been canonicalized
+    if (strcmp(name, e->name()) == 0) {
+      return true;
+    }
+    e = e->next();
+  }
+  return false;
+}
+
 // The boot append entries are added with a lock, and read lock free.
 void ClassLoader::add_to_boot_append_entries(ClassPathEntry *new_entry) {
   if (new_entry != NULL) {
@@ -1345,7 +1358,9 @@ void ClassLoader::record_result(JavaThread* current, InstanceKlass* ik, const Cl
     if (classpath_index < 0) {
       assert(ik->shared_classpath_index() < 0, "Sanity");
       ik->set_shared_classpath_index(UNREGISTERED_INDEX);
-      SystemDictionaryShared::set_shared_class_misc_info(ik, (ClassFileStream*)stream);
+      if (!EagerAppCDS) {
+        SystemDictionaryShared::set_shared_class_misc_info(ik, (ClassFileStream*)stream, 0, 0);
+      } // EagerAppCDS call set_shared_class_misc_info after return to ClassLoaderExt::load_class inorder to record defining_loader_hash and initiating_loader_hash
       return;
     }
   } else {

@@ -30,6 +30,7 @@
 #include "cds/filemap.hpp"
 #include "cds/heapShared.hpp"
 #include "cds/metaspaceShared.hpp"
+#include "cds/classListWriter.hpp"
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.inline.hpp"
@@ -114,6 +115,8 @@ public:
   int                          _id;
   int                          _clsfile_size;
   int                          _clsfile_crc32;
+  int                          _defining_loader_hash;
+  int                          _initiating_loader_hash;
   GrowableArray<DTVerifierConstraint>* _verifier_constraints;
   GrowableArray<char>*                 _verifier_constraint_flags;
   GrowableArray<DTLoaderConstraint>* _loader_constraints;
@@ -452,6 +455,8 @@ public:
   struct CrcInfo {
     int _clsfile_size;
     int _clsfile_crc32;
+    int _defining_loader_hash;
+    int _initiating_loader_hash;
   };
 
   // This is different than  DumpTimeSharedClassInfo::DTVerifierConstraint. We use
@@ -596,6 +601,8 @@ public:
       CrcInfo* c = crc();
       c->_clsfile_size = info._clsfile_size;
       c->_clsfile_crc32 = info._clsfile_crc32;
+      c->_defining_loader_hash = info._defining_loader_hash;
+      c->_initiating_loader_hash = info._initiating_loader_hash;
     }
     _num_verifier_constraints = info.num_verifier_constraints();
     _num_loader_constraints   = info.num_loader_constraints();
@@ -1127,6 +1134,177 @@ InstanceKlass* SystemDictionaryShared::lookup_from_stream(Symbol* class_name,
                                           THREAD);
 }
 
+bool SystemDictionaryShared::check_class_not_found(const Symbol *class_name, int hash_value, TRAPS) {
+  Klass *klass = SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_cds_NotFoundClassSet(), true, CHECK_false);
+
+  JavaValue result(T_BOOLEAN);
+  JavaCallArguments args(2);
+  // arg 1
+  Handle s = java_lang_String::create_from_symbol(const_cast<Symbol*>(class_name), CHECK_false);
+  args.push_oop(s);
+
+  // arg 2
+  args.push_int(hash_value);
+
+  JavaCalls::call_static(&result,
+                         klass,
+                         vmSymbols::isNotFound_name(),
+                         vmSymbols::isNotFound_signature(),
+                         &args,
+                         CHECK_false);
+
+  return result.get_jboolean();
+}
+
+InstanceKlass* SystemDictionaryShared::load_class_from_cds(const Symbol* class_name,
+                                                           Handle class_loader, InstanceKlass* ik, int defining_loader_hash, TRAPS) {
+  JavaValue result(T_OBJECT);
+
+  JavaCallArguments args(4);
+  args.set_receiver(class_loader);
+  // arg 1 className
+  Handle s = java_lang_String::create_from_symbol(const_cast<Symbol*>(class_name), CHECK_NULL);
+  // Translate to external class name format, i.e., convert '/' chars to '.'
+  Handle string = java_lang_String::externalize_classname(s, CHECK_NULL);
+  args.push_oop(string);
+  // arg 2 sourcePath
+  Symbol *path = ik->source_file_path();
+  Handle url = java_lang_String::create_from_symbol(path, CHECK_NULL);
+  args.push_oop(url);
+  // arg 3 ik
+  jlong ik_ptr = (jlong)ik;
+  args.push_long(ik_ptr);
+  // arg 4 definingLoaderHash
+  args.push_int(defining_loader_hash);
+
+  InstanceKlass* spec_klass = vmClasses::ClassLoader_klass();
+
+  JavaCalls::call_virtual(&result,
+                          spec_klass,
+                          vmSymbols::loadClassFromCDS_name(),
+                          vmSymbols::loadClassFromCDS_signature(),
+                          &args,
+                          CHECK_NULL);
+
+  oop klass = (oop)result.get_jobject();
+  if (klass != NULL) {
+    return InstanceKlass::cast(java_lang_Class::as_Klass(klass));
+  }
+  return NULL;
+}
+
+/*
+                                      +-------------------------------------+
+                                      |SystemDictionaryShared::lookup_shared|
+                                      +-------------------------------------+
+                                        Find Entry in SharedDictionary
+       +----------------------------+                |                        +---------------------+
+       |   load_class_from_cds (vm) +----------------+------------------------+  loadClass (Java)   |
+       |                            |     YES                 NO              |                     |
+       +------------+---------------+                                         +---------------------+
+                    |
+       +------------v-------------+
+       |  loadClassFromCDS (Java) |
+       +------------+-------------+
+                    |
+       +------------v-------------+      NO     +-------------------------------------------+
+       |Find defining class loader+-------------+ throw exception (fall back to normal path)|
+       +--------------------------+             +-------------------------------------------+
+                 YES|
+       +------------v------------------------+
+       | definingClassLoader.findClassFromCDS|
+       +-------------------------------------+
+                    |
+       +------------v--------------------------+
+       | definieClassLoader.defineClassFromCDS |
+       +---------------------------------------+
+                    |
+       +------------v----------------+
+       | JVM_DefineClassFromCDS (vm) |
+       +------------+----------------+
+                    |
+       +------------v---------------------+
+       | acquire_class_for_current_thread |
+       +------------+---------------------+
+                    |
+       +------------v-----------+
+       | define_instance_class  |
+       +------------+-----------+
+                    |
+       +------------v--------------------------------+
+       | load successfully, and return InstanceKlass |
+       +---------------------------------------------+
+*/
+InstanceKlass* SystemDictionaryShared::lookup_shared(Symbol* class_name, Handle class_loader,
+                                                     bool& not_found, TRAPS) {
+  assert(EagerAppCDS, "must be EagerAppCDS");
+
+  bool loop = false;
+
+  int loader_hash = java_lang_ClassLoader::signature(class_loader());
+  const RunTimeSharedClassInfo* record = find_record(&_unregistered_dictionary, &_dynamic_unregistered_dictionary, class_name);
+  if (record && record->crc()->_initiating_loader_hash == loader_hash) {
+    InstanceKlass* ik = record->_klass;
+    InstanceKlass *loaded = load_class_from_cds(class_name, class_loader, ik, record->crc()->_defining_loader_hash, THREAD);
+    if (loaded != NULL) {
+      log_trace(class, eagerappcds) ("[CDS load class] Successful loading of class %s with class loader %s (%x)", class_name->as_C_string(),
+                  class_loader()->klass()->name()->as_C_string(), loader_hash);
+      return loaded;
+    }
+  }
+
+  if (NotFoundClassOpt && !loop && check_class_not_found(class_name, loader_hash, THREAD)) {
+      not_found = true;
+      log_trace(class, eagerappcds) ("[CDS load class] Not found class %s with class loader %s (%x)", class_name->as_C_string(),
+                class_loader()->klass()->name()->as_C_string(), loader_hash);
+      return NULL;
+  }
+
+  if (log_is_enabled(Trace, class, eagerappcds)) {
+    ResourceMark rm;
+    log_trace(class, eagerappcds) ("[CDS load class] Failed to load class %s with class loader %s (%x) since %s", class_name->as_C_string(),
+              class_loader()->klass()->name()->as_C_string(), loader_hash,
+              loop ? "failed to load from jsa" : " the class isn't in shared dictionary");
+  }
+  return NULL;
+}
+
+InstanceKlass* SystemDictionaryShared::define_class_from_cds(
+                   InstanceKlass *ik,
+                   Handle class_loader,
+                   Handle protection_domain,
+                   TRAPS) {
+
+  ClassLoaderData* loader_data = register_loader(class_loader);
+  InstanceKlass* k = acquire_class_for_current_thread(ik, class_loader, protection_domain, NULL, THREAD);
+  if (!k) {
+    return NULL;
+  }
+  Symbol* h_name = k->name();
+  // Add class just loaded
+  // If a class loader supports parallel classloading handle parallel define requests
+  // find_or_define_instance_class may return a different InstanceKlass
+  if (is_parallelCapable(class_loader)) {
+    InstanceKlass* defined_k = find_or_define_instance_class(h_name, class_loader, k, THREAD);
+    if (!HAS_PENDING_EXCEPTION && defined_k != k) {
+      // If a parallel capable class loader already defined this class, register 'k' for cleanup.
+      assert(defined_k != NULL, "Should have a klass if there's no exception");
+      loader_data->add_to_deallocate_list(k);
+      k = defined_k;
+    }
+  } else {
+    define_instance_class(k, class_loader, THREAD);
+  }
+
+  // If defining the class throws an exception register 'k' for cleanup.
+  if (HAS_PENDING_EXCEPTION) {
+    assert(k != NULL, "Must have an instance klass here!");
+    loader_data->add_to_deallocate_list(k);
+    return NULL;
+  }
+  return k;
+}
+
 InstanceKlass* SystemDictionaryShared::acquire_class_for_current_thread(
                    InstanceKlass *ik,
                    Handle class_loader,
@@ -1247,14 +1425,43 @@ DumpTimeSharedClassInfo* SystemDictionaryShared::find_or_allocate_info_for_locke
   return _dumptime_table->find_or_allocate_info_for(k, _dump_in_progress);
 }
 
-void SystemDictionaryShared::set_shared_class_misc_info(InstanceKlass* k, ClassFileStream* cfs) {
+void SystemDictionaryShared::set_shared_class_misc_info(InstanceKlass* k, ClassFileStream* cfs, int defining_loader_hash, int initiating_loader_hash) {
   Arguments::assert_is_dumping_archive();
   assert(!is_builtin(k), "must be unregistered class");
   DumpTimeSharedClassInfo* info = find_or_allocate_info_for(k);
   if (info != NULL) {
     info->_clsfile_size  = cfs->length();
     info->_clsfile_crc32 = ClassLoader::crc32(0, (const char*)cfs->buffer(), cfs->length());
+    info->_defining_loader_hash = defining_loader_hash;
+    info->_initiating_loader_hash = initiating_loader_hash;
   }
+}
+
+void SystemDictionaryShared::log_not_found_klass(Symbol* class_name, Handle class_loader, TRAPS) {
+  assert(NotFoundClassOpt, "sanity check");
+  if (DumpLoadedClassList == NULL || !ClassListWriter::is_enabled()) {
+    return;
+  }
+  if (class_loader.is_null()) {
+    return;
+  }
+  int signature = java_lang_ClassLoader::signature(class_loader());
+  if (signature == 0) {
+    return;
+  }
+
+  ResourceMark rm(THREAD);
+  const char *name = class_name->as_C_string();
+  if (invalid_class_name_for_EagerAppCDS(name)) {
+    return;
+  }
+
+  MutexLocker mu(THREAD, DumpLoadedClassList_lock);
+  ClassListWriter w;
+  w.stream()->print("%s source: %s", name, NOT_FOUND_CLASS);
+  w.stream()->print(" initiating_loader_hash: %x", signature);
+  w.stream()->cr();
+  w.stream()->flush();
 }
 
 void SystemDictionaryShared::init_dumptime_info(InstanceKlass* k) {
@@ -1416,6 +1623,11 @@ bool SystemDictionaryShared::check_for_exclusion_impl(InstanceKlass* k) {
       }
     }
   }
+
+  if (DumpSharedSpaces && k->major_version() < 50 /*JAVA_6_VERSION*/ && EagerAppCDSLegacyVerisonSupport) {
+    log_trace(class, eagerappcds)("dump the pre JDK6 class: %s", k->name()->as_C_string());
+  }
+
   if (DynamicDumpSharedSpaces && k->major_version() < 50 /*JAVA_6_VERSION*/) {
     // In order to support old classes during dynamic dump, class rewriting needs to
     // be reverted. This would result in more complex code and testing but not much gain.

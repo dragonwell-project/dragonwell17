@@ -41,6 +41,7 @@ import java.io.ObjectInputStream;
 import java.io.RandomAccessFile;
 import java.security.ProtectionDomain;
 import java.security.Signature;
+import jdk.internal.misc.JavaLangClassLoaderAccess;
 
 /** A repository of "shared secrets", which are a mechanism for
     calling implementation-private methods in another package without
@@ -57,6 +58,7 @@ public class SharedSecrets {
     private static JavaAWTFontAccess javaAWTFontAccess;
     private static JavaBeansAccess javaBeansAccess;
     private static JavaLangAccess javaLangAccess;
+    private static JavaLangClassLoaderAccess javaLangClassLoaderAccess;
     private static JavaLangInvokeAccess javaLangInvokeAccess;
     private static JavaLangModuleAccess javaLangModuleAccess;
     private static JavaLangRefAccess javaLangRefAccess;
@@ -120,6 +122,14 @@ public class SharedSecrets {
 
     public static JavaLangAccess getJavaLangAccess() {
         return javaLangAccess;
+    }
+
+    public static void setJavaLangClassLoaderAccess(JavaLangClassLoaderAccess jlca) {
+        javaLangClassLoaderAccess = jlca;
+    }
+
+    public static JavaLangClassLoaderAccess getJavaLangClassLoaderAccess() {
+        return javaLangClassLoaderAccess;
     }
 
     public static void setJavaLangInvokeAccess(JavaLangInvokeAccess jlia) {

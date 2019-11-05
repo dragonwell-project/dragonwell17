@@ -4362,6 +4362,7 @@ int  java_lang_ClassLoader::_name_offset;
 int  java_lang_ClassLoader::_nameAndId_offset;
 int  java_lang_ClassLoader::_unnamedModule_offset;
 int  java_lang_ClassLoader::_parent_offset;
+int  java_lang_ClassLoader::_signature_offset = -1;
 
 ClassLoaderData* java_lang_ClassLoader::loader_data_acquire(oop loader) {
   assert(loader != NULL, "loader must not be NULL");
@@ -4386,7 +4387,8 @@ void java_lang_ClassLoader::release_set_loader_data(oop loader, ClassLoaderData*
   macro(_name_offset,            k1, vmSymbols::name_name(), string_signature, false); \
   macro(_nameAndId_offset,       k1, "nameAndId",            string_signature, false); \
   macro(_unnamedModule_offset,   k1, "unnamedModule",        module_signature, false); \
-  macro(_parent_offset,          k1, "parent",               classloader_signature, false)
+  macro(_parent_offset,          k1, "parent",               classloader_signature, false); \
+  macro(_signature_offset,       k1, "signature",            int_signature, false)
 
 void java_lang_ClassLoader::compute_offsets() {
   InstanceKlass* k1 = vmClasses::ClassLoader_klass();
@@ -4491,6 +4493,11 @@ oop java_lang_ClassLoader::non_reflection_class_loader(oop loader) {
 oop java_lang_ClassLoader::unnamedModule(oop loader) {
   assert(is_instance(loader), "loader must be oop");
   return loader->obj_field(_unnamedModule_offset);
+}
+
+int java_lang_ClassLoader::signature(oop loader) {
+  assert(is_instance(loader), "loader must be oop");
+  return loader->int_field(_signature_offset);
 }
 
 // Support for java_lang_System

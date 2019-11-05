@@ -253,7 +253,8 @@ void ClassLoaderExt::record_result(const s2 classpath_index, InstanceKlass* resu
 // Load the class of the given name from the location given by path. The path is specified by
 // the "source:" in the class list file (see classListParser.cpp), and can be a directory or
 // a JAR file.
-InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS) {
+InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, int defining_loader_hash,
+                                          int initiating_loader_hash, uint64_t fingerprint, TRAPS) {
   assert(name != NULL, "invariant");
   assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
   ResourceMark rm(THREAD);
@@ -281,6 +282,16 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
     THROW_NULL(vmSymbols::java_lang_ClassNotFoundException());
     return NULL;
   }
+
+  // here the class is loaded by ClassLoaderData::the_null_class_loader_data(), the stream shouldn't be changed.
+  // if the fingerprint isn't equal, it means that the original class loader changes the stream when calling
+  // defineClass. we ignore the class in EagerAppCDS flow.
+  if (EagerAppCDS && fingerprint != 0 && fingerprint != stream->compute_fingerprint()) {
+    tty->print_cr("Preload Warning: class %s with different fingerprint " PTR64_FORMAT " and " PTR64_FORMAT,
+                   class_name, fingerprint, stream->compute_fingerprint());
+    return NULL;
+  }
+
   stream->set_verify(true);
 
   ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
@@ -291,6 +302,7 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
                                                       loader_data,
                                                       cl_info,
                                                       CHECK_NULL);
+  SystemDictionaryShared::set_shared_class_misc_info(k, stream, defining_loader_hash, initiating_loader_hash);
   return k;
 }
 
