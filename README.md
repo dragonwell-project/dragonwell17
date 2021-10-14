@@ -10,6 +10,14 @@ Alibaba Dragonwell is clearly a "friendly fork" under the same licensing terms a
 
 # Using Alibaba Dragonwell
 
+## Release
+Alibaba Dragonwell 17 Release follows this specification:
+dragonwell-17.[Upstream Merge BuildNumber].[Internal Release BuildNumber]+[Upstream GA BuildNumber]
+
+- Upstream Merge BuildNumber is updated when we merge the upsteam GA version
+- Internal Release BuildNumber is updated when dragonwell17 releases a GA version
+- Upstream GA BuildNumber is the same build number inherited from upstream
+
 
 # Acknowledgement
 
