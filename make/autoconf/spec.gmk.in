@@ -639,11 +639,11 @@ JLINK_CMD := @JLINK@
 JMOD_CMD := @JMOD@
 # These variables are meant to be used. They are defined with = instead of := to make
 # it possible to override only the *_CMD variables.
-JAVA =@FIXPATH@ $(JAVA_CMD) $(JAVA_FLAGS_BIG) $(JAVA_FLAGS)
-JAVA_SMALL =@FIXPATH@ $(JAVA_CMD) $(JAVA_FLAGS_SMALL) $(JAVA_FLAGS)
-JAVAC =@FIXPATH@ $(JAVAC_CMD)
-JAVADOC =@FIXPATH@ $(JAVADOC_CMD)
-JAR =@FIXPATH@ $(JAR_CMD)
+JAVA = $(JAVA_CMD) $(JAVA_FLAGS_BIG) $(JAVA_FLAGS)
+JAVA_SMALL = $(JAVA_CMD) $(JAVA_FLAGS_SMALL) $(JAVA_FLAGS)
+JAVAC = $(JAVAC_CMD)
+JAVADOC = $(JAVADOC_CMD)
+JAR = $(JAR_CMD)
 JLINK = $(JLINK_CMD)
 JMOD = $(JMOD_CMD) $(JAVA_TOOL_FLAGS_SMALL)
 
