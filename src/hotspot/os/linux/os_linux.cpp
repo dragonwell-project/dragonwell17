@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -863,16 +864,21 @@ bool os::create_thread(Thread* thread, ThreadType thr_type,
   ThreadState state;
 
   {
+    ResourceMark rm;
     pthread_t tid;
-    int ret = pthread_create(&tid, &attr, (void* (*)(void*)) thread_native_entry, thread);
+    int ret = 0;
+    int limit = 3;
+    do {
+      ret = pthread_create(&tid, &attr, (void* (*)(void*)) thread_native_entry, thread);
+    } while (ret == EAGAIN && limit-- > 0);
 
     char buf[64];
     if (ret == 0) {
-      log_info(os, thread)("Thread started (pthread id: " UINTX_FORMAT ", attributes: %s). ",
-        (uintx) tid, os::Posix::describe_pthread_attr(buf, sizeof(buf), &attr));
+      log_info(os, thread)("Thread \"%s\" started (pthread id: " UINTX_FORMAT ", attributes: %s). ",
+                           thread->name(), (uintx) tid, os::Posix::describe_pthread_attr(buf, sizeof(buf), &attr));
     } else {
-      log_warning(os, thread)("Failed to start thread - pthread_create failed (%s) for attributes: %s.",
-        os::errno_name(ret), os::Posix::describe_pthread_attr(buf, sizeof(buf), &attr));
+      log_warning(os, thread)("Failed to start thread \"%s\" - pthread_create failed (%s) for attributes: %s.",
+                              thread->name(), os::errno_name(ret), os::Posix::describe_pthread_attr(buf, sizeof(buf), &attr));
       // Log some OS information which might explain why creating the thread failed.
       log_info(os, thread)("Number of threads approx. running in the VM: %d", Threads::number_of_threads());
       LogStream st(Log(os, thread)::info());
@@ -2171,6 +2177,34 @@ bool os::Linux::query_process_memory_info(os::Linux::meminfo_t* info) {
   return false;
 }
 
+#ifdef __GLIBC__
+// For Glibc, print a one-liner with the malloc tunables.
+// Most important and popular is MALLOC_ARENA_MAX, but we are
+// thorough and print them all.
+static void print_glibc_malloc_tunables(outputStream* st) {
+  static const char* var[] = {
+      // the new variant
+      "GLIBC_TUNABLES",
+      // legacy variants
+      "MALLOC_CHECK_", "MALLOC_TOP_PAD_", "MALLOC_PERTURB_",
+      "MALLOC_MMAP_THRESHOLD_", "MALLOC_TRIM_THRESHOLD_",
+      "MALLOC_MMAP_MAX_", "MALLOC_ARENA_TEST", "MALLOC_ARENA_MAX",
+      NULL};
+  st->print("glibc malloc tunables: ");
+  bool printed = false;
+  for (int i = 0; var[i] != NULL; i ++) {
+    const char* const val = ::getenv(var[i]);
+    if (val != NULL) {
+      st->print("%s%s=%s", (printed ? ", " : ""), var[i], val);
+      printed = true;
+    }
+  }
+  if (!printed) {
+    st->print("(default)");
+  }
+}
+#endif // __GLIBC__
+
 void os::Linux::print_process_memory_info(outputStream* st) {
 
   st->print_cr("Process Memory:");
@@ -2193,30 +2227,37 @@ void os::Linux::print_process_memory_info(outputStream* st) {
     st->print_cr("Could not open /proc/self/status to get process memory related information");
   }
 
-  // Print glibc outstanding allocations.
-  // (note: there is no implementation of mallinfo for muslc)
+  // glibc only:
+  // - Print outstanding allocations using mallinfo
+  // - Print glibc tunables
 #ifdef __GLIBC__
   size_t total_allocated = 0;
+  size_t free_retained = 0;
   bool might_have_wrapped = false;
   if (_mallinfo2 != NULL) {
     struct glibc_mallinfo2 mi = _mallinfo2();
-    total_allocated = mi.uordblks;
+    total_allocated = mi.uordblks + mi.hblkhd;
+    free_retained = mi.fordblks;
   } else if (_mallinfo != NULL) {
-    // mallinfo is an old API. Member names mean next to nothing and, beyond that, are int.
-    // So values may have wrapped around. Still useful enough to see how much glibc thinks
-    // we allocated.
+    // mallinfo is an old API. Member names mean next to nothing and, beyond that, are 32-bit signed.
+    // So for larger footprints the values may have wrapped around. We try to detect this here: if the
+    // process whole resident set size is smaller than 4G, malloc footprint has to be less than that
+    // and the numbers are reliable.
     struct glibc_mallinfo mi = _mallinfo();
-    total_allocated = (size_t)(unsigned)mi.uordblks;
+    total_allocated = (size_t)(unsigned)mi.uordblks + (size_t)(unsigned)mi.hblkhd;
+    free_retained = (size_t)(unsigned)mi.fordblks;
     // Since mallinfo members are int, glibc values may have wrapped. Warn about this.
     might_have_wrapped = (info.vmrss * K) > UINT_MAX && (info.vmrss * K) > (total_allocated + UINT_MAX);
   }
   if (_mallinfo2 != NULL || _mallinfo != NULL) {
-    st->print_cr("C-Heap outstanding allocations: " SIZE_FORMAT "K%s",
-                 total_allocated / K,
+    st->print_cr("C-Heap outstanding allocations: " SIZE_FORMAT "K, retained: " SIZE_FORMAT "K%s",
+                 total_allocated / K, free_retained / K,
                  might_have_wrapped ? " (may have wrapped)" : "");
   }
-#endif // __GLIBC__
-
+  // Tunables
+  print_glibc_malloc_tunables(st);
+  st->cr();
+#endif
 }
 
 bool os::Linux::print_ld_preload_file(outputStream* st) {
@@ -2228,6 +2269,19 @@ void os::Linux::print_uptime_info(outputStream* st) {
   int ret = sysinfo(&sinfo);
   if (ret == 0) {
     os::print_dhm(st, "OS uptime:", (long) sinfo.uptime);
+  }
+}
+
+static void print_container_helper(outputStream* st, jlong j, const char* metrics) {
+  st->print("%s: ", metrics);
+  if (j > 0) {
+    if (j >= 1024) {
+      st->print_cr(UINT64_FORMAT " k", uint64_t(j) / 1024);
+    } else {
+      st->print_cr(UINT64_FORMAT, uint64_t(j));
+    }
+  } else {
+    st->print_cr("%s", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
   }
 }
 
@@ -2253,7 +2307,11 @@ bool os::Linux::print_container_info(outputStream* st) {
   int i = OSContainer::active_processor_count();
   st->print("active_processor_count: ");
   if (i > 0) {
-    st->print_cr("%d", i);
+    if (ActiveProcessorCount > 0) {
+      st->print_cr("%d, but overridden by -XX:ActiveProcessorCount %d", i, ActiveProcessorCount);
+    } else {
+      st->print_cr("%d", i);
+    }
   } else {
     st->print_cr("not supported");
   }
@@ -2282,47 +2340,13 @@ bool os::Linux::print_container_info(outputStream* st) {
     st->print_cr("%s", i == OSCONTAINER_ERROR ? "not supported" : "no shares");
   }
 
-  jlong j = OSContainer::memory_limit_in_bytes();
-  st->print("memory_limit_in_bytes: ");
-  if (j > 0) {
-    st->print_cr(JLONG_FORMAT, j);
-  } else {
-    st->print_cr("%s", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
-  }
+  print_container_helper(st, OSContainer::memory_limit_in_bytes(), "memory_limit_in_bytes");
+  print_container_helper(st, OSContainer::memory_and_swap_limit_in_bytes(), "memory_and_swap_limit_in_bytes");
+  print_container_helper(st, OSContainer::memory_soft_limit_in_bytes(), "memory_soft_limit_in_bytes");
+  print_container_helper(st, OSContainer::memory_usage_in_bytes(), "memory_usage_in_bytes");
+  print_container_helper(st, OSContainer::memory_max_usage_in_bytes(), "memory_max_usage_in_bytes");
 
-  j = OSContainer::memory_and_swap_limit_in_bytes();
-  st->print("memory_and_swap_limit_in_bytes: ");
-  if (j > 0) {
-    st->print_cr(JLONG_FORMAT, j);
-  } else {
-    st->print_cr("%s", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
-  }
-
-  j = OSContainer::memory_soft_limit_in_bytes();
-  st->print("memory_soft_limit_in_bytes: ");
-  if (j > 0) {
-    st->print_cr(JLONG_FORMAT, j);
-  } else {
-    st->print_cr("%s", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
-  }
-
-  j = OSContainer::OSContainer::memory_usage_in_bytes();
-  st->print("memory_usage_in_bytes: ");
-  if (j > 0) {
-    st->print_cr(JLONG_FORMAT, j);
-  } else {
-    st->print_cr("%s", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
-  }
-
-  j = OSContainer::OSContainer::memory_max_usage_in_bytes();
-  st->print("memory_max_usage_in_bytes: ");
-  if (j > 0) {
-    st->print_cr(JLONG_FORMAT, j);
-  } else {
-    st->print_cr("%s", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
-  }
-
-  j = OSContainer::OSContainer::pids_max();
+  jlong j = OSContainer::pids_max();
   st->print("maximum number of tasks: ");
   if (j > 0) {
     st->print_cr(JLONG_FORMAT, j);
@@ -2330,7 +2354,7 @@ bool os::Linux::print_container_info(outputStream* st) {
     st->print_cr("%s", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
   }
 
-  j = OSContainer::OSContainer::pids_current();
+  j = OSContainer::pids_current();
   st->print("current number of tasks: ");
   if (j > 0) {
     st->print_cr(JLONG_FORMAT, j);
@@ -5466,21 +5490,20 @@ bool os::supports_map_sync() {
 }
 
 void os::print_memory_mappings(char* addr, size_t bytes, outputStream* st) {
+  // Note: all ranges are "[..)"
   unsigned long long start = (unsigned long long)addr;
   unsigned long long end = start + bytes;
   FILE* f = ::fopen("/proc/self/maps", "r");
   int num_found = 0;
   if (f != NULL) {
-    st->print("Range [%llx-%llx) contains: ", start, end);
+    st->print_cr("Range [%llx-%llx) contains: ", start, end);
     char line[512];
     while(fgets(line, sizeof(line), f) == line) {
-      unsigned long long a1 = 0;
-      unsigned long long a2 = 0;
-      if (::sscanf(line, "%llx-%llx", &a1, &a2) == 2) {
+      unsigned long long segment_start = 0;
+      unsigned long long segment_end = 0;
+      if (::sscanf(line, "%llx-%llx", &segment_start, &segment_end) == 2) {
         // Lets print out every range which touches ours.
-        if ((a1 >= start && a1 < end) || // left leg in
-            (a2 >= start && a2 < end) || // right leg in
-            (a1 < start && a2 >= end)) { // superimposition
+        if (segment_start < end && segment_end > start) {
           num_found ++;
           st->print("%s", line); // line includes \n
         }
@@ -5488,7 +5511,7 @@ void os::print_memory_mappings(char* addr, size_t bytes, outputStream* st) {
     }
     ::fclose(f);
     if (num_found == 0) {
-      st->print("nothing.");
+      st->print_cr("nothing.");
     }
     st->cr();
   }
