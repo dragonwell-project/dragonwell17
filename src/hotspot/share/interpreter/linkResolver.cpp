@@ -94,11 +94,6 @@ void CallInfo::set_virtual(Klass* resolved_klass,
   assert(!resolved_method->is_compiled_lambda_form(), "these must be handled via an invokehandle call");
 }
 
-void CallInfo::set_handle(const methodHandle& resolved_method,
-                          Handle resolved_appendix, TRAPS) {
-  set_handle(vmClasses::MethodHandle_klass(), resolved_method, resolved_appendix, CHECK);
-}
-
 void CallInfo::set_handle(Klass* resolved_klass,
                           const methodHandle& resolved_method,
                           Handle resolved_appendix, TRAPS) {
@@ -476,14 +471,12 @@ Method* LinkResolver::lookup_polymorphic_method(const LinkInfo& link_info,
       }
 
       Handle appendix;
-      Handle method_type;
-      Method* result = SystemDictionary::find_method_handle_invoker(
-                                                            klass,
-                                                            name,
-                                                            full_signature,
-                                                            link_info.current_klass(),
-                                                            &appendix,
-                                                            CHECK_NULL);
+      Method* result = SystemDictionary::find_method_handle_invoker(klass,
+                                                                    name,
+                                                                    full_signature,
+                                                                    link_info.current_klass(),
+                                                                    &appendix,
+                                                                    CHECK_NULL);
       if (lt_mh.is_enabled()) {
         LogStream ls(lt_mh);
         ls.print("lookup_polymorphic_method => (via Java) ");
@@ -621,7 +614,7 @@ Method* LinkResolver::resolve_method_statically(Bytecodes::Code code,
   Klass* resolved_klass = link_info.resolved_klass();
 
   if (pool->has_preresolution()
-      || (resolved_klass == vmClasses::MethodHandle_klass() &&
+      || ((resolved_klass == vmClasses::MethodHandle_klass() || resolved_klass == vmClasses::VarHandle_klass()) &&
           MethodHandles::is_signature_polymorphic_name(resolved_klass, link_info.name()))) {
     Method* result = ConstantPool::method_at_if_loaded(pool, index);
     if (result != NULL) {
@@ -1679,14 +1672,30 @@ void LinkResolver::resolve_invokeinterface(CallInfo& result, Handle recv, const 
   resolve_interface_call(result, recv, recvrKlass, link_info, true, CHECK);
 }
 
+bool LinkResolver::resolve_previously_linked_invokehandle(CallInfo& result, const LinkInfo& link_info, const constantPoolHandle& pool, int index, TRAPS) {
+  int cache_index = ConstantPool::decode_cpcache_index(index, true);
+  ConstantPoolCacheEntry* cpce = pool->cache()->entry_at(cache_index);
+  if (!cpce->is_f1_null()) {
+    Klass* resolved_klass = link_info.resolved_klass();
+    methodHandle method(THREAD, cpce->f1_as_method());
+    Handle     appendix(THREAD, cpce->appendix_if_resolved(pool));
+    result.set_handle(resolved_klass, method, appendix, CHECK_false);
+    return true;
+  } else {
+    return false;
+  }
+}
 
 void LinkResolver::resolve_invokehandle(CallInfo& result, const constantPoolHandle& pool, int index, TRAPS) {
-  // This guy is reached from InterpreterRuntime::resolve_invokehandle.
   LinkInfo link_info(pool, index, CHECK);
   if (log_is_enabled(Info, methodhandles)) {
     ResourceMark rm(THREAD);
     log_info(methodhandles)("resolve_invokehandle %s %s", link_info.name()->as_C_string(),
                             link_info.signature()->as_C_string());
+  }
+  { // Check if the call site has been bound already, and short circuit:
+    bool is_done = resolve_previously_linked_invokehandle(result, link_info, pool, index, CHECK);
+    if (is_done) return;
   }
   resolve_handle_call(result, link_info, CHECK);
 }
@@ -1699,9 +1708,32 @@ void LinkResolver::resolve_handle_call(CallInfo& result,
   assert(resolved_klass == vmClasses::MethodHandle_klass() ||
          resolved_klass == vmClasses::VarHandle_klass(), "");
   assert(MethodHandles::is_signature_polymorphic_name(link_info.name()), "");
-  Handle       resolved_appendix;
-  Method* resolved_method = lookup_polymorphic_method(link_info, &resolved_appendix, CHECK);
-  result.set_handle(resolved_klass, methodHandle(THREAD, resolved_method), resolved_appendix, CHECK);
+  Handle resolved_appendix;
+  Method* m = lookup_polymorphic_method(link_info, &resolved_appendix, CHECK);
+  methodHandle resolved_method(THREAD, m);
+
+  if (link_info.check_access()) {
+    Symbol* name = link_info.name();
+    vmIntrinsics::ID iid = MethodHandles::signature_polymorphic_name_id(name);
+    if (MethodHandles::is_signature_polymorphic_intrinsic(iid)) {
+      // Check if method can be accessed by the referring class.
+      // MH.linkTo* invocations are not rewritten to invokehandle.
+      assert(iid == vmIntrinsicID::_invokeBasic, "%s", vmIntrinsics::name_at(iid));
+
+      Klass* current_klass = link_info.current_klass();
+      assert(current_klass != NULL , "current_klass should not be null");
+      check_method_accessability(current_klass,
+                                 resolved_klass,
+                                 resolved_method->method_holder(),
+                                 resolved_method,
+                                 CHECK);
+    } else {
+      // Java code is free to arbitrarily link signature-polymorphic invokers.
+      assert(iid == vmIntrinsics::_invokeGeneric, "not an invoker: %s", vmIntrinsics::name_at(iid));
+      assert(MethodHandles::is_signature_polymorphic_public_name(resolved_klass, name), "not public");
+    }
+  }
+  result.set_handle(resolved_klass, resolved_method, resolved_appendix, CHECK);
 }
 
 void LinkResolver::resolve_invokedynamic(CallInfo& result, const constantPoolHandle& pool, int indy_index, TRAPS) {
