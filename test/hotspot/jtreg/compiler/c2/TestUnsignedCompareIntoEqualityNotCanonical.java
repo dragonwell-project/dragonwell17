@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,26 +21,26 @@
  * questions.
  */
 
-package gc.g1;
-
-/**
- * @test TestShrinkAuxiliaryData30
- * @key randomness
- * @bug 8038423 8061715 8078405
- * @summary Checks that decommitment occurs for JVM with different
- * G1ConcRSLogCacheSize and ObjectAlignmentInBytes options values
- * @requires vm.gc.G1
- * @library /test/lib
- * @library /
- * @modules java.base/jdk.internal.misc
- *          java.management
- * @build sun.hotspot.WhiteBox
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/timeout=720 gc.g1.TestShrinkAuxiliaryData30
+/*
+ * @test
+ * @bug 8290529
+ * @summary C2: assert(BoolTest(btest).is_canonical()) failure
+ * @run main/othervm -XX:-BackgroundCompilation -XX:-UseOnStackReplacement -XX:-TieredCompilation TestUnsignedCompareIntoEqualityNotCanonical
  */
-public class TestShrinkAuxiliaryData30 {
 
-    public static void main(String[] args) throws Exception {
-        new TestShrinkAuxiliaryData(30).test();
+
+public class TestUnsignedCompareIntoEqualityNotCanonical {
+    public static void main(String[] args) {
+        for (int i = 0; i < 20_000; i++) {
+            test(0);
+            test(1);
+        }
+    }
+
+    private static int test(int x) {
+        if (Integer.compareUnsigned(0, x) >= 0) {
+            return 42;
+        }
+        return -42;
     }
 }

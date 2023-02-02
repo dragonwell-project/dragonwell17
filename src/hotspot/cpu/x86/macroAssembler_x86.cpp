@@ -1171,7 +1171,20 @@ void MacroAssembler::addpd(XMMRegister dst, AddressLiteral src) {
   }
 }
 
+// See 8273459.  Function for ensuring 64-byte alignment, intended for stubs only.
+// Stub code is generated once and never copied.
+// NMethods can't use this because they get copied and we can't force alignment > 32 bytes.
+void MacroAssembler::align64() {
+  align(64, (unsigned long long) pc());
+}
+
+void MacroAssembler::align32() {
+  align(32, (unsigned long long) pc());
+}
+
 void MacroAssembler::align(int modulus) {
+  // 8273459: Ensure alignment is possible with current segment alignment
+  assert(modulus <= CodeEntryAlignment, "Alignment must be <= CodeEntryAlignment");
   align(modulus, offset());
 }
 
@@ -4051,7 +4064,7 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
 
   // Get super_klass value into rax (even if it was in rdi or rcx).
   bool pushed_rax = false, pushed_rcx = false, pushed_rdi = false;
-  if (super_klass != rax || UseCompressedOops) {
+  if (super_klass != rax) {
     if (!IS_A_TEMP(rax)) { push(rax); pushed_rax = true; }
     mov(rax, super_klass);
   }
@@ -7114,7 +7127,7 @@ void MacroAssembler::kernel_crc32(Register crc, Register buf, Register len, Regi
   // 128 bits per each of 4 parallel streams.
   movdqu(xmm0, ExternalAddress(StubRoutines::x86::crc_by128_masks_addr() + 32));
 
-  align(32);
+  align32();
   BIND(L_fold_512b_loop);
   fold_128bit_crc32(xmm1, xmm0, xmm5, buf,  0);
   fold_128bit_crc32(xmm2, xmm0, xmm5, buf, 16);
@@ -7204,7 +7217,7 @@ void MacroAssembler::fold512bit_crc32_avx512(XMMRegister xcrc, XMMRegister xK, X
 
 // Helper function for AVX 512 CRC32
 // Compute CRC32 for < 256B buffers
-void MacroAssembler::kernel_crc32_avx512_256B(Register crc, Register buf, Register len, Register key, Register pos,
+void MacroAssembler::kernel_crc32_avx512_256B(Register crc, Register buf, Register len, Register table, Register pos,
                                               Register tmp1, Register tmp2, Label& L_barrett, Label& L_16B_reduction_loop,
                                               Label& L_get_last_two_xmms, Label& L_128_done, Label& L_cleanup) {
 
@@ -7217,7 +7230,7 @@ void MacroAssembler::kernel_crc32_avx512_256B(Register crc, Register buf, Regist
   jcc(Assembler::less, L_less_than_32);
 
   // if there is, load the constants
-  movdqu(xmm10, Address(key, 1 * 16));    //rk1 and rk2 in xmm10
+  movdqu(xmm10, Address(table, 1 * 16));    //rk1 and rk2 in xmm10
   movdl(xmm0, crc);                        // get the initial crc value
   movdqu(xmm7, Address(buf, pos, Address::times_1, 0 * 16)); //load the plaintext
   pxor(xmm7, xmm0);
@@ -7244,7 +7257,7 @@ void MacroAssembler::kernel_crc32_avx512_256B(Register crc, Register buf, Regist
   pxor(xmm7, xmm0);                       //xor the initial crc value
   addl(pos, 16);
   subl(len, 16);
-  movdqu(xmm10, Address(key, 1 * 16));    // rk1 and rk2 in xmm10
+  movdqu(xmm10, Address(table, 1 * 16));    // rk1 and rk2 in xmm10
   jmp(L_get_last_two_xmms);
 
   bind(L_less_than_16_left);
@@ -7364,12 +7377,17 @@ void MacroAssembler::kernel_crc32_avx512_256B(Register crc, Register buf, Regist
 * param crc   register containing existing CRC (32-bit)
 * param buf   register pointing to input byte buffer (byte*)
 * param len   register containing number of bytes
+* param table address of crc or crc32c table
 * param tmp1  scratch register
 * param tmp2  scratch register
 * return rax  result register
+*
+* This routine is identical for crc32c with the exception of the precomputed constant
+* table which will be passed as the table argument.  The calculation steps are
+* the same for both variants.
 */
-void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register len, Register key, Register tmp1, Register tmp2) {
-  assert_different_registers(crc, buf, len, key, tmp1, tmp2, rax);
+void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register len, Register table, Register tmp1, Register tmp2) {
+  assert_different_registers(crc, buf, len, table, tmp1, tmp2, rax, r12);
 
   Label L_tail, L_tail_restore, L_tail_loop, L_exit, L_align_loop, L_aligned;
   Label L_fold_tail, L_fold_128b, L_fold_512b, L_fold_512b_loop, L_fold_tail_loop;
@@ -7384,8 +7402,6 @@ void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register le
   // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
   // context for the registers used, where all instructions below are using 128-bit mode
   // On EVEX without VL and BW, these instructions will all be AVX.
-  lea(key, ExternalAddress(StubRoutines::x86::crc_table_avx512_addr()));
-  notl(crc);
   movl(pos, 0);
 
   // check if smaller than 256B
@@ -7399,7 +7415,7 @@ void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register le
   evmovdquq(xmm0, Address(buf, pos, Address::times_1, 0 * 64), Assembler::AVX_512bit);
   evmovdquq(xmm4, Address(buf, pos, Address::times_1, 1 * 64), Assembler::AVX_512bit);
   evpxorq(xmm0, xmm0, xmm10, Assembler::AVX_512bit);
-  evbroadcasti32x4(xmm10, Address(key, 2 * 16), Assembler::AVX_512bit); //zmm10 has rk3 and rk4
+  evbroadcasti32x4(xmm10, Address(table, 2 * 16), Assembler::AVX_512bit); //zmm10 has rk3 and rk4
 
   subl(len, 256);
   cmpl(len, 256);
@@ -7407,7 +7423,7 @@ void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register le
 
   evmovdquq(xmm7, Address(buf, pos, Address::times_1, 2 * 64), Assembler::AVX_512bit);
   evmovdquq(xmm8, Address(buf, pos, Address::times_1, 3 * 64), Assembler::AVX_512bit);
-  evbroadcasti32x4(xmm16, Address(key, 0 * 16), Assembler::AVX_512bit); //zmm16 has rk-1 and rk-2
+  evbroadcasti32x4(xmm16, Address(table, 0 * 16), Assembler::AVX_512bit); //zmm16 has rk-1 and rk-2
   subl(len, 256);
 
   bind(L_fold_256_B_loop);
@@ -7453,8 +7469,8 @@ void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register le
   // at this point, the buffer pointer is pointing at the last y Bytes of the buffer, where 0 <= y < 128
   // the 128B of folded data is in 8 of the xmm registers : xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
   bind(L_fold_128_B_register);
-  evmovdquq(xmm16, Address(key, 5 * 16), Assembler::AVX_512bit); // multiply by rk9-rk16
-  evmovdquq(xmm11, Address(key, 9 * 16), Assembler::AVX_512bit); // multiply by rk17-rk20, rk1,rk2, 0,0
+  evmovdquq(xmm16, Address(table, 5 * 16), Assembler::AVX_512bit); // multiply by rk9-rk16
+  evmovdquq(xmm11, Address(table, 9 * 16), Assembler::AVX_512bit); // multiply by rk17-rk20, rk1,rk2, 0,0
   evpclmulqdq(xmm1, xmm0, xmm16, 0x01, Assembler::AVX_512bit);
   evpclmulqdq(xmm2, xmm0, xmm16, 0x10, Assembler::AVX_512bit);
   // save last that has no multiplicand
@@ -7463,7 +7479,7 @@ void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register le
   evpclmulqdq(xmm5, xmm4, xmm11, 0x01, Assembler::AVX_512bit);
   evpclmulqdq(xmm6, xmm4, xmm11, 0x10, Assembler::AVX_512bit);
   // Needed later in reduction loop
-  movdqu(xmm10, Address(key, 1 * 16));
+  movdqu(xmm10, Address(table, 1 * 16));
   vpternlogq(xmm1, 0x96, xmm2, xmm5, Assembler::AVX_512bit); // xor ABC
   vpternlogq(xmm1, 0x96, xmm6, xmm7, Assembler::AVX_512bit); // xor ABC
 
@@ -7479,7 +7495,7 @@ void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register le
   jcc(Assembler::less, L_final_reduction_for_128);
 
   bind(L_16B_reduction_loop);
-  vpclmulqdq(xmm8, xmm7, xmm10, 0x1);
+  vpclmulqdq(xmm8, xmm7, xmm10, 0x01);
   vpclmulqdq(xmm7, xmm7, xmm10, 0x10);
   vpxor(xmm7, xmm7, xmm8, Assembler::AVX_128bit);
   movdqu(xmm0, Address(buf, pos, Address::times_1, 0 * 16));
@@ -7510,14 +7526,14 @@ void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register le
   vpshufb(xmm2, xmm2, xmm0, Assembler::AVX_128bit);
 
   blendvpb(xmm2, xmm2, xmm1, xmm0, Assembler::AVX_128bit);
-  vpclmulqdq(xmm8, xmm7, xmm10, 0x1);
+  vpclmulqdq(xmm8, xmm7, xmm10, 0x01);
   vpclmulqdq(xmm7, xmm7, xmm10, 0x10);
   vpxor(xmm7, xmm7, xmm8, Assembler::AVX_128bit);
   vpxor(xmm7, xmm7, xmm2, Assembler::AVX_128bit);
 
   bind(L_128_done);
   // compute crc of a 128-bit value
-  movdqu(xmm10, Address(key, 3 * 16));
+  movdqu(xmm10, Address(table, 3 * 16));
   movdqu(xmm0, xmm7);
 
   // 64b fold
@@ -7533,14 +7549,14 @@ void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register le
   jmp(L_barrett);
 
   bind(L_less_than_256);
-  kernel_crc32_avx512_256B(crc, buf, len, key, pos, tmp1, tmp2, L_barrett, L_16B_reduction_loop, L_get_last_two_xmms, L_128_done, L_cleanup);
+  kernel_crc32_avx512_256B(crc, buf, len, table, pos, tmp1, tmp2, L_barrett, L_16B_reduction_loop, L_get_last_two_xmms, L_128_done, L_cleanup);
 
   //barrett reduction
   bind(L_barrett);
   vpand(xmm7, xmm7, ExternalAddress(StubRoutines::x86::crc_by128_masks_avx512_addr() + 1 * 16), Assembler::AVX_128bit, tmp2);
   movdqu(xmm1, xmm7);
   movdqu(xmm2, xmm7);
-  movdqu(xmm10, Address(key, 4 * 16));
+  movdqu(xmm10, Address(table, 4 * 16));
 
   pclmulqdq(xmm7, xmm10, 0x0);
   pxor(xmm7, xmm2);
@@ -7552,7 +7568,6 @@ void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register le
   pextrd(crc, xmm7, 2);
 
   bind(L_cleanup);
-  notl(crc); // ~c
   addptr(rsp, 16 * 2 + 8);
   pop(r12);
 }

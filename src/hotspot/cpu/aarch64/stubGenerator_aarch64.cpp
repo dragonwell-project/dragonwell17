@@ -4752,7 +4752,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ enter();
 
-  Label RET_TRUE, RET_TRUE_NO_POP, RET_FALSE, ALIGNED, LOOP16, CHECK_16, DONE,
+  Label RET_TRUE, RET_TRUE_NO_POP, RET_FALSE, ALIGNED, LOOP16, CHECK_16,
         LARGE_LOOP, POST_LOOP16, LEN_OVER_15, LEN_OVER_8, POST_LOOP16_LOAD_TAIL;
 
   __ cmp(len, (u1)15);
@@ -4894,10 +4894,6 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(result, 1);
     __ ret(lr);
 
-  __ bind(DONE);
-    __ pop(spilled_regs, sp);
-    __ leave();
-    __ ret(lr);
     return entry;
   }
 
@@ -6129,6 +6125,7 @@ class StubGenerator: public StubCodeGenerator {
    *  c_rarg3   - dest_start
    *  c_rarg4   - dest_offset
    *  c_rarg5   - isURL
+   *  c_rarg6   - isMIME
    *
    */
   address generate_base64_decodeBlock() {
@@ -6211,12 +6208,13 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", "decodeBlock");
     address start = __ pc();
 
-    Register src   = c_rarg0;  // source array
-    Register soff  = c_rarg1;  // source start offset
-    Register send  = c_rarg2;  // source end offset
-    Register dst   = c_rarg3;  // dest array
-    Register doff  = c_rarg4;  // position for writing to dest array
-    Register isURL = c_rarg5;  // Base64 or URL character set
+    Register src    = c_rarg0;  // source array
+    Register soff   = c_rarg1;  // source start offset
+    Register send   = c_rarg2;  // source end offset
+    Register dst    = c_rarg3;  // dest array
+    Register doff   = c_rarg4;  // position for writing to dest array
+    Register isURL  = c_rarg5;  // Base64 or URL character set
+    Register isMIME = c_rarg6;  // Decoding MIME block - unused in this implementation
 
     Register length = send;    // reuse send as length of source data to process
 
