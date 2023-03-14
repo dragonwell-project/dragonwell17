@@ -1,4 +1,4 @@
-![Dragonwell Logo](https://raw.githubusercontent.com/wiki/alibaba/dragonwell8/images/dragonwell_std_txt_horiz.png)
+![Dragonwell Logo](https://raw.githubusercontent.com/wiki/dragonwell-project/dragonwell8/images/dragonwell_std_txt_horiz.png)
 
 # Introduction
 
