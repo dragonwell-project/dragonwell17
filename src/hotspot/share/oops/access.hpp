@@ -57,7 +57,6 @@
 // * atomic_xchg_at: Atomically swap a new value at an internal pointer address if previous value matched the compared value.
 // * arraycopy: Copy data from one heap array to another heap array. The ArrayAccess class has convenience functions for this.
 // * clone: Clone the contents of an object to a newly allocated object.
-// * resolve: Resolve a stable to-space invariant oop that is guaranteed not to relocate its payload until a subsequent thread transition.
 //
 // == IMPLEMENTATION ==
 // Each access goes through the following steps in a template pipeline.
@@ -295,8 +294,8 @@ public:
   static inline void arraycopy(arrayOop src_obj, size_t src_offset_in_bytes,
                                arrayOop dst_obj, size_t dst_offset_in_bytes,
                                size_t length) {
-    AccessT::arraycopy(src_obj, src_offset_in_bytes, reinterpret_cast<const T*>(NULL),
-                       dst_obj, dst_offset_in_bytes, reinterpret_cast<T*>(NULL),
+    AccessT::arraycopy(src_obj, src_offset_in_bytes, static_cast<const T*>(nullptr),
+                       dst_obj, dst_offset_in_bytes, static_cast<T*>(nullptr),
                        length);
   }
 
@@ -304,7 +303,7 @@ public:
   static inline void arraycopy_to_native(arrayOop src_obj, size_t src_offset_in_bytes,
                                          T* dst,
                                          size_t length) {
-    AccessT::arraycopy(src_obj, src_offset_in_bytes, reinterpret_cast<const T*>(NULL),
+    AccessT::arraycopy(src_obj, src_offset_in_bytes, static_cast<const T*>(nullptr),
                        NULL, 0, dst,
                        length);
   }
@@ -314,15 +313,15 @@ public:
                                            arrayOop dst_obj, size_t dst_offset_in_bytes,
                                            size_t length) {
     AccessT::arraycopy(NULL, 0, src,
-                       dst_obj, dst_offset_in_bytes, reinterpret_cast<T*>(NULL),
+                       dst_obj, dst_offset_in_bytes, static_cast<T*>(nullptr),
                        length);
   }
 
   static inline bool oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes,
                                    arrayOop dst_obj, size_t dst_offset_in_bytes,
                                    size_t length) {
-    return AccessT::oop_arraycopy(src_obj, src_offset_in_bytes, reinterpret_cast<const HeapWord*>(NULL),
-                                  dst_obj, dst_offset_in_bytes, reinterpret_cast<HeapWord*>(NULL),
+    return AccessT::oop_arraycopy(src_obj, src_offset_in_bytes, static_cast<const HeapWord*>(nullptr),
+                                  dst_obj, dst_offset_in_bytes, static_cast<HeapWord*>(nullptr),
                                   length);
   }
 

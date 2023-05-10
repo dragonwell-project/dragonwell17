@@ -211,6 +211,14 @@ final class CompilerToVM {
     native HotSpotResolvedJavaType lookupClass(Class<?> javaClass);
 
     /**
+     * Resolves the entry at index {@code cpi} in {@code constantPool} to an interned String object.
+     *
+     * The behavior of this method is undefined if {@code cpi} does not denote an
+     * {@code JVM_CONSTANT_String}.
+     */
+    native JavaConstant getUncachedStringInPool(HotSpotConstantPool constantPool, int cpi);
+
+    /**
      * Resolves the entry at index {@code cpi} in {@code constantPool} to an object, looking in the
      * constant pool cache first.
      *
@@ -951,6 +959,26 @@ final class CompilerToVM {
      * @see JFR.Ticks#now
      */
     native long ticksNow();
+
+    /**
+     * @see HotSpotJVMCIRuntime#setThreadLocalObject(int, Object)
+     */
+    native void setThreadLocalObject(int id, Object value);
+
+    /**
+     * @see HotSpotJVMCIRuntime#getThreadLocalObject(int)
+     */
+    native Object getThreadLocalObject(int id);
+
+    /**
+     * @see HotSpotJVMCIRuntime#setThreadLocalLong(int, long)
+     */
+    native void setThreadLocalLong(int id, long value);
+
+    /**
+     * @see HotSpotJVMCIRuntime#getThreadLocalLong(int)
+     */
+    native long getThreadLocalLong(int id);
 
     /**
      * Adds phases in HotSpot JFR.

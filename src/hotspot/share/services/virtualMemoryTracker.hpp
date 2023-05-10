@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -371,9 +371,6 @@ class VirtualMemoryTracker : AllStatic {
  public:
   static bool initialize(NMT_TrackingLevel level);
 
-  // Late phase initialization
-  static bool late_initialize(NMT_TrackingLevel level);
-
   static bool add_reserved_region (address base_addr, size_t size, const NativeCallStack& stack, MEMFLAGS flag = mtNone);
 
   static bool add_committed_region      (address base_addr, size_t size, const NativeCallStack& stack);
@@ -389,8 +386,6 @@ class VirtualMemoryTracker : AllStatic {
 
   // Walk virtual memory data structure for creating baseline, etc.
   static bool walk_virtual_memory(VirtualMemoryWalker* walker);
-
-  static bool transition(NMT_TrackingLevel from, NMT_TrackingLevel to);
 
   // Snapshot current thread stacks
   static void snapshot_thread_stacks();

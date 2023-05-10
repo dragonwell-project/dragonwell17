@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  * questions.
  */
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -35,8 +36,13 @@
  * such as "z:" need to be appended with a "." so we
  * must allocate at least 4 bytes to allow room for
  * this expansion. See 4235353 for details.
+ * This macro returns NULL if the requested size is
+ * negative, or the size is INT_MAX as the macro adds 1
+ * that overflows into negative value.
  */
-#define MALLOC_MIN4(len) ((char *)malloc((len) + 1 < 4 ? 4 : (len) + 1))
+#define MALLOC_MIN4(len) ((unsigned)(len) >= INT_MAX ? \
+    NULL : \
+    ((char *)malloc((len) + 1 < 4 ? 4 : (len) + 1)))
 
 /**
  * Throw a Java exception by name. Similar to SignalError.
@@ -888,7 +894,7 @@ getStringUTF8(JNIEnv *env, jstring jstr)
     result = MALLOC_MIN4(rlen);
     if (result == NULL) {
         (*env)->ReleasePrimitiveArrayCritical(env, value, str, 0);
-        JNU_ThrowOutOfMemoryError(env, 0);
+        JNU_ThrowOutOfMemoryError(env, "requested array size exceeds VM limit");
         return NULL;
     }
 

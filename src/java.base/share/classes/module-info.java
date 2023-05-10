@@ -154,6 +154,7 @@ module java.base {
         jdk.charsets,
         jdk.jartool,
         jdk.jlink,
+        jdk.jfr,
         jdk.net,
         jdk.incubator.foreign;
     exports jdk.internal.access.foreign to
@@ -319,7 +320,8 @@ module java.base {
         jdk.crypto.ec,
         jdk.security.auth;
     exports sun.security.provider.certpath to
-        java.naming;
+        java.naming,
+        jdk.jartool;
     exports sun.security.rsa to
         jdk.crypto.cryptoki;
     exports sun.security.timestamp to

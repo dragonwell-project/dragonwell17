@@ -216,10 +216,10 @@ final class X509TrustManagerImpl extends X509ExtendedTrustManager
                 String[] localSupportedSignAlgs =
                         extSession.getLocalSupportedSignatureAlgorithms();
 
-                constraints = new SSLAlgorithmConstraints(
+                constraints = SSLAlgorithmConstraints.forSocket(
                                 sslSocket, localSupportedSignAlgs, false);
             } else {
-                constraints = new SSLAlgorithmConstraints(sslSocket, false);
+                constraints = SSLAlgorithmConstraints.forSocket(sslSocket, false);
             }
 
             // Grab any stapled OCSP responses for use in validation
@@ -270,10 +270,10 @@ final class X509TrustManagerImpl extends X509ExtendedTrustManager
                 String[] localSupportedSignAlgs =
                         extSession.getLocalSupportedSignatureAlgorithms();
 
-                constraints = new SSLAlgorithmConstraints(
+                constraints = SSLAlgorithmConstraints.forEngine(
                                 engine, localSupportedSignAlgs, false);
             } else {
-                constraints = new SSLAlgorithmConstraints(engine, false);
+                constraints = SSLAlgorithmConstraints.forEngine(engine, false);
             }
 
             // Grab any stapled OCSP responses for use in validation
@@ -404,6 +404,12 @@ final class X509TrustManagerImpl extends X509ExtendedTrustManager
 
         boolean identifiable = false;
         String peerHost = session.getPeerHost();
+        // Is it a Fully-Qualified Domain Names (FQDN) ending with a dot?
+        if (peerHost != null && peerHost.endsWith(".")) {
+            // Remove the ending dot, which is not allowed in SNIHostName.
+            peerHost = peerHost.substring(0, peerHost.length() - 1);
+        }
+
         if (!checkClientTrusted) {
             List<SNIServerName> sniNames = getRequestedServerNames(session);
             String sniHostName = getHostNameInSNI(sniNames);

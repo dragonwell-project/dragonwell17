@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,7 @@ import javax.net.ssl.SSLProtocolException;
 import javax.net.ssl.SSLSession;
 
 /**
- * Implementation of an non-blocking SSLEngine.
+ * Implementation of a non-blocking SSLEngine.
  *
  * @author Brad Wetmore
  */
@@ -270,7 +270,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
             if (ciphertext == null && !conContext.isNegotiated &&
                     conContext.isInboundClosed() &&
                     hsStatus == HandshakeStatus.NEED_WRAP) {
-                // Even the outboud is open, no futher data could be wrapped as:
+                // Even the outbound is open, no further data could be wrapped as:
                 //     1. the outbound is empty
                 //     2. no negotiated connection
                 //     3. the inbound has closed, cannot complete the handshake
@@ -394,11 +394,11 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
      */
     private HandshakeStatus tryKeyUpdate(
             HandshakeStatus currentHandshakeStatus) throws IOException {
-        // Don't bother to kickstart if handshaking is in progress, or if the
-        // connection is not duplex-open.
+        // Don't bother to kickstart if handshaking is in progress, or if
+        // the write side of the connection is not open.  We allow a half-
+        // duplex write-only connection for key updates.
         if ((conContext.handshakeContext == null) &&
                 !conContext.isOutboundClosed() &&
-                !conContext.isInboundClosed() &&
                 !conContext.isBroken) {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                 SSLLogger.finest("trigger key update");
@@ -789,17 +789,17 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
             // Is it ready to close inbound?
             //
             // No exception if the initial handshake is not started.
-            if (!conContext.isInputCloseNotified &&
-                (conContext.isNegotiated ||
-                    conContext.handshakeContext != null)) {
-
-                throw conContext.fatal(Alert.INTERNAL_ERROR,
+            if (!conContext.isInputCloseNotified && (conContext.isNegotiated
+                    || conContext.handshakeContext != null)) {
+                throw new SSLException(
                         "closing inbound before receiving peer's close_notify");
             }
-
-            conContext.closeInbound();
         } finally {
-            engineLock.unlock();
+            try {
+                conContext.closeInbound();
+            } finally {
+                engineLock.unlock();
+            }
         }
     }
 

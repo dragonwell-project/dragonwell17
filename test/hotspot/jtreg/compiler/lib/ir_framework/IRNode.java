@@ -23,7 +23,7 @@
 
 package compiler.lib.ir_framework;
 
-import compiler.lib.ir_framework.driver.IRMatcher;
+import compiler.lib.ir_framework.driver.irmatching.IRMatcher;
 import compiler.lib.ir_framework.shared.*;
 import jdk.test.lib.Platform;
 import sun.hotspot.WhiteBox;
@@ -136,6 +136,8 @@ public class IRNode {
     public static final String MEMBAR_STORESTORE = START + "MemBarStoreStore" + MID + END;
     public static final String SAFEPOINT = START + "SafePoint" + MID + END;
 
+    public static final String CMP_U = START + "CmpU" + MID + END;
+    public static final String CMP_I = START + "CmpI" + MID + END;
     public static final String MUL_L = START + "MulL" + MID + END;
     public static final String POPCOUNT_L = START + "PopCountL" + MID + END;
 

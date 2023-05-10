@@ -67,6 +67,7 @@
  * input.build_osenv
  * input.build_osenv_cpu
  * input.build_osenv_platform
+ * input.build_osenv_version
  *
  * For more complex nested attributes, there is a method "get":
  *
@@ -564,7 +565,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             "ANT_HOME": input.get("ant", "home_path")
         }
     };
-    [ "linux-x64", "macosx-x64", "windows-x64"]
+    [ "linux-x64", "macosx-aarch64", "macosx-x64", "windows-x64", "linux-aarch64"]
         .forEach(function (name) {
             var maketestName = name + "-testmake";
             profiles[maketestName] = concatObjects(profiles[name], testmakeBase);
@@ -1049,7 +1050,7 @@ var getJibProfilesDependencies = function (input, common) {
     var devkit_platform_revisions = {
         linux_x64: "gcc10.3.0-OL6.4+1.0",
         macosx: "Xcode12.4+1.0",
-        windows_x64: "VS2019-16.9.3+1.0",
+        windows_x64: "VS2022-17.1.0+1.0",
         linux_aarch64: "gcc10.3.0-OL7.6+1.0",
         linux_arm: "gcc8.2.0-Fedora27+1.0",
         linux_ppc64le: "gcc8.2.0-Fedora27+1.0",
@@ -1098,9 +1099,23 @@ var getJibProfilesDependencies = function (input, common) {
         environment_path: common.boot_jdk_home + "/bin"
     }
 
-    var makeBinDir = (input.build_os == "windows"
-        ? input.get("gnumake", "install_path") + "/cygwin/bin"
-        : input.get("gnumake", "install_path") + "/bin");
+    var makeRevision = "4.0+1.0";
+    var makeBinSubDir = "/bin";
+    var makeModule = "gnumake-" + input.build_platform;
+    if (input.build_os == "windows") {
+        makeModule = "gnumake-" + input.build_osenv_platform;
+        if (input.build_osenv == "cygwin") {
+            var versionArray = input.build_osenv_version.split(/\./);
+            var majorVer = parseInt(versionArray[0]);
+            var minorVer = parseInt(versionArray[1]);
+            if (majorVer > 3 || (majorVer == 3 && minorVer >= 3)) {
+                makeRevision = "4.3+1.0";
+            } else {
+                makeBinSubDir = "/cygwin/bin";
+            }
+        }
+    }
+    var makeBinDir = input.get("gnumake", "install_path") + makeBinSubDir;
 
     var dependencies = {
         boot_jdk: boot_jdk,
@@ -1172,18 +1187,12 @@ var getJibProfilesDependencies = function (input, common) {
         gnumake: {
             organization: common.organization,
             ext: "tar.gz",
-            revision: "4.0+1.0",
-
-            module: (input.build_os == "windows"
-                ? "gnumake-" + input.build_osenv_platform
-                : "gnumake-" + input.build_platform),
-
+            revision: makeRevision,
+            module: makeModule,
             configure_args: "MAKE=" + makeBinDir + "/make",
-
             environment: {
                 "MAKE": makeBinDir + "/make"
             },
-
             environment_path: makeBinDir
         },
 

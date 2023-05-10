@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -639,8 +639,12 @@ public final class SSLSocketImpl
             if (!conContext.protocolVersion.useTLS13PlusSpec()) {
                 hasCloseReceipt = true;
             } else {
-                // Use a user_canceled alert for TLS 1.3 duplex close.
-                useUserCanceled = true;
+                // Do not use user_canceled workaround if the other side has
+                // already half-closed the connection
+                if (!conContext.isInboundClosed()) {
+                    // Use a user_canceled alert for TLS 1.3 duplex close.
+                    useUserCanceled = true;
+                }
             }
         } else if (conContext.handshakeContext != null) {   // initial handshake
             // Use user_canceled alert regardless the protocol versions.
@@ -838,9 +842,10 @@ public final class SSLSocketImpl
         // No need to throw exception if the initial handshake is not started.
         try {
             if (checkCloseNotify && !conContext.isInputCloseNotified &&
-                (conContext.isNegotiated || conContext.handshakeContext != null)) {
-            throw new SSLException(
-                    "closing inbound before receiving peer's close_notify");
+                    (conContext.isNegotiated ||
+                            conContext.handshakeContext != null)) {
+                throw new SSLException(
+                        "closing inbound before receiving peer's close_notify");
             }
         } finally {
             conContext.closeInbound();
@@ -1536,11 +1541,11 @@ public final class SSLSocketImpl
      * wrapped.
      */
     private void tryKeyUpdate() throws IOException {
-        // Don't bother to kickstart if handshaking is in progress, or if the
-        // connection is not duplex-open.
+        // Don't bother to kickstart if handshaking is in progress, or if
+        // the write side of the connection is not open.  We allow a half-
+        // duplex write-only connection for key updates.
         if ((conContext.handshakeContext == null) &&
                 !conContext.isOutboundClosed() &&
-                !conContext.isInboundClosed() &&
                 !conContext.isBroken) {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                 SSLLogger.finest("trigger key update");

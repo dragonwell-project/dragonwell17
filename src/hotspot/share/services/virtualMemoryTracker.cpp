@@ -320,14 +320,9 @@ address ReservedMemoryRegion::thread_stack_uncommitted_bottom() const {
 }
 
 bool VirtualMemoryTracker::initialize(NMT_TrackingLevel level) {
+  assert(_reserved_regions == NULL, "only call once");
   if (level >= NMT_summary) {
     VirtualMemorySummary::initialize();
-  }
-  return true;
-}
-
-bool VirtualMemoryTracker::late_initialize(NMT_TrackingLevel level) {
-  if (level >= NMT_summary) {
     _reserved_regions = new (std::nothrow, ResourceObj::C_HEAP, mtNMT)
       SortedLinkedList<ReservedMemoryRegion, compare_reserved_region_base>();
     return (_reserved_regions != NULL);
@@ -674,22 +669,5 @@ bool VirtualMemoryTracker::walk_virtual_memory(VirtualMemoryWalker* walker) {
       head = head->next();
     }
    }
-  return true;
-}
-
-// Transition virtual memory tracking level.
-bool VirtualMemoryTracker::transition(NMT_TrackingLevel from, NMT_TrackingLevel to) {
-  assert (from != NMT_minimal, "cannot convert from the lowest tracking level to anything");
-  if (to == NMT_minimal) {
-    assert(from == NMT_summary || from == NMT_detail, "Just check");
-    // Clean up virtual memory tracking data structures.
-    ThreadCritical tc;
-    // Check for potential race with other thread calling transition
-    if (_reserved_regions != NULL) {
-      delete _reserved_regions;
-      _reserved_regions = NULL;
-    }
-  }
-
   return true;
 }
