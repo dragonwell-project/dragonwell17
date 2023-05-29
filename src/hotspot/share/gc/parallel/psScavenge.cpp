@@ -210,9 +210,10 @@ public:
     assert(worker_id < _max_workers, "sanity");
     PSPromotionManager* promotion_manager = (_tm == RefProcThreadModel::Single) ? PSPromotionManager::vm_thread_promotion_manager() : PSPromotionManager::gc_thread_promotion_manager(worker_id);
     PSIsAliveClosure is_alive;
-    PSKeepAliveClosure keep_alive(promotion_manager);;
+    PSKeepAliveClosure keep_alive(promotion_manager);
+    BarrierEnqueueDiscoveredFieldClosure enqueue;
     PSEvacuateFollowersClosure complete_gc(promotion_manager, (_marks_oops_alive && _tm == RefProcThreadModel::Multi) ? &_terminator : nullptr, worker_id);;
-    _rp_task->rp_work(worker_id, &is_alive, &keep_alive, &complete_gc);
+    _rp_task->rp_work(worker_id, &is_alive, &keep_alive, &enqueue, &complete_gc);
   }
 
   void prepare_run_task_hook() override {
@@ -419,7 +420,7 @@ bool PSScavenge::invoke_no_policy() {
     GCTraceCPUTime tcpu;
     GCTraceTime(Info, gc) tm("Pause Young", NULL, gc_cause, true);
     TraceCollectorStats tcs(counters());
-    TraceMemoryManagerStats tms(heap->young_gc_manager(), gc_cause);
+    TraceMemoryManagerStats tms(heap->young_gc_manager(), gc_cause, "end of minor GC");
 
     if (log_is_enabled(Debug, gc, heap, exit)) {
       accumulated_time()->start();

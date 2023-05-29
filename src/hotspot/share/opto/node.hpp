@@ -914,6 +914,7 @@ public:
   DEFINE_CLASS_QUERY(Mul)
   DEFINE_CLASS_QUERY(Multi)
   DEFINE_CLASS_QUERY(MultiBranch)
+  DEFINE_CLASS_QUERY(NeverBranch)
   DEFINE_CLASS_QUERY(Opaque1)
   DEFINE_CLASS_QUERY(OuterStripMinedLoop)
   DEFINE_CLASS_QUERY(OuterStripMinedLoopEnd)
@@ -1070,6 +1071,8 @@ public:
   Node* find_similar(int opc);
 
   // Return the unique control out if only one. Null if none or more than one.
+  // Placeholder until 8281732 is backported.
+  Node* unique_ctrl_out_or_null() const { return unique_ctrl_out(); }
   Node* unique_ctrl_out() const;
 
   // Set control or add control as precedence edge
@@ -1642,6 +1645,11 @@ public:
 // Inline definition of Compile::record_for_igvn must be deferred to this point.
 inline void Compile::record_for_igvn(Node* n) {
   _for_igvn->push(n);
+}
+
+// Inline definition of Compile::remove_for_igvn must be deferred to this point.
+inline void Compile::remove_for_igvn(Node* n) {
+  _for_igvn->remove(n);
 }
 
 //------------------------------Node_Stack-------------------------------------

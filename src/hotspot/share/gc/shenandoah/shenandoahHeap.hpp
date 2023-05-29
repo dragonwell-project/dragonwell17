@@ -326,12 +326,7 @@ private:
 
     // GC has been cancelled. Worker threads can not suspend for
     // safepoint but must finish their work as soon as possible.
-    CANCELLED,
-
-    // GC has not been cancelled and must not be cancelled. At least
-    // one worker thread checks for pending safepoint and may suspend
-    // if a safepoint is pending.
-    NOT_CANCELLED
+    CANCELLED
   };
 
   ShenandoahSharedEnumFlag<CancelState> _cancelled_gc;
@@ -635,9 +630,17 @@ public:
   template <class T>
   inline void update_with_forwarded(T* p);
 
-  static inline oop cas_oop(oop n, narrowOop* addr, oop c);
-  static inline oop cas_oop(oop n, oop* addr, oop c);
-  static inline oop cas_oop(oop n, narrowOop* addr, narrowOop c);
+  static inline void atomic_update_oop(oop update,       oop* addr,       oop compare);
+  static inline void atomic_update_oop(oop update, narrowOop* addr,       oop compare);
+  static inline void atomic_update_oop(oop update, narrowOop* addr, narrowOop compare);
+
+  static inline bool atomic_update_oop_check(oop update,       oop* addr,       oop compare);
+  static inline bool atomic_update_oop_check(oop update, narrowOop* addr,       oop compare);
+  static inline bool atomic_update_oop_check(oop update, narrowOop* addr, narrowOop compare);
+
+  static inline void atomic_clear_oop(      oop* addr,       oop compare);
+  static inline void atomic_clear_oop(narrowOop* addr,       oop compare);
+  static inline void atomic_clear_oop(narrowOop* addr, narrowOop compare);
 
   void trash_humongous_region_at(ShenandoahHeapRegion *r);
 

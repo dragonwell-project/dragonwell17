@@ -238,6 +238,11 @@ public:
     assert(t != NULL, "type must not be null");
     _types.map(n->_idx, t);
   }
+  void    clear_type(const Node* n) {
+    if (n->_idx < _types.Size()) {
+      _types.map(n->_idx, NULL);
+    }
+  }
   // Record an initial type for a node, the node's bottom type.
   void    set_type_bottom(const Node* n) {
     // Use this for initialization when bottom_type() (or better) is not handy.
@@ -565,9 +570,11 @@ protected:
 // Phase for performing global Conditional Constant Propagation.
 // Should be replaced with combined CCP & GVN someday.
 class PhaseCCP : public PhaseIterGVN {
-  Unique_Node_List _safepoints;
+  Unique_Node_List _root_and_safepoints;
   // Non-recursive.  Use analysis to transform single Node.
   virtual Node *transform_once( Node *n );
+  void push_if_not_bottom_type(Unique_Node_List& worklist, Node* n) const;
+  void push_cast_ii(Unique_Node_List& worklist, const Node* parent, const Node* use) const;
 
 public:
   PhaseCCP( PhaseIterGVN *igvn ); // Compute conditional constants

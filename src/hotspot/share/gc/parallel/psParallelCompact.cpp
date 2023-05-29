@@ -1773,7 +1773,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
     heap->pre_full_gc_dump(&_gc_timer);
 
     TraceCollectorStats tcs(counters());
-    TraceMemoryManagerStats tms(heap->old_gc_manager(), gc_cause);
+    TraceMemoryManagerStats tms(heap->old_gc_manager(), gc_cause, "end of major GC");
 
     if (log_is_enabled(Debug, gc, heap, exit)) {
       accumulated_time()->start();
@@ -2067,8 +2067,9 @@ public:
     assert(worker_id < _max_workers, "sanity");
     ParCompactionManager* cm = (_tm == RefProcThreadModel::Single) ? ParCompactionManager::get_vmthread_cm() : ParCompactionManager::gc_thread_compaction_manager(worker_id);
     PCMarkAndPushClosure keep_alive(cm);
+    BarrierEnqueueDiscoveredFieldClosure enqueue;
     ParCompactionManager::FollowStackClosure complete_gc(cm, (_tm == RefProcThreadModel::Single) ? nullptr : &_terminator, worker_id);
-    _rp_task->rp_work(worker_id, PSParallelCompact::is_alive_closure(), &keep_alive, &complete_gc);
+    _rp_task->rp_work(worker_id, PSParallelCompact::is_alive_closure(), &keep_alive, &enqueue, &complete_gc);
   }
 
   void prepare_run_task_hook() override {
@@ -2136,7 +2137,10 @@ void PSParallelCompact::marking_phase(ParCompactionManager* cm,
     JVMCI_ONLY(JVMCI::do_unloading(purged_class));
   }
 
-  _gc_tracer.report_object_count_after_gc(is_alive_closure());
+  {
+    GCTraceTime(Debug, gc, phases) tm("Report Object Count", &_gc_timer);
+    _gc_tracer.report_object_count_after_gc(is_alive_closure());
+  }
 }
 
 #ifdef ASSERT

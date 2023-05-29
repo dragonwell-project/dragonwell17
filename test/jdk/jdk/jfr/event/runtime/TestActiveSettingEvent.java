@@ -197,6 +197,7 @@ public final class TestActiveSettingEvent {
         settingValues.put(EventNames.ActiveSetting + "#threshold", "0 ns");
         settingValues.put(EventNames.ActiveRecording + "#stackTrace", "false");
         settingValues.put(EventNames.ActiveRecording + "#threshold", "0 ns");
+        settingValues.put(EventNames.InitialSecurityProperty + "#threshold", "0 ns");
         settingValues.put(EventNames.JavaExceptionThrow + "#threshold", "0 ns");
         settingValues.put(EventNames.JavaErrorThrow + "#threshold", "0 ns");
         settingValues.put(EventNames.SecurityProperty + "#threshold", "0 ns");
@@ -205,6 +206,7 @@ public final class TestActiveSettingEvent {
         settingValues.put(EventNames.X509Validation + "#threshold", "0 ns");
         settingValues.put(EventNames.ProcessStart + "#threshold", "0 ns");
         settingValues.put(EventNames.Deserialization + "#threshold", "0 ns");
+        settingValues.put(EventNames.SecurityProviderService + "#threshold", "0 ns");
 
         try (Recording recording = new Recording(c)) {
             Map<Long, EventType> eventTypes = new HashMap<>();

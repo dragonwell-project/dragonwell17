@@ -259,8 +259,9 @@ public:
     G1IsAliveClosure is_alive(&_collector);
     uint index = (_tm == RefProcThreadModel::Single) ? 0 : worker_id;
     G1FullKeepAliveClosure keep_alive(_collector.marker(index));
+    BarrierEnqueueDiscoveredFieldClosure enqueue;
     G1FollowStackClosure* complete_gc = _collector.marker(index)->stack_closure();
-    _rp_task->rp_work(worker_id, &is_alive, &keep_alive, complete_gc);
+    _rp_task->rp_work(worker_id, &is_alive, &keep_alive, &enqueue, complete_gc);
   }
 };
 
@@ -303,7 +304,10 @@ void G1FullCollector::phase1_mark_live_objects() {
     _heap->complete_cleaning(&_is_alive, purged_class);
   }
 
-  scope()->tracer()->report_object_count_after_gc(&_is_alive);
+  {
+    GCTraceTime(Debug, gc, phases) debug("Report Object Count", scope()->timer());
+    scope()->tracer()->report_object_count_after_gc(&_is_alive);
+  }
 }
 
 void G1FullCollector::phase2_prepare_compaction() {
