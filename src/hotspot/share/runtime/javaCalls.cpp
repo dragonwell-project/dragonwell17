@@ -112,6 +112,15 @@ JavaCallWrapper::JavaCallWrapper(const methodHandle& callee_method, Handle recei
   MACOS_AARCH64_ONLY(_thread->enable_wx(WXExec));
 }
 
+void JavaCallWrapper::initialize(JavaThread* thread, JNIHandleBlock* handles, Method* callee_method, oop receiver, JavaValue* result) {
+  assert(EnableCoroutine, "EnableCoroutine is off");
+  _thread = thread;
+  _handles = handles;
+  _callee_method = callee_method;
+  _receiver = receiver;
+  _result = result;
+  _anchor.clear();
+}
 
 JavaCallWrapper::~JavaCallWrapper() {
   assert(_thread == JavaThread::current(), "must still be the same thread");

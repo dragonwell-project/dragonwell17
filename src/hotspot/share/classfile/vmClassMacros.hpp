@@ -168,6 +168,10 @@
   do_klass(Integer_klass,                               java_lang_Integer                                     ) \
   do_klass(Long_klass,                                  java_lang_Long                                        ) \
                                                                                                                 \
+  /* Stack manipulation classes */                                                                              \
+  do_klass(java_dyn_CoroutineSupport_klass,             java_dyn_CoroutineSupport                             ) \
+  do_klass(java_dyn_CoroutineBase_klass,                java_dyn_CoroutineBase                                ) \
+                                                                                                                \
   /* force inline of iterators */                                                                               \
   do_klass(Iterator_klass,                              java_util_Iterator                                    ) \
                                                                                                                 \
