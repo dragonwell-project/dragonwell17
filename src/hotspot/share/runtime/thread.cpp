@@ -1017,7 +1017,6 @@ JavaThread::JavaThread() :
 
   _in_asgct(false),
   _on_thread_list(false),
-  DEBUG_ONLY(_java_call_counter(0) COMMA)
   _entry_point(nullptr),
   _deopt_mark(nullptr),
   _deopt_nmethod(nullptr),
@@ -1077,6 +1076,14 @@ JavaThread::JavaThread() :
   _popframe_condition(popframe_inactive),
   _frames_to_pop_failed_realloc(0),
 
+  // coroutine support
+  _coroutine_stack_cache(nullptr),
+  _coroutine_stack_cache_size(0),
+  _coroutine_stack_list(nullptr),
+  _coroutine_list(nullptr),
+  _current_coroutine(nullptr),
+  _coroutine_temp(0),
+
   _handshake(this),
 
   _popframe_preserved_args(nullptr),
@@ -1105,6 +1112,10 @@ JavaThread::JavaThread() :
 
   // Setup safepoint state info for this thread
   ThreadSafepointState::create(this);
+
+#ifdef ASSERT
+  _java_call_counter = 0;
+#endif
 
   SafepointMechanism::initialize_header(this);
 
@@ -2817,6 +2828,8 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // Note: this internally calls os::init_container_support()
   jint parse_result = Arguments::parse(args);
   if (parse_result != JNI_OK) return parse_result;
+
+  Arguments::init_wisp_system_properties();
 
 #if INCLUDE_NMT
   // Initialize NMT right after argument parsing to keep the pre-NMT-init window small.

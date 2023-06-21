@@ -145,7 +145,6 @@ HandleMark::HandleMark(Thread* thread, HandleArea* area, HandleMark* last_handle
   NOT_PRODUCT(_size_in_bytes = _area->_size_in_bytes;)
   debug_only(_area->_handle_mark_nesting++);
   assert(_area->_handle_mark_nesting > 0, "must stack allocate HandleMarks");
-  debug_only(Atomic::inc(&_nof_handlemarks);)
 
   // Link this in the thread
   set_previous_handle_mark(last_handle_mark);

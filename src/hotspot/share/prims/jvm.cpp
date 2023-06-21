@@ -363,19 +363,6 @@ JVM_ENTRY(jobjectArray, JVM_GetProperties(JNIEnv *env))
     ndx++;
   }
 
-  //Convert the -XX:+EnableCoroutine command line flag
-  //to the com.alibaba.coroutine.enableCoroutine property in case that
-  //the java code can determine if the coroutine feature is enabled.
-  {
-    // PUTPROP(props, "com.alibaba.coroutine.enableCoroutine",
-    //     EnableCoroutine ? "true" : "false");
-    Handle key_str = java_lang_String::create_from_platform_dependent_str("com.alibaba.coroutine.enableCoroutine", CHECK_NULL);
-    Handle value_str  = java_lang_String::create_from_platform_dependent_str(EnableCoroutine ? "true" : "false", CHECK_NULL);
-    result_h->obj_at_put(ndx * 2,  key_str());
-    result_h->obj_at_put(ndx * 2 + 1, value_str());
-    ndx++;
-  }
-
   // JVM monitoring and management support
   // Add the sun.management.compiler property for the compiler's name
   {

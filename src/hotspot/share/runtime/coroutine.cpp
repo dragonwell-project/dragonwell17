@@ -128,6 +128,7 @@ Coroutine* Coroutine::create_coroutine(JavaThread* thread, CoroutineStack* stack
     return NULL;
   }
   intptr_t** d = (intptr_t**)stack->stack_base();
+  *(--d) = NULL;          // Make it to be 16 bytes(original is 8*5=40 bytes) aligned which be required by some instruction likes movaps otherwise we will incur crash.
   *(--d) = NULL;
   jobject obj = JNIHandles::make_global(Handle(thread, coroutineObj));
   *(--d) = (intptr_t*)obj;
@@ -341,7 +342,7 @@ void CoroutineStack::frames_do(FrameClosure* fc) {
     intptr_t* sp = ((intptr_t*)_last_sp) + 2;
 
     frame fr(sp, fp, pc);
-    StackFrameStream fst(_thread, fr, true, true);
+    StackFrameStream fst(_thread, fr, true /* update */, true /* process_frames */);
     fst.register_map()->set_location(rbp->as_VMReg(), (address)_last_sp);
     fst.register_map()->set_include_argument_oops(false);
     for(; !fst.is_done(); fst.next()) {
