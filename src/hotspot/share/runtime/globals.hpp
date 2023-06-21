@@ -2085,8 +2085,19 @@ const intx ObjectAlignmentInBytes = 8;
              "Mark all threads after a safepoint, and clear on a modify "   \
              "fence. Add cleanliness checks.")                              \
                                                                             \
-  develop(bool, TraceOptimizedUpcallStubs, false,                              \
-                "Trace optimized upcall stub generation")                      \
+  develop(bool, TraceOptimizedUpcallStubs, false,                           \
+                "Trace optimized upcall stub generation")                   \
+                                                                            \
+  /* Wisp2 */                                                               \
+  product(bool, EnableCoroutine, false,                                     \
+          "Enable coroutine support")                                       \
+                                                                            \
+  product(uintx, DefaultCoroutineStackSize, 128*K,                          \
+          "Default size of stack that is associated with new coroutine")    \
+                                                                            \
+  product(uintx, MaxFreeCoroutinesCacheSize, 20,                            \
+          "The max number of free coroutine stacks a thread can keep")      \
+
 
 // end of RUNTIME_FLAGS
 

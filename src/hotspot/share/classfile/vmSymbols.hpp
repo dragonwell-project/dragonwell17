@@ -684,6 +684,21 @@
   template(classRedefinedCount_name,                   "classRedefinedCount")                                     \
   template(classLoader_name,                           "classLoader")                                             \
   template(componentType_name,                         "componentType")                                           \
+  /* coroutine support */                                                                                         \
+  template(java_dyn_CoroutineSupport,                  "java/dyn/CoroutineSupport")                               \
+  template(java_dyn_CoroutineBase,                     "java/dyn/CoroutineBase")                                  \
+  template(java_dyn_CoroutineExitException,            "java/dyn/CoroutineExitException")                         \
+  template(data_name,                                  "data")                                                    \
+  template(stack_name,                                 "stack")                                                   \
+  template(current_name,                               "current")                                                 \
+  template(java_dyn_CoroutineBase_signature,           "Ljava/dyn/CoroutineBase;")                                \
+  template(startInternal_method_name,                  "startInternal")                                           \
+  template(initializeCoroutineSupport_method_name,     "initializeCoroutineSupport")                              \
+  template(bci_name,                                   "bci")                                                     \
+  template(localCount_name,                            "localCount")                                              \
+  template(expressionCount_name,                       "expressionCount")                                         \
+  template(scalarValues_name,                          "scalarValues")                                            \
+  template(objectValues_name,                          "objectValues")                                            \
                                                                                                                   \
   /* forEachRemaining support */                                                                                  \
   template(java_util_stream_StreamsRangeIntSpliterator,          "java/util/stream/Streams$RangeIntSpliterator")  \

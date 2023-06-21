@@ -77,6 +77,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/flags/jvmFlagLimit.hpp"
 #include "runtime/deoptimization.hpp"
@@ -1214,6 +1215,16 @@ JavaThread::JavaThread(ThreadFunction entry_point, size_t stack_sz) : JavaThread
 }
 
 JavaThread::~JavaThread() {
+  while (EnableCoroutine && coroutine_stack_cache() != NULL) {
+    CoroutineStack* stack = coroutine_stack_cache();
+    stack->remove_from_list(coroutine_stack_cache());
+    CoroutineStack::free_stack(stack, this);
+  }
+
+  while (EnableCoroutine && coroutine_list() != NULL) {
+     CoroutineStack::free_stack(coroutine_list()->stack(), this);
+     delete coroutine_list();
+  }
 
   // Ask ServiceThread to release the threadObj OopHandle
   ServiceThread::add_oop_handle_release(_threadObj);
@@ -1264,6 +1275,13 @@ void JavaThread::pre_run() {
 void JavaThread::run() {
   // initialize thread-local alloc buffer related fields
   initialize_tlab();
+
+  // Record real stack base and size.
+  record_stack_base_and_size();
+
+  if (EnableCoroutine) {
+    initialize_coroutine_support();
+  }
 
   _stack_overflow_state.create_stack_guard_pages();
 
@@ -1997,6 +2015,14 @@ void JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
     }
   }
 
+  if (EnableCoroutine) {
+    Coroutine* current = _coroutine_list;
+    do {
+      current->oops_do(f, cf);
+      current = current->next();
+    } while (current != _coroutine_list);
+  }
+
   assert(vframe_array_head() == NULL, "deopt in progress at a safepoint!");
   // If we have deferred set_locals there might be oops waiting to be
   // written
@@ -2050,6 +2076,14 @@ void JavaThread::nmethods_do(CodeBlobClosure* cf) {
     }
   }
 
+  if (EnableCoroutine) {
+    Coroutine* current = _coroutine_list;
+    do {
+      current->nmethods_do(cf);
+      current = current->next();
+    } while (current != _coroutine_list);
+  }
+
   if (jvmti_thread_state() != NULL) {
     jvmti_thread_state()->nmethods_do(cf);
   }
@@ -2071,6 +2105,13 @@ void JavaThread::metadata_do(MetadataClosure* f) {
     if (task != NULL) {
       task->metadata_do(f);
     }
+  }
+  if (EnableCoroutine) {
+    Coroutine* current = _coroutine_list;
+    do {
+      current->metadata_do(f);
+      current = current->next();
+    } while (current != _coroutine_list);
   }
 }
 
@@ -2167,6 +2208,14 @@ void JavaThread::frames_do(void f(frame*, const RegisterMap* map)) {
   for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
     frame* fr = fst.current();
     f(fr, fst.register_map());
+  }
+  if (EnableCoroutine) {
+    // traverse the coroutine stack frames
+    Coroutine* current = _coroutine_list;
+    do {
+      current->frames_do(f);
+      current = current->next();
+    } while (current != _coroutine_list);
   }
 }
 
@@ -2855,6 +2904,10 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // must do this before set_active_handles
   main_thread->record_stack_base_and_size();
   main_thread->register_thread_stack_with_NMT();
+  if (EnableCoroutine) {
+    main_thread->initialize_coroutine_support();
+  }
+
   main_thread->set_active_handles(JNIHandleBlock::allocate_block());
   MACOS_AARCH64_ONLY(main_thread->init_wx());
 
@@ -3965,6 +4018,12 @@ void Threads::verify() {
   }
   VMThread* thread = VMThread::vm_thread();
   if (thread != NULL) thread->verify();
+}
+
+void JavaThread::initialize_coroutine_support() {
+  assert(EnableCoroutine, "EnableCoroutine isn't enable");
+  CoroutineStack::create_thread_stack(this)->insert_into_list(_coroutine_stack_list);
+  Coroutine::create_thread_coroutine(this, _coroutine_stack_list)->insert_into_list(_coroutine_list);
 }
 
 #ifndef PRODUCT

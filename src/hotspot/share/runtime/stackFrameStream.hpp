@@ -57,6 +57,7 @@ class StackFrameStream : public StackObj {
   bool        _is_done;
  public:
   StackFrameStream(JavaThread *thread, bool update, bool process_frames);
+  StackFrameStream(JavaThread *thread, frame last_frame, bool update, bool process_frames);
 
   // Iteration
   inline bool is_done();

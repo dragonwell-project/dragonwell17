@@ -32,3 +32,9 @@ StackFrameStream::StackFrameStream(JavaThread *thread, bool update, bool process
   _is_done = false;
 }
 
+StackFrameStream::StackFrameStream(JavaThread *thread, frame last_frame, bool update, bool process_frames) : _reg_map(thread, update, process_frames) {
+  assert(EnableCoroutine, "EnableCoroutine is off");
+  _fr = last_frame;
+  _is_done = false;
+}
+

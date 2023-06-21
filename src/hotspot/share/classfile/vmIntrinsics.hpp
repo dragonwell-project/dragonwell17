@@ -942,6 +942,15 @@ class methodHandle;
    do_name(     unpark_name,                                            "unpark")                                              \
    do_alias(    unpark_signature,                                       /*(LObject;)V*/ object_void_signature)                 \
                                                                                                                                \
+  /* coroutine intrinsics */                                                                                            \
+  do_intrinsic(_switchTo,                 java_dyn_CoroutineSupport, switchTo_name, switchTo_signature, F_SN)           \
+   do_name(     switchTo_name,                                    "switchTo")                                           \
+   do_signature(switchTo_signature,                               "(Ljava/dyn/CoroutineBase;Ljava/dyn/CoroutineBase;)V") \
+  do_intrinsic(_switchToAndTerminate,     java_dyn_CoroutineSupport, switchToAndTerminate_name, switchTo_signature, F_SN) \
+   do_name(     switchToAndTerminate_name,                        "switchToAndTerminate")                               \
+  do_intrinsic(_switchToAndExit,          java_dyn_CoroutineSupport, switchToAndExit_name, switchTo_signature, F_SN)    \
+   do_name(     switchToAndExit_name,                             "switchToAndExit")                                    \
+                                                                                                                        \
   do_intrinsic(_StringBuilder_void,   java_lang_StringBuilder, object_initializer_name, void_method_signature,     F_R)   \
   do_intrinsic(_StringBuilder_int,    java_lang_StringBuilder, object_initializer_name, int_void_signature,        F_R)   \
   do_intrinsic(_StringBuilder_String, java_lang_StringBuilder, object_initializer_name, string_void_signature,     F_R)   \

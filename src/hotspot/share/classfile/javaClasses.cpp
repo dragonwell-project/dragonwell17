@@ -4716,6 +4716,25 @@ void java_nio_Buffer::compute_offsets() {
   BUFFER_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
+/* stack manipulation */
+
+int java_dyn_CoroutineBase::_data_offset = 0;
+
+void java_dyn_CoroutineBase::compute_offsets() {
+  Klass* k = vmClasses::java_dyn_CoroutineBase_klass();
+  if (k != NULL) {
+    compute_offset(_data_offset, InstanceKlass::cast(k), vmSymbols::data_name(), vmSymbols::long_signature());
+  }
+}
+
+jlong java_dyn_CoroutineBase::data(oop obj) {
+  return obj->long_field(_data_offset);
+}
+
+void java_dyn_CoroutineBase::set_data(oop obj, jlong value) {
+  obj->long_field_put(_data_offset, value);
+}
+
 #if INCLUDE_CDS
 void java_nio_Buffer::serialize_offsets(SerializeClosure* f) {
   BUFFER_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
@@ -5062,6 +5081,10 @@ void JavaClasses::compute_offsets() {
   // BASIC_JAVA_CLASSES_DO_PART1 classes (java_lang_String, java_lang_Class and
   // java_lang_ref_Reference) earlier inside vmClasses::resolve_all()
   BASIC_JAVA_CLASSES_DO_PART2(DO_COMPUTE_OFFSETS);
+
+  if (EnableCoroutine) {
+    java_dyn_CoroutineBase::compute_offsets();
+  }
 }
 
 #if INCLUDE_CDS
