@@ -1380,7 +1380,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
     if (intrinsic_id == vmIntrinsics::_switchTo ||
         intrinsic_id == vmIntrinsics::_switchToAndExit ||
         intrinsic_id == vmIntrinsics::_switchToAndTerminate) {
-      assert(method()->constants()->pool_holder() == SystemDictionary::java_dyn_CoroutineSupport_klass(), "wrong method!");
+      assert(method()->constants()->pool_holder() == vmClasses::java_dyn_CoroutineSupport_klass(), "wrong method!");
       assert(state == not_entrant, "wrong state");
       return false;
     }

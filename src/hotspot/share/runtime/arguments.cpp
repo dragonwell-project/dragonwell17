@@ -438,6 +438,13 @@ void Arguments::init_version_specific_system_properties() {
       new SystemProperty("java.vm.vendor", VM_Version::vm_vendor(),  false));
 }
 
+void Arguments::init_wisp_system_properties() {
+  // Convert coroutine flags to props to make java side aware of them.
+  PropertyList_add(&_system_properties,
+    new SystemProperty("com.alibaba.coroutine.enableCoroutine",
+      EnableCoroutine ? "true" : "false",  false));
+}
+
 /*
  *  -XX argument processing:
  *

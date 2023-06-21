@@ -1251,11 +1251,6 @@ void FrameValues::describe(int owner, intptr_t* location, const char* descriptio
   _values.append(fv);
 }
 
-StackFrameStream::StackFrameStream(JavaThread *thread, frame last_frame, bool update) : _reg_map(thread, update) {
-  assert(EnableCoroutine, "EnableCoroutine is off");
-  _fr = last_frame;
-  _is_done = false;
-}
 
 #ifdef ASSERT
 void FrameValues::validate() {

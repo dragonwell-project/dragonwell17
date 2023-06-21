@@ -559,6 +559,10 @@ class Arguments : AllStatic {
   // Update/Initialize System properties after JDK version number is known
   static void init_version_specific_system_properties();
 
+  // Initialize Coroutine and Wisp properties
+  // Must be called after arguments parsing
+  static void init_wisp_system_properties();
+
   // Update VM info property - called after argument parsing
   static void update_vm_info_property(const char* vm_info) {
     _vm_info->set_value(vm_info);

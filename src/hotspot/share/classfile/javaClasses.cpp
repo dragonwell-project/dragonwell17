@@ -4721,9 +4721,9 @@ void java_nio_Buffer::compute_offsets() {
 int java_dyn_CoroutineBase::_data_offset = 0;
 
 void java_dyn_CoroutineBase::compute_offsets() {
-  Klass* k = vmClasses::java_dyn_CoroutineBase_klass();
-  if (k != NULL) {
-    compute_offset(_data_offset, InstanceKlass::cast(k), vmSymbols::data_name(), vmSymbols::long_signature());
+  InstanceKlass* ik = vmClasses::java_dyn_CoroutineBase_klass();
+  if (ik != NULL) {
+    compute_offset(_data_offset, ik, vmSymbols::data_name(), vmSymbols::long_signature());
   }
 }
 
@@ -5066,6 +5066,10 @@ void java_lang_InternalError::serialize_offsets(SerializeClosure* f) {
 
 // Compute field offsets of all the classes in this file
 void JavaClasses::compute_offsets() {
+  if (EnableCoroutine) {
+    java_dyn_CoroutineBase::compute_offsets();
+  }
+
   if (UseSharedSpaces) {
     JVMTI_ONLY(assert(JvmtiExport::is_early_phase() && !(JvmtiExport::should_post_class_file_load_hook() &&
                                                          JvmtiExport::has_early_class_hook_env()),
@@ -5081,10 +5085,6 @@ void JavaClasses::compute_offsets() {
   // BASIC_JAVA_CLASSES_DO_PART1 classes (java_lang_String, java_lang_Class and
   // java_lang_ref_Reference) earlier inside vmClasses::resolve_all()
   BASIC_JAVA_CLASSES_DO_PART2(DO_COMPUTE_OFFSETS);
-
-  if (EnableCoroutine) {
-    java_dyn_CoroutineBase::compute_offsets();
-  }
 }
 
 #if INCLUDE_CDS

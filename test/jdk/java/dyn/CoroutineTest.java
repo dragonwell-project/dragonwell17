@@ -54,7 +54,7 @@ public class CoroutineTest {
 			protected void run() {
 				seq.append("c");
 				for (int i = 0; i < 3; i++) {
-					yield();
+					Thread.yield();
 					seq.append("e");
 				}
 			}
@@ -80,7 +80,7 @@ public class CoroutineTest {
 			new Coroutine() {
 				protected void run() {
 					seq.append("c");
-					yield();
+					Thread.yield();
 					seq.append("e");
 				}
 			};
@@ -101,7 +101,7 @@ public class CoroutineTest {
 				seq.append("c");
 				Integer v1 = 1;
 				Integer v2 = 14555668;
-				yield();
+				Thread.yield();
 				seq.append("e");
 				seq.append("(" + v1 + "," + v2 + ")");
 			}
@@ -126,7 +126,7 @@ public class CoroutineTest {
 				long temp = System.nanoTime();
 				if (temp != 0)
 					throw new RuntimeException();
-				yield();
+				Thread.yield();
 				seq.append("e");
 			}
 		};
@@ -164,7 +164,7 @@ public class CoroutineTest {
 				Integer v17 = 10017;
 				Integer v18 = 10018;
 				Integer v19 = 10019;
-				yield();
+				Thread.yield();
 				int sum = v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7 + v8 + v9 + v10 + v11 + v12 + v13 + v14 + v15 + v16 + v17 + v18 + v19;
 				seq.append("e" + sum);
 			}
@@ -187,7 +187,7 @@ public class CoroutineTest {
 					MessageDigest digest = MessageDigest.getInstance("SHA");
 					digest.update("TestMessage".getBytes());
 					seq.append("b");
-					yield();
+					Thread.yield();
 					seq.append(digest.digest()[0]);
 				} catch (NoSuchAlgorithmException e) {
 					e.printStackTrace();
