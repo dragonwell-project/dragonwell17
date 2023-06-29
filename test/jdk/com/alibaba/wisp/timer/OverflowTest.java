@@ -1,8 +1,8 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test timer implementation
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @run main/othervm -XX:+EnableCoroutine OverflowTest
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.version=2 OverflowTest
 */
@@ -16,7 +16,7 @@ import jdk.internal.access.WispEngineAccess;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 
 /**

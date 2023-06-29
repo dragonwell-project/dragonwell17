@@ -1,8 +1,8 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary convert all thread to wisp
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @run main/othervm -XX:+EnableCoroutine  -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.version=2 -XX:+UseWispMonitor -Dcom.alibaba.wisp.enableThreadAsWisp=true -Dcom.alibaba.wisp.allThreadAsWisp=true AllThreadAsWispTest
  */
 
@@ -14,7 +14,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class AllThreadAsWispTest {
     public static void main(String[] args) throws Exception {

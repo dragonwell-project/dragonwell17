@@ -817,11 +817,11 @@ void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register 
     cmpb(Address(temp, JavaThread::interp_only_mode_offset()), 0);
     jccb(Assembler::zero, run_compiled_code);
     if (EnableCoroutine) {
-      cmpq(Address(method, Method::intrinsic_id_offset_in_bytes()), (int)vmIntrinsics::_switchTo);
+      cmpq(Address(method, Method::intrinsic_id_offset_in_bytes()), (int32_t)vmIntrinsics::_switchTo);
       jcc(Assembler::zero, coroutine_skip_interpret);
-      cmpq(Address(method, Method::intrinsic_id_offset_in_bytes()), (int)vmIntrinsics::_switchToAndExit);
+      cmpq(Address(method, Method::intrinsic_id_offset_in_bytes()), (int32_t)vmIntrinsics::_switchToAndExit);
       jcc(Assembler::zero, coroutine_skip_interpret);
-      cmpq(Address(method, Method::intrinsic_id_offset_in_bytes()), (int)vmIntrinsics::_switchToAndTerminate);
+      cmpq(Address(method, Method::intrinsic_id_offset_in_bytes()), (int32_t)vmIntrinsics::_switchToAndTerminate);
       jcc(Assembler::zero, coroutine_skip_interpret);
     }
     jmp(Address(method, Method::interpreter_entry_offset()));

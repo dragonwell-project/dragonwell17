@@ -1,8 +1,8 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test for Global Poller
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @modules java.base/sun.nio.ch
  * @modules java.base/com.alibaba.wisp.engine:+open
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.transparentAsync=true GlobalPollerTest
@@ -20,7 +20,7 @@ import java.net.Socket;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class GlobalPollerTest {
     private static WispEngineAccess access = SharedSecrets.getWispEngineAccess();

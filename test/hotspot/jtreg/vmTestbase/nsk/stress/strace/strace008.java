@@ -76,6 +76,7 @@ public class strace008 {
     static final String NATIVE_LIB = "strace008";
     static final String[] EXPECTED_METHODS = {
             "java.lang.Thread.sleep",
+            "java.lang.Thread.sleep0",
             "nsk.stress.strace.strace008Thread.run",
             "nsk.stress.strace.strace008Thread.recursiveMethod"
     };

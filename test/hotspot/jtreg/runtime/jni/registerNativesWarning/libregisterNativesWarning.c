@@ -30,6 +30,9 @@
  *   java/lang/Thread.java:    public static native void yield();
  *
  * as it is simple and innocuous.
+ *
+ * KBOX: yield() in Thread.java is not a native method after we
+ * port wisp coroutine to JDK. Thus we use currentTimeMillis() instead.
  */
 static void myYield(JNIEnv* env, jclass cls) {
   printf("myYield executed\n");
@@ -41,8 +44,8 @@ Java_TestRegisterNativesWarning_test
 (JNIEnv *env, jclass cls, jclass jlThread) {
   JNINativeMethod nativeMethods[] = {
     {
-      (char*) "yield",  // name
-      (char*) "()V",    // sig
+      (char*) "currentTimeMillis",  // name
+      (char*) "()J",    // sig
       (void*) myYield   // native method ptr
     }
   };

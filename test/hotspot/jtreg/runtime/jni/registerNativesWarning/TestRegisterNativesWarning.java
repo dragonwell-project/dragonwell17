@@ -43,9 +43,12 @@ public class TestRegisterNativesWarning {
 
     /*
      * We will replace:
-     *   java/lang/Thread.java:    public static native void yield();
+     *   java/lang/System.java:    public static native void currentTimeMillis();
      *
      * as it is simple and innocuous.
+     *
+     * KBOX: yield() in Thread.java is not a native method after we
+     * port wisp coroutine to JDK. Thus we use currentTimeMillis() instead.
      */
     native static void test(Class<?> jlThread);
 
@@ -55,13 +58,13 @@ public class TestRegisterNativesWarning {
         public static void main(String[] args) throws Exception {
             System.out.println("Running test() in class loader " +
                                Tester.class.getClassLoader());
-            test(Thread.class);
-            Thread.yield();
+            test(System.class);
+            System.currentTimeMillis();
         }
     }
 
     public static void main(String[] args) throws Exception {
-        String warning = "Re-registering of platform native method: java.lang.Thread.yield()V from code in a different classloader";
+        String warning = "Re-registering of platform native method: java.lang.System.currentTimeMillis()J from code in a different classloader";
 
         String cp = Utils.TEST_CLASS_PATH;
         String libp = Utils.TEST_NATIVE_PATH;

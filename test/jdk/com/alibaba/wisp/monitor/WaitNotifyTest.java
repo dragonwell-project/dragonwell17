@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test Object.wait/notify with coroutine
  * @run main/othervm  -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true WaitNotifyTest
  */
@@ -9,7 +9,7 @@ import com.alibaba.wisp.engine.WispEngine;
 
 import java.util.concurrent.CountDownLatch;
 
-import static jdk.testlibrary.Asserts.assertEQ;
+import static jdk.test.lib.Asserts.assertEQ;
 
 public class WaitNotifyTest {
     public static void main(String[] args) throws Exception {

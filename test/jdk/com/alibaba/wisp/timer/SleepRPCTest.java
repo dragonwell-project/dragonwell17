@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary test use sleep in RPC senorina
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.enableThreadAsWisp=true SleepRPCTest
  * @run main/othervm -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.enableThreadAsWisp=true -Dcom.alibaba.wisp.version=2 SleepRPCTest
  */
@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class SleepRPCTest {
     public static void main(String[] args) {

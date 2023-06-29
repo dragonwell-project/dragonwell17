@@ -28,6 +28,7 @@
 #include "memory/allocation.hpp"
 #include "runtime/flags/flagSetting.hpp"
 #include "runtime/mutex.hpp"
+#include "runtime/synchronizer.hpp"
 
 // Mutexes used in the VM.
 
@@ -320,18 +321,19 @@ class MutexUnlocker: StackObj {
   }
 };
 
-class SystemDictLocker: StackObj {
+
+class SystemDictLockerBase: StackObj {
  private:
   SystemDictMonitor* _mutex;
-  JavaThread*        _thread;
+  Thread*            _thread;
   BasicLock          _lock;
   bool               _locked;
  public:
-  SystemDictLocker(JavaThread* THREAD, SystemDictMonitor* mutex, bool do_lock=true) {
+  SystemDictLockerBase(Thread* thread, SystemDictMonitor* mutex, bool do_lock=true) {
     _locked = do_lock;
     _mutex = mutex;
-    _thread = THREAD;
-    if (do_lock) {
+    _thread = thread;
+    if (_locked && _mutex != NULL) {
       _mutex->lock(&_lock, _thread);
     }
   }
@@ -342,10 +344,15 @@ class SystemDictLocker: StackObj {
   void unlock()     { _mutex->unlock(&_lock, _thread); }
 
 
-  ~SystemDictLocker() { if (_locked)  _mutex->unlock(&_lock, _thread); }
+  ~SystemDictLockerBase() { if (_locked && _mutex != NULL)  _mutex->unlock(&_lock, _thread); }
 };
 
-class GCSystemDictLocker: public SystemDictLocker {
+class SystemDictLocker: public SystemDictLockerBase {
+ public:
+  SystemDictLocker(JavaThread* THREAD, SystemDictMonitor* mutex, bool do_lock=true);
+};
+
+class GCSystemDictLocker: public SystemDictLockerBase {
  public:
   GCSystemDictLocker(SystemDictMonitor* mutex);
 };

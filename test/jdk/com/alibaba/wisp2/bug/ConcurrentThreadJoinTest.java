@@ -1,11 +1,11 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary ensure thread.isAlive() is false after thread.join()
  * @run main/othervm -XX:+UseWisp2 ConcurrentThreadJoinTest
  */
 
-import static jdk.testlibrary.Asserts.assertFalse;
+import static jdk.test.lib.Asserts.assertFalse;
 
 public class ConcurrentThreadJoinTest {
     public static void main(String[] args) throws Exception {

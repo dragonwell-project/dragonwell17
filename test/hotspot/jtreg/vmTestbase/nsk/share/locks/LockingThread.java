@@ -411,6 +411,17 @@ public class LockingThread extends Thread {
         interrupt();
     }
 
+    // This function add one more stack frame when calling relinquishedMonitor.wait().
+    private void myWait(Object relinquishedMonitor) {
+        try {
+            relinquishedMonitor.wait(0);
+        } catch (Exception e) {
+            executedWithErrors = true;
+            log("Unexpected exception: " + e);
+            e.printStackTrace(log.getOutStream());
+        }
+    }
+
     // LockingThread call this method when required state is reached
     private void doWait() {
         while (true) {
@@ -440,7 +451,7 @@ public class LockingThread extends Thread {
                     // and this method waits when LockingThred change state to 'Thread.State.WAITING'
 
                     while (relinquishMonitor)
-                        relinquishedMonitor.wait(0);
+                        myWait(relinquishedMonitor);
 
                     log("Acquire relinquished monitor: " + relinquishedMonitor);
                 } catch (Exception e) {
@@ -488,7 +499,9 @@ public class LockingThread extends Thread {
     int expectedDepth() {
         // for each monitor call 2 methods: createStackFrame() and method which acquire monitor
         // + when stack creation is finished call 3 methods: createStackFrame()->doWait()->sleep()
-        return (stackFramesDescription.size() - currentIndex) * 2 + 3;
+        // return (stackFramesDescription.size() - currentIndex) * 2 + 3;
+        // After port wisp coroutine, need to add 1 more call after sleep(), i.e. sleep()->sleep0()
+        return (stackFramesDescription.size() - currentIndex) * 2 + 4;
     }
 
     private native void nativeJNIMonitorEnter(Object object);

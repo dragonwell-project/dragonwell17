@@ -615,7 +615,14 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
   // Propagate ICC.ZF from CAS above into DONE_LABEL.
   jcc(Assembler::equal, DONE_LABEL);           // CAS above succeeded; propagate ZF = 1 (success)
 
+  if (UseWispMonitor) {
+    movptr (r15_thread, Address(r15_thread, JavaThread::current_coroutine_offset()));
+    movptr (r15_thread, Address(r15_thread, Coroutine::wisp_thread_offset()));
+  }
   cmpptr(r15_thread, rax);                     // Check if we are already the owner (recursive lock)
+  if (UseWispMonitor) {
+    movptr (r15_thread, Address(r15_thread, WispThread::thread_offset()));
+  }
   jcc(Assembler::notEqual, DONE_LABEL);        // If not recursive, ZF = 0 at this point (fail)
   incq(Address(scrReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
   xorq(rax, rax); // Set ZF = 1 (success) for recursive lock, denoting locking success

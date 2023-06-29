@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary test context ClassLoader inherit.
  * @run main/othervm -XX:+EnableCoroutine  -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.version=2 -XX:+UseWispMonitor -Dcom.alibaba.wisp.enableThreadAsWisp=true -Dcom.alibaba.wisp.allThreadAsWisp=true CtxClassLoaderInheritanceTest
  */
@@ -8,7 +8,7 @@
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static jdk.testlibrary.Asserts.assertEQ;
+import static jdk.test.lib.Asserts.assertEQ;
 
 public class CtxClassLoaderInheritanceTest {
     public static void main(String[] args) throws Exception {

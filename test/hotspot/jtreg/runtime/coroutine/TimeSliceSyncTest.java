@@ -2,7 +2,7 @@
  * @test
  * @library /testlibrary
  * @summary This test ensures that coroutine time slice feature won't cause hang.
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @run main/othervm  -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -XX:-Inline -XX:+EnableCoroutineTimeSlice TimeSliceSyncTest
  * @run main/othervm  -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -XX:-Inline -XX:+EnableCoroutineTimeSlice -Dcom.alibaba.wisp.version=2 TimeSliceSyncTest
  */

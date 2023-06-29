@@ -1,8 +1,8 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test WispEngine's DatagramSocket, InitialDirContext use dup socket to query dns.
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true DatagramSocketTest
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 DatagramSocketTest
 */
@@ -15,7 +15,7 @@ import javax.naming.directory.InitialDirContext;
 import java.io.IOException;
 import java.net.*;
 import java.util.concurrent.CountDownLatch;
-import static jdk.testlibrary.Asserts.*;
+import static jdk.test.lib.Asserts.*;
 
 public class DatagramSocketTest {
     public static void main(String[] args) throws Exception {

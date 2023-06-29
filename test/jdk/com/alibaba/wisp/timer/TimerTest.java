@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test timer implement
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @run main/othervm -XX:+EnableCoroutine TimerTest
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.version=2 TimerTest
 */

@@ -870,9 +870,35 @@ Node* LibraryCallKit::generate_current_thread(Node* &tls_output) {
   Node* thread = _gvn.transform(new ThreadLocalNode());
   Node* p = basic_plus_adr(top()/*!oop*/, thread, in_bytes(JavaThread::threadObj_offset()));
   tls_output = thread;
-  Node* thread_obj_handle = LoadNode::make(_gvn, NULL, immutable_memory(), p, p->bottom_type()->is_ptr(), TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
+
+  Node* thread_obj_handle = NULL;
+  DecoratorSet decorators = IN_NATIVE;
+  // threadObj oop is linked to JavaThread by oopstorage at Java17 while it is
+  // linked to JavaThread as oop at java11. Java11 always refetches threadObj
+  // because oop may be moved by GC. In theory, Java17 also should always
+  // refetch threadObj. But threadObj refetch by oopstorage is a little
+  // expensive because oopstorage needs one more dereference. To save cost,
+  // Java17 current_thread inline caches the oopstorage address because
+  // oopstorage address is never changed during the method in thread semantic.
+  // threadObj oop refech can be speed up if oopstorage address is cached
+  // because we need not to refetch oopstorage address from r15_thread. We
+  // can get threadObj directly from the cached oopstorage address.
+  // In the middle of method execution, the underly thread is never changed and
+  // oopstorage caching is a good optimization for thread semantic.
+  // But in coroutine semantic, one method may be executed by different
+  // underly threads. The oopstorage caching may lead to wrong results
+  // because of coroutine stealing machanism. So in coroutine mode, we should
+  // never cache oopstorage to speed up threadObj refetch.
+  if (EnableCoroutine) {
+    // if enable coroutine, we should use make_load to avoid threadObj changed
+    thread_obj_handle = make_load(nullptr, p, p->bottom_type()->is_ptr(), T_ADDRESS, MemNode::unordered);
+  } else {
+    thread_obj_handle = LoadNode::make(_gvn, NULL, immutable_memory(), p, p->bottom_type()->is_ptr(), TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
+    decorators |= C2_IMMUTABLE_MEMORY;
+  }
+
   thread_obj_handle = _gvn.transform(thread_obj_handle);
-  return access_load(thread_obj_handle, thread_type, T_OBJECT, IN_NATIVE | C2_IMMUTABLE_MEMORY);
+  return access_load(thread_obj_handle, thread_type, T_OBJECT, decorators);
 }
 
 

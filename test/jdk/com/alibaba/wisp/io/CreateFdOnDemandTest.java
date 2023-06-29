@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test fix of unconnected Socket fd leak.
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true CreateFdOnDemandTest
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 CreateFdOnDemandTest
@@ -13,8 +13,8 @@ import java.net.Socket;
 
 import com.alibaba.wisp.engine.WispEngine;
 
-import static jdk.testlibrary.Asserts.assertEQ;
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertEQ;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class CreateFdOnDemandTest {
     public static void main(String[] args) throws Exception {

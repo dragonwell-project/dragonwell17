@@ -140,7 +140,9 @@ public class strace001 {
         switch (controller.getInvocationType()) {
             case ThreadController.JAVA_TYPE:
                 expectedTrace = new String[] {
-                    "java.lang.Thread.sleep"
+                    "java.lang.Thread.sleep0"
+                    , "java.lang.Thread.sleep"
+                    , "java.lang.Thread.yield0"
                     , "java.lang.Thread.yield"
                     , THREAD_NAME + ".waitForSign"
                     , THREAD_NAME + ".recursionJava"
@@ -150,7 +152,9 @@ public class strace001 {
 
             case ThreadController.NATIVE_TYPE:
                 expectedTrace = new String[] {
-                    "java.lang.Thread.sleep"
+                    "java.lang.Thread.sleep0"
+                    , "java.lang.Thread.sleep"
+                    , "java.lang.Thread.yield0"
                     , "java.lang.Thread.yield"
                     , THREAD_NAME + ".waitForSign"
                     , THREAD_NAME + ".recursionNative"
@@ -160,7 +164,9 @@ public class strace001 {
 
             case ThreadController.MIXED_TYPE:
                 expectedTrace = new String[] {
-                    "java.lang.Thread.sleep"
+                    "java.lang.Thread.sleep0"
+                    , "java.lang.Thread.sleep"
+                    , "java.lang.Thread.yield0"
                     , "java.lang.Thread.yield"
                     , THREAD_NAME + ".waitForSign"
                     , THREAD_NAME + ".recursionNative"
@@ -194,7 +200,7 @@ public class strace001 {
     // The method performs checks of the stack trace
     private static boolean checkTrace(StackTraceElement[] elements) {
         int length = elements.length;
-        int expectedLength = depth +3;
+        int expectedLength = depth +4;
         boolean result = true;
 
         // Check the length of the trace. It must not be greater than

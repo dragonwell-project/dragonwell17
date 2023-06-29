@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "memory/universe.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/safepoint.hpp"
@@ -217,7 +218,6 @@ static bool is_owner(const SystemDictMonitor* lock, Thread* THREAD) {
 }
 
 void assert_lock_strong(const SystemDictMonitor* lock) {
-  if (IgnoreLockingAssertions) return;
   assert(lock != NULL, "Need non-NULL lock");
   if (is_owner(lock, Thread::current())) return;
   fatal("must own lock %s", lock->monitor()->name());
@@ -225,7 +225,6 @@ void assert_lock_strong(const SystemDictMonitor* lock) {
 
 void assert_locked_or_safepoint(const SystemDictMonitor* lock) {
   // check if this thread owns the lock (common case)
-  if (IgnoreLockingAssertions) return;
   assert(lock != NULL, "Need non-NULL lock");
   if (SafepointSynchronize::is_at_safepoint()) return;
   if (is_owner(lock, Thread::current())) return;
@@ -408,8 +407,11 @@ GCMutexLocker::GCMutexLocker(Mutex* mutex) {
   }
 }
 
+SystemDictLocker::SystemDictLocker(JavaThread* THREAD, SystemDictMonitor* mutex, bool do_lock)
+  : SystemDictLockerBase(THREAD, mutex, do_lock) {}
+
 GCSystemDictLocker::GCSystemDictLocker(SystemDictMonitor* mutex)
-  : SystemDictLocker(JavaThread::current(), mutex, !SafepointSynchronize::is_at_safepoint()) {}
+  : SystemDictLockerBase(Thread::current(), mutex, !SafepointSynchronize::is_at_safepoint()) {}
 
 // Print all mutexes/monitors that are currently owned by a thread; called
 // by fatal error handler.

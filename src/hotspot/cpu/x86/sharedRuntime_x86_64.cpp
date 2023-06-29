@@ -1531,7 +1531,11 @@ static void gen_special_dispatch(MacroAssembler* masm,
                                                  receiver_reg, member_reg, /*for_compiler_entry:*/ true);
 }
 
-void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_maps, int &stack_slots, int total_in_args, BasicType *in_sig_bt, VMRegPair *in_regs, BasicType ret_type, bool terminate);
+void create_switchTo_contents(MacroAssembler *masm, int start,
+  OopMapSet* oop_maps, int &stack_slots,
+  int total_in_args, BasicType *in_sig_bt, VMRegPair *in_regs,
+  BasicType ret_type, bool terminate,
+  int total_c_args, VMRegPair *out_regs);
 
 void generate_thread_fix(MacroAssembler *masm, Method *method) {
   // we can have a check here at the codegen time, so no cost in runtime.
@@ -1823,10 +1827,14 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   if (EnableCoroutine) {
     // the coroutine support methods have a hand-coded fast version that will handle the most common cases
     if (method->intrinsic_id() == vmIntrinsics::_switchTo) {
-      create_switchTo_contents(masm, start, oop_maps, stack_slots, total_in_args, in_sig_bt, in_regs, ret_type, false);
+      create_switchTo_contents(masm, start, oop_maps, stack_slots,
+        total_in_args, in_sig_bt, in_regs, ret_type, false,
+        total_c_args, out_regs);
     } else if (method->intrinsic_id() == vmIntrinsics::_switchToAndTerminate ||
         method->intrinsic_id() == vmIntrinsics::_switchToAndExit) {
-      create_switchTo_contents(masm, start, oop_maps, stack_slots, total_in_args, in_sig_bt, in_regs, ret_type, true);
+      create_switchTo_contents(masm, start, oop_maps, stack_slots,
+        total_in_args, in_sig_bt, in_regs, ret_type, true,
+        total_c_args, out_regs);
     }
   }
 
@@ -3991,8 +3999,26 @@ MacroAssembler* debug_line(MacroAssembler* masm, int l) {
   return masm;
 }
 
+static const int64_t invalid_val = 0x500000005L;
+void crash_if_reg_invalid(MacroAssembler *masm, Register reg, int loc) {
+  Label skip;
+  __ cmp64(reg, ExternalAddress((address)&invalid_val));
+  __ jcc(Assembler::notEqual, skip);
+  __ movptr(Address(reg, (ByteSize)loc), (intptr_t)loc);
+  __ bind(skip);
+}
+
+#ifdef ASSERT
+void trace_switch(MacroAssembler *masm, Register reg, int total_c_args, VMRegPair *out_regs) {
+  save_args(masm, total_c_args, 0, out_regs);
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::coroutine_switch_trace), r15_thread, reg);
+  restore_args(masm, total_c_args, 0, out_regs);
+}
+#endif
+
 void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_maps, int &stack_slots, int total_in_args,
-                              BasicType *in_sig_bt, VMRegPair *in_regs, BasicType ret_type, bool terminate) {
+                              BasicType *in_sig_bt, VMRegPair *in_regs, BasicType ret_type, bool terminate,
+                              int total_c_args, VMRegPair *out_regs) {
   assert(total_in_args == 2, "wrong number of arguments");
 
   if (j_rarg0 != rsi) {
@@ -4033,7 +4059,6 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     DEBUG_ONLY(stop_if_null(masm, old_coroutine_obj, "null old_coroutine"));
     __ movptr(old_coroutine, Address(old_coroutine_obj, java_dyn_CoroutineBase::get_data_offset()));
     DEBUG_ONLY(stop_if_null(masm, old_coroutine, "old_coroutine without data"));
-    __ movptr(old_stack, Address(old_coroutine, Coroutine::stack_offset()));
 
 #if defined(_WINDOWS)
     // rescue the SEH pointer
@@ -4059,14 +4084,18 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     __ movptr(Address(old_coroutine, Coroutine::last_Java_pc_offset()), temp);
     __ movptr(temp, Address(thread, JavaThread::last_Java_sp_offset()));
     __ movptr(Address(old_coroutine, Coroutine::last_Java_sp_offset()), temp);
-    // __ movptr(temp, Address(thread, JavaThread::privileged_stack_top_offset()));
-    // __ movptr(Address(old_coroutine, Coroutine::privileged_stack_top_offset()), temp);
     __ movptr(temp, Address(thread, JavaThread::threadObj_offset()));
+    // Now temp is JavaThread::_threadObj.
+    // In Java17, JavaThread::_threadObj is oop* while Java11 stores JavaThread::_threadObj as oop.
+    // So we dereference temp here to get the target JavaThread oop.
+    __ movptr(temp, Address(temp, 0));
     __ movl(temp, Address(temp, java_lang_Thread::thread_status_offset()));
     __ movl(Address(old_coroutine, Coroutine::thread_status_offset()), temp);
     __ movl(temp, Address(thread, JavaThread::java_call_counter_offset()));
     __ movl(Address(old_coroutine, Coroutine::java_call_counter_offset()), temp);
 
+    // store rsp into CorotineStack
+    __ movptr(old_stack, Address(old_coroutine, Coroutine::stack_offset()));
     __ movptr(Address(old_stack, CoroutineStack::last_sp_offset()), rsp);
   }
   Register target_stack = r12;
@@ -4100,10 +4129,10 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
       __ movptr(Address(thread, JavaThread::last_Java_pc_offset()), temp);
       __ movptr(temp, Address(target_coroutine, Coroutine::last_Java_sp_offset()));
       __ movptr(Address(thread, JavaThread::last_Java_sp_offset()), temp);
-      // __ movptr(temp, Address(target_coroutine, Coroutine::privileged_stack_top_offset()));
-      // __ movptr(Address(thread, JavaThread::privileged_stack_top_offset()), temp);
       __ movl(temp2, Address(target_coroutine, Coroutine::thread_status_offset()));
       __ movptr(temp, Address(thread, JavaThread::threadObj_offset()));
+      // Dereference temp here to get the target JavaThread oop.
+      __ movptr(temp, Address(temp, 0));
       __ movl(Address(temp, java_lang_Thread::thread_status_offset()), temp2);
       __ movl(temp, Address(target_coroutine, Coroutine::java_call_counter_offset()));
       __ movl(Address(thread, JavaThread::java_call_counter_offset()), temp);

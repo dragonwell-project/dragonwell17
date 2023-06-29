@@ -1506,9 +1506,6 @@ class JavaThread: public Thread {
   virtual void post_run();
 
  public:
-//  static ByteSize privileged_stack_top_offset()         { return byte_offset_of(JavaThread, _privileged_stack_top); }
-
- public:
   // Thread local information maintained by JVMTI.
   void set_jvmti_thread_state(JvmtiThreadState *value)                           { _jvmti_thread_state = value; }
   // A JvmtiThreadState is lazily allocated. This jvmti_thread_state()
@@ -1654,6 +1651,7 @@ public:
   // java.lang.Thread interruption support
   void interrupt();
   bool is_interrupted(bool clear_interrupted);
+  bool clear_interrupt_for_wisp();
 
   static OopStorage* thread_oop_storage();
 

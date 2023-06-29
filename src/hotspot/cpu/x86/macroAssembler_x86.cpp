@@ -4161,8 +4161,15 @@ void MacroAssembler::clinit_barrier(Register klass, Register thread, Label* L_fa
   cmpb(Address(klass, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
   jcc(Assembler::equal, *L_fast_path);
 
+  if (UseWispMonitor) {
+    movptr(thread, Address(thread, JavaThread::current_coroutine_offset()));
+    movptr(thread, Address(thread, Coroutine::wisp_thread_offset()));
+  }
   // Fast path check: current thread is initializer thread
   cmpptr(thread, Address(klass, InstanceKlass::init_thread_offset()));
+  if (UseWispMonitor) {
+    movptr(thread, Address(thread, WispThread::thread_offset()));
+  }
   if (L_slow_path == &L_fallthrough) {
     jcc(Assembler::equal, *L_fast_path);
     bind(*L_slow_path);

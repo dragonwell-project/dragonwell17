@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test for engine.selector lazy created
  * @modules java.base/com.alibaba.wisp.engine:+open
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.globalPoller=false SelectorLazyCreateTest
@@ -11,8 +11,8 @@ import com.alibaba.wisp.engine.WispEngine;
 import java.lang.reflect.Field;
 import java.net.Socket;
 
-import static jdk.testlibrary.Asserts.assertNotNull;
-import static jdk.testlibrary.Asserts.assertNull;
+import static jdk.test.lib.Asserts.assertNotNull;
+import static jdk.test.lib.Asserts.assertNull;
 
 public class SelectorLazyCreateTest {
 

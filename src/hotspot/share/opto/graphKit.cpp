@@ -2625,8 +2625,7 @@ Node* GraphKit::make_runtime_call(int flags,
                                   Node* parm0, Node* parm1,
                                   Node* parm2, Node* parm3,
                                   Node* parm4, Node* parm5,
-                                  Node* parm6, Node* parm7,
-                                  Node* ctrl) {
+                                  Node* parm6, Node* parm7) {
   assert(call_addr != NULL, "must not call NULL targets");
 
   // Slow-path call
@@ -2657,7 +2656,7 @@ Node* GraphKit::make_runtime_call(int flags,
 
   Node* prev_mem = NULL;
   if (wide_in) {
-    prev_mem = set_predefined_input_for_runtime_call(call, ctrl);
+    prev_mem = set_predefined_input_for_runtime_call(call);
   } else {
     assert(!wide_out, "narrow in => narrow out");
     Node* narrow_mem = memory(adr_type);
@@ -3663,9 +3662,7 @@ void GraphKit::make_wisp_yield(ciMethod* method) {
   Node* mark_preempt_addr = __ AddP(no_base, tls, __ ConX(mark_offset));
   Node* mark_preempt_val = __ load(__ ctrl(), mark_preempt_addr, TypeInt::BYTE, T_BYTE, Compile::AliasIdxRaw);
   Node*   zero = __ ConI(0);
-  const TypeFunc *call_type    = OptoRuntime::yield_method_exit_Type();
-  address         call_address = CAST_FROM_FN_PTR(address, SharedRuntime::wisp_yield);
-  const char     *call_name    = "wisp_yield";
+
   // Get base of thread-local storage area
   Node* thread = _gvn.transform( new ThreadLocalNode() );
 
@@ -3676,17 +3673,16 @@ void GraphKit::make_wisp_yield(ciMethod* method) {
   kill_dead_locals();
 
   // For some reason, this call reads only raw memory.
-  const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
   __ if_then(mark_preempt_val, BoolTest::ne, zero) ; {
-    // Totally 8 parameters, 2 used, 6 NULL
+    // Totally 8 parameters, 2 used, 6 NULL.
+    // make_runtime_call itself would set control node, so
+    // we should never pass control node here.
     Node* call = make_runtime_call(RC_NARROW_MEM,
-                    call_type, call_address,
-                    call_name, raw_adr_type,
-                    thread, method_node, 
-                    NULL, NULL, NULL,
-                    NULL, NULL, NULL,
-                    __ ctrl());
-    __ set_ctrl( _gvn.transform( new ProjNode(call, TypeFunc::Control)));
+                    OptoRuntime::yield_method_exit_Type(),
+                    CAST_FROM_FN_PTR(address, SharedRuntime::wisp_yield),
+                    "wisp_yield",
+                    TypeRawPtr::BOTTOM,
+                    thread, method_node);
   } __ end_if();
   final_sync(ideal);
 }

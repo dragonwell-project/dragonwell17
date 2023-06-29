@@ -1,9 +1,9 @@
 /*
  * @test
  * @summary test dispatching thread into our managed workers
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @modules java.base/com.alibaba.wisp.engine:+open
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.threadPoolLimit=true -Dcom.alibaba.wisp.enableThreadAsWisp=true ThreadAsWispTest
  * @run main/othervm -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.threadPoolLimit=true -Dcom.alibaba.wisp.enableThreadAsWisp=true -Dcom.alibaba.wisp.version=2 -XX:ActiveProcessorCount=4 ThreadAsWispTest
 */
@@ -30,8 +30,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.stream.IntStream;
 
-import static jdk.testlibrary.Asserts.assertEQ;
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertEQ;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class ThreadAsWispTest {
     static Thread mainThread;

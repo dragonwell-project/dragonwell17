@@ -1099,10 +1099,10 @@ public class Thread implements Runnable {
             synchronized (blockerLock) {
                 Interruptible b = blocker;
                 if (b != null) {
-                    interrupted = true;
                     if (WEA != null && wispTask != null) {
                         WEA.interrupt(wispTask);
                     } else {
+                        interrupted = true;
                         interrupt0();           // Just to set the interrupt flag
                     }
                     b.interrupt(this);
@@ -1110,10 +1110,10 @@ public class Thread implements Runnable {
                 }
             }
         }
-        interrupted = true;
         if (WEA != null && wispTask != null) {
             WEA.interrupt(wispTask);
         } else {
+            interrupted = true;
             interrupt0();
         }
     }

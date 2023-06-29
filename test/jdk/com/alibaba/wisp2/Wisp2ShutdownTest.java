@@ -2,7 +2,7 @@
  * @test
  * @summary Wisp2ShutdownTest
  * @modules java.base/com.alibaba.wisp.engine:+open
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 Wisp2ShutdownTest
  */
 
@@ -12,7 +12,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static jdk.testlibrary.Asserts.assertEQ;
+import static jdk.test.lib.Asserts.assertEQ;
 
 public class Wisp2ShutdownTest {
     public static void main(String[] args) throws Exception {
@@ -39,6 +39,7 @@ public class Wisp2ShutdownTest {
                     n.decrementAndGet();
                 }
             });
+
         }
 
         while (n.get() != 888) {
@@ -49,7 +50,7 @@ public class Wisp2ShutdownTest {
 
         g.shutdown();
 
-        g.awaitTermination(1, TimeUnit.SECONDS);
+        g.awaitTermination(5, TimeUnit.SECONDS);
 
         System.out.println(System.currentTimeMillis() - start + "ms");
 

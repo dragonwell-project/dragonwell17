@@ -49,6 +49,7 @@
 #define DEBUG_CORO_PRINT(x)
 #endif
 
+class ThreadStateTransition;
 class Coroutine;
 class CoroutineStack;
 class WispThread;
@@ -115,7 +116,6 @@ private:
   JNIHandleBlock* _active_handles;
   GrowableArray<Metadata*>* _metadata_handles;
   JavaFrameAnchor _anchor;
-  // PrivilegedElement*  _privileged_stack_top;
   JavaThreadStatus _thread_status;
   int             _enable_steal_count;
   int             _java_call_counter;
@@ -208,7 +208,6 @@ public:
   static ByteSize last_handle_mark_offset()   { return byte_offset_of(Coroutine, _last_handle_mark); }
   static ByteSize active_handles_offset()     { return byte_offset_of(Coroutine, _active_handles); }
   static ByteSize metadata_handles_offset()   { return byte_offset_of(Coroutine, _metadata_handles); }
-  // static ByteSize privileged_stack_top_offset(){ return byte_offset_of(Coroutine, _privileged_stack_top); }
   static ByteSize last_Java_sp_offset()       {
     return byte_offset_of(Coroutine, _anchor) + JavaFrameAnchor::last_Java_sp_offset();
   }
@@ -525,6 +524,7 @@ public:
                     ThreadInVMfromJava & tiva);
   WispPostStealHandleUpdateMark(HandleMarkCleaner & hmc);
   WispPostStealHandleUpdateMark(JavaThread *thread, ThreadBlockInVM & tbv);  // constructor is used inside objectMonitor call, which is also within EnableStealMark scope.
+  WispPostStealHandleUpdateMark(JavaThread *thread, ThreadStateTransition & tst);
   WispPostStealHandleUpdateMark(JavaThread *& th);                  // this is a special one, used for a fix inside EnableStealMark
 
   ~WispPostStealHandleUpdateMark();

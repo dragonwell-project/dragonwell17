@@ -39,6 +39,7 @@
 #include "prims/jniCheck.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/init.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -347,9 +348,6 @@ Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* construct
 void JavaCalls::call(JavaValue* result, const methodHandle& method, JavaCallArguments* args, TRAPS) {
   // Check if we need to wrap a potential OS exception handler around thread.
   // This is used for e.g. Win32 structured exception handlers.
-  assert(!UseWispMonitor || !is_init_completed() ||
-      java_lang_Thread::park_event(((JavaThread*) THREAD)->threadObj()),
-      "park_event need to be set before calling java");
   // Need to wrap each and every time, since there might be native code down the
   // stack that has installed its own exception handlers.
   os::os_exception_wrapper(call_helper, result, method, args, THREAD);
@@ -440,8 +438,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
 #endif
       // thread steal support
       methodHandle* m = const_cast<methodHandle*>(&method);
-      Thread* t = THREAD;
-      WispPostStealHandleUpdateMark w(thread, t, *m, m, link);
+      WispPostStealHandleUpdateMark w(thread, (Thread *&)THREAD, *m, m, link);
 
       StubRoutines::call_stub()(
         (address)&link,

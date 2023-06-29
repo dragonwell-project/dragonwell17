@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-//#include "prims/privilegedStack.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "runtime/coroutine.hpp"
@@ -128,7 +127,6 @@ Coroutine* Coroutine::create_thread_coroutine(JavaThread* thread, CoroutineStack
 #if defined(_WINDOWS)
   coro->_last_SEH = NULL;
 #endif
-  // coro->_privileged_stack_top = NULL;
   coro->_wisp_thread  = UseWispMonitor ? new WispThread(coro) : NULL;
   coro->_wisp_engine  = NULL;
   coro->_wisp_task    = NULL;
@@ -177,7 +175,6 @@ Coroutine* Coroutine::create_coroutine(JavaThread* thread, CoroutineStack* stack
 #if defined(_WINDOWS)
   coro->_last_SEH = NULL;
 #endif
-  // coro->_privileged_stack_top = NULL;
   coro->_wisp_thread  = UseWispMonitor ? new WispThread(coro) : NULL;
   coro->_wisp_engine  = NULL;
   coro->_wisp_task    = NULL;
@@ -246,9 +243,6 @@ void Coroutine::oops_do(OopClosure* f, CodeBlobClosure* cf) {
     DEBUG_CORO_ONLY(tty->print_cr("collecting handle area %08x", _handle_area));
     _handle_area->oops_do(f);
     _active_handles->oops_do(f);
-    // if (_privileged_stack_top != NULL) {
-    //   _privileged_stack_top->oops_do(f);
-    // } 
   }
   if (_wisp_task != NULL) {
     f->do_oop((oop*) &_wisp_engine);
@@ -332,7 +326,7 @@ CoroutineStack* CoroutineStack::create_stack(JavaThread* thread, intptr_t size/*
     default_size = true;
   }
 
-  uint reserved_pages = StackShadowPages + StackRedPages + StackYellowPages + + StackReservedPages;
+  uint reserved_pages = StackShadowPages + StackRedPages + StackYellowPages + StackReservedPages;
   uintx real_stack_size = size + (reserved_pages * os::vm_page_size());
   uintx reserved_size = align_up(real_stack_size, os::vm_allocation_granularity());
 
@@ -475,17 +469,17 @@ void WispThread::set_wisp_booted(JavaThread* thread) {
   LinkInfo link_info(vmClasses::com_alibaba_wisp_engine_WispTask_klass(), vmSymbols::park_name(), vmSymbols::long_void_signature());
   LinkResolver::resolve_static_call(callinfo, link_info, true, thread);
   parkMethod = callinfo.selected_method();
-  assert(parkMethod.not_null(), "should have thrown exception");
+  assert(parkMethod != NULL, "should have thrown exception");
 
   LinkInfo link_info_unpark(vmClasses::com_alibaba_wisp_engine_WispTask_klass(), vmSymbols::unparkById_name(), vmSymbols::int_void_signature());
   LinkResolver::resolve_static_call(callinfo, link_info_unpark, true, thread);
   unparkMethod = callinfo.selected_method();
-  assert(unparkMethod.not_null(), "should have thrown exception");
+  assert(unparkMethod != NULL, "should have thrown exception");
 
   if (UseWispMonitor) {
-    _proxy_unpark = new (ResourceObj::C_HEAP, mtWisp) GrowableArray<int>(30);
+    _proxy_unpark = new (ResourceObj::C_HEAP, mtWisp) GrowableArray<int>(30, mtWisp);
     if (!AlwaysLockClassLoader) {
-      SystemDictionary::system_dict_lock_change(thread);
+      SystemDictionary_lock->create_obj_lock(thread);
     }
   }
 
@@ -681,9 +675,14 @@ void WispThread::unpark(int task_id, bool using_wisp_park, bool proxy_unpark, Pa
 }
 
 int WispThread::get_proxy_unpark(jintArray res) {
+  // We need to hoist code of safepoint state out of MutexLocker to prevent safepoint deadlock problem
+  // See the same usage: SR_lock in `JavaThread::exit()`
+  ThreadBlockInVM tbivm(JavaThread::current());
+  // When wait()ing, GC may occur. So we shouldn't verify GC.
+  NoSafepointVerifier nsv;
   MutexLocker mu(Wisp_lock, Mutex::_no_safepoint_check_flag);
   while (_proxy_unpark == NULL || _proxy_unpark->is_empty()) {
-    Wisp_lock->wait();
+    Wisp_lock->wait_without_safepoint_check();
   }
   typeArrayOop a = typeArrayOop(JNIHandles::resolve_non_null(res));
   if (a == NULL) {
@@ -890,6 +889,14 @@ WispPostStealHandleUpdateMark::WispPostStealHandleUpdateMark(JavaThread *thread,
 
   if (!_success)  return;
   WispPostStealHandle h(&(tbv._tbivmpp));
+}
+
+WispPostStealHandleUpdateMark::WispPostStealHandleUpdateMark(JavaThread *thread, ThreadStateTransition & tst)
+{
+  initialize(thread, true);
+
+  if (!_success)  return;
+  WispPostStealHandle h(&tst);
 }
 
 WispPostStealHandleUpdateMark::WispPostStealHandleUpdateMark(JavaThread *&th)    // this is a special one

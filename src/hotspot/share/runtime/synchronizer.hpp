@@ -27,6 +27,7 @@
 
 #include "memory/padded.hpp"
 #include "oops/markWord.hpp"
+#include "oops/oopHandle.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/mutex.hpp"
@@ -213,32 +214,41 @@ class SystemDictMonitor : public CHeapObj<mtWisp> {
     Monitor*  _monitor;
   public:
     SystemDictMonitor(Monitor* monitor): _monitor(monitor) { }
-    virtual void lock(BasicLock* lock, TRAPS)    { _monitor->lock();   }
-    virtual void unlock(BasicLock* lock, TRAPS)  { _monitor->unlock(); }
-    virtual void wait(BasicLock* lock, TRAPS)    { _monitor->wait();   }
-    virtual void notify_all(TRAPS)               { _monitor->notify_all(); }
-    virtual void set_obj_lock(oop obj, TRAPS) { ShouldNotReachHere(); }
+    virtual void lock(BasicLock* lock, Thread* current)    {
+        _monitor->lock();
+    }
+    virtual void unlock(BasicLock* lock, Thread* current)  {
+        _monitor->unlock();
+    }
+    virtual void wait(BasicLock* lock, Thread* current)    {
+        _monitor->wait();
+    }
+    virtual void notify_all(Thread* current)               {
+        _monitor->notify_all();
+    }
+    virtual void create_obj_lock(Thread* current) {
+		ShouldNotReachHere();
+    }
     Monitor* monitor()         const    { return _monitor;               }
     virtual oop obj()          const    { return NULL;                   }
     virtual bool is_obj_lock() const    { return false;                  }
-    virtual void oops_do(OopClosure* f) { }
 };
 
 class SystemDictObjMonitor : public SystemDictMonitor {
   private:
-    oop       _obj;
+    // Prefer to use obj lock. Only use monitor when obj lock is not set.
+    OopHandle       _obj;
   public:
-    SystemDictObjMonitor(Monitor* monitor): SystemDictMonitor(monitor), _obj(NULL) {
+    SystemDictObjMonitor(Monitor* monitor) : SystemDictMonitor(monitor) {
       assert(UseWispMonitor, "SystemDictObjMonitor if only for UseWispMonitor");
     }
-    virtual void lock(BasicLock* lock, TRAPS);
-    virtual void unlock(BasicLock* lock, TRAPS);
-    virtual void wait(BasicLock* lock, TRAPS);
-    virtual void notify_all(TRAPS);
-    virtual void set_obj_lock(oop obj, TRAPS);
-    virtual oop obj()          const    { return _obj;                   }
-    virtual bool is_obj_lock() const    { return _obj != NULL;           }
-    virtual void oops_do(OopClosure* f) { if (_obj != NULL)  f->do_oop(&_obj);   }
+    virtual void lock(BasicLock* lock, Thread* current);
+    virtual void unlock(BasicLock* lock, Thread* current);
+    virtual void wait(BasicLock* lock, Thread* current);
+    virtual void notify_all(Thread* current);
+    virtual void create_obj_lock(Thread* current);
+    virtual oop obj() const;
+    virtual bool is_obj_lock() const;
 };
 
 #endif // SHARE_RUNTIME_SYNCHRONIZER_HPP
