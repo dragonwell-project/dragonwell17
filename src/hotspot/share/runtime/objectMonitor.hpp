@@ -52,6 +52,11 @@ class ObjectWaiter : public StackObj {
   volatile int  _notified;
   volatile TStates TState;
   bool          _active;           // Contention monitoring is enabled
+  int           _park_wisp_id;
+  bool          _using_wisp_park;
+  bool          _proxy_wisp_unpark;
+  long          _timeout;
+
  public:
   ObjectWaiter(JavaThread* current);
 

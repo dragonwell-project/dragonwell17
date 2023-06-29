@@ -2223,7 +2223,7 @@ class LIR_List: public CompilationResourceObj {
   }
 
   void load_stack_address_monitor(int monitor_ix, LIR_Opr dst)  { append(new LIR_Op1(lir_monaddr, LIR_OprFact::intConst(monitor_ix), dst)); }
-  void unlock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub);
+  void unlock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info = NULL);
   void lock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info);
 
   void breakpoint()                                                  { append(new LIR_Op0(lir_breakpoint)); }

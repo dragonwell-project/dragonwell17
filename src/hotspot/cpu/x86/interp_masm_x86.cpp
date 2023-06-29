@@ -806,6 +806,7 @@ void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register 
 
   if (JvmtiExport::can_post_interpreter_events()) {
     Label run_compiled_code;
+    Label coroutine_skip_interpret;
     // JVMTI events, such as single-stepping, are implemented partly by avoiding running
     // compiled code in threads for which the event is enabled.  Check here for
     // interp_only_mode if these events CAN be enabled.
@@ -815,8 +816,19 @@ void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register 
     NOT_LP64(get_thread(temp);)
     cmpb(Address(temp, JavaThread::interp_only_mode_offset()), 0);
     jccb(Assembler::zero, run_compiled_code);
+    if (EnableCoroutine) {
+      cmpq(Address(method, Method::intrinsic_id_offset_in_bytes()), (int)vmIntrinsics::_switchTo);
+      jcc(Assembler::zero, coroutine_skip_interpret);
+      cmpq(Address(method, Method::intrinsic_id_offset_in_bytes()), (int)vmIntrinsics::_switchToAndExit);
+      jcc(Assembler::zero, coroutine_skip_interpret);
+      cmpq(Address(method, Method::intrinsic_id_offset_in_bytes()), (int)vmIntrinsics::_switchToAndTerminate);
+      jcc(Assembler::zero, coroutine_skip_interpret);
+    }
     jmp(Address(method, Method::interpreter_entry_offset()));
     bind(run_compiled_code);
+    if (EnableCoroutine) {
+      bind(coroutine_skip_interpret);
+    }
   }
 
   jmp(Address(method, Method::from_interpreted_offset()));

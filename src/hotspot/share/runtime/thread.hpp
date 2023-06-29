@@ -93,6 +93,7 @@ class JavaThread;
 
 class Coroutine;
 class CoroutineStack;
+class WispThread;
 
 // Class hierarchy
 // - Thread
@@ -335,6 +336,7 @@ class Thread: public ThreadShadow {
   // Testers
   virtual bool is_VM_thread()       const            { return false; }
   virtual bool is_Java_thread()     const            { return false; }
+  virtual bool is_Wisp_thread()     const            { return false; }
   virtual bool is_Compiler_thread() const            { return false; }
   virtual bool is_Code_cache_sweeper_thread() const  { return false; }
   virtual bool is_service_thread() const             { return false; }
@@ -705,7 +707,6 @@ class JavaThread: public Thread {
   bool           _on_thread_list;                // Is set when this JavaThread is added to the Threads list
   OopHandle      _threadObj;                     // The Java level thread object
 
-#ifdef ASSERT
  private:
   int _java_call_counter;
 
@@ -717,7 +718,6 @@ class JavaThread: public Thread {
     _java_call_counter--;
   }
  private:  // restore original namespace restriction
-#endif  // ifdef ASSERT
 
   JavaFrameAnchor _anchor;                       // Encapsulation of current java frame and it state
 
@@ -749,6 +749,7 @@ class JavaThread: public Thread {
   // Used to pass back results to the interpreter or generated code running Java code.
   oop           _vm_result;    // oop result is GC-preserved
   Metadata*     _vm_result_2;  // non-oop result
+  oop           _vm_result_for_wisp;  // this oop result is only for java call in _monitorexit
 
   // See ReduceInitialCardMarks: this holds the precise space interval of
   // the most recent slow path allocation for which compiled code has
@@ -1042,6 +1043,7 @@ class JavaThread: public Thread {
   CoroutineStack*   _coroutine_stack_list;
   Coroutine*        _coroutine_list;
   Coroutine*        _current_coroutine;
+  bool              _wisp_preempt;
 
   intptr_t          _coroutine_temp;
 
@@ -1051,12 +1053,15 @@ class JavaThread: public Thread {
   CoroutineStack*& coroutine_stack_list()        { return _coroutine_stack_list; }
   Coroutine*& coroutine_list()                   { return _coroutine_list; }
   Coroutine* current_coroutine()                 { return _current_coroutine; }
+  void set_current_coroutine(Coroutine *coro)    { _current_coroutine = coro; }
+  void set_wisp_preempt(bool b)                  { _wisp_preempt = b; }
 
   static ByteSize coroutine_temp_offset()        { return byte_offset_of(JavaThread, _coroutine_temp); }
   static ByteSize current_coroutine_offset()     { return byte_offset_of(JavaThread, _current_coroutine); }
-
+  static ByteSize wisp_preempt_offset()          { return byte_offset_of(JavaThread, _wisp_preempt); }
   void initialize_coroutine_support();
 
+  bool is_expected_thread_entry(ThreadFunction entry_point) { return _entry_point == entry_point; }
  private:
 
   friend class VMThread;
@@ -1252,6 +1257,8 @@ class JavaThread: public Thread {
 
   Metadata*    vm_result_2() const               { return _vm_result_2; }
   void set_vm_result_2  (Metadata* x)          { _vm_result_2   = x; }
+  oop  vm_result_for_wisp() const                { return _vm_result_for_wisp; }
+  void set_vm_result_for_wisp  (oop x)           { _vm_result_for_wisp   = x; }
 
   MemRegion deferred_card_mark() const           { return _deferred_card_mark; }
   void set_deferred_card_mark(MemRegion mr)      { _deferred_card_mark = mr;   }
@@ -1317,6 +1324,7 @@ class JavaThread: public Thread {
   static ByteSize callee_target_offset()         { return byte_offset_of(JavaThread, _callee_target); }
   static ByteSize vm_result_offset()             { return byte_offset_of(JavaThread, _vm_result); }
   static ByteSize vm_result_2_offset()           { return byte_offset_of(JavaThread, _vm_result_2); }
+  static ByteSize vm_result_for_wisp_offset()    { return byte_offset_of(JavaThread, _vm_result_for_wisp ); }
   static ByteSize thread_state_offset()          { return byte_offset_of(JavaThread, _thread_state); }
   static ByteSize polling_word_offset()          { return byte_offset_of(JavaThread, _poll_data) + byte_offset_of(SafepointMechanism::ThreadData, _polling_word);}
   static ByteSize polling_page_offset()          { return byte_offset_of(JavaThread, _poll_data) + byte_offset_of(SafepointMechanism::ThreadData, _polling_page);}
@@ -1347,9 +1355,7 @@ class JavaThread: public Thread {
   }
 
   static ByteSize suspend_flags_offset()         { return byte_offset_of(JavaThread, _suspend_flags); }
-#ifdef ASSERT
   static ByteSize java_call_counter_offset()     { return byte_offset_of(JavaThread, _java_call_counter); }
-#endif
 
   static ByteSize do_not_unlock_if_synchronized_offset() { return byte_offset_of(JavaThread, _do_not_unlock_if_synchronized); }
   static ByteSize should_post_on_exceptions_flag_offset() {
@@ -1498,6 +1504,9 @@ class JavaThread: public Thread {
   virtual void run();
   void thread_main_inner();
   virtual void post_run();
+
+ public:
+//  static ByteSize privileged_stack_top_offset()         { return byte_offset_of(JavaThread, _privileged_stack_top); }
 
  public:
   // Thread local information maintained by JVMTI.

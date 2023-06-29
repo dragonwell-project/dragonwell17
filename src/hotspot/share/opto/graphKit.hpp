@@ -288,6 +288,7 @@ class GraphKit : public Phase {
   void add_safepoint_edges(SafePointNode* call,
                            bool must_throw = false);
 
+  void add_safepoint_edges_wisp(SafePointNode* call);
   // How many stack inputs does the current BC consume?
   // And, how does the stack change after the bytecode?
   // Returns false if unknown.
@@ -802,8 +803,10 @@ class GraphKit : public Phase {
                           Node* parm0 = NULL, Node* parm1 = NULL,
                           Node* parm2 = NULL, Node* parm3 = NULL,
                           Node* parm4 = NULL, Node* parm5 = NULL,
-                          Node* parm6 = NULL, Node* parm7 = NULL);
+                          Node* parm6 = NULL, Node* parm7 = NULL,
+                          Node* ctrl = NULL);
 
+  void make_wisp_yield(ciMethod* method);
   Node* sign_extend_byte(Node* in);
   Node* sign_extend_short(Node* in);
 

@@ -43,18 +43,19 @@
 static JNINativeMethod methods[] = {
     {"start0",           "()V",        (void *)&JVM_StartThread},
     {"stop0",            "(" OBJ ")V", (void *)&JVM_StopThread},
-    {"isAlive",          "()Z",        (void *)&JVM_IsThreadAlive},
+    {"isAlive0",         "()Z",        (void *)&JVM_IsThreadAlive},
     {"suspend0",         "()V",        (void *)&JVM_SuspendThread},
     {"resume0",          "()V",        (void *)&JVM_ResumeThread},
     {"setPriority0",     "(I)V",       (void *)&JVM_SetThreadPriority},
-    {"yield",            "()V",        (void *)&JVM_Yield},
-    {"sleep",            "(J)V",       (void *)&JVM_Sleep},
-    {"currentThread",    "()" THD,     (void *)&JVM_CurrentThread},
+    {"yield0",           "()V",        (void *)&JVM_Yield},
+    {"sleep0",           "(J)V",       (void *)&JVM_Sleep},
+    {"currentThread0",   "()" THD,     (void *)&JVM_CurrentThread},
     {"interrupt0",       "()V",        (void *)&JVM_Interrupt},
     {"holdsLock",        "(" OBJ ")Z", (void *)&JVM_HoldsLock},
     {"getThreads",        "()[" THD,   (void *)&JVM_GetAllThreads},
     {"dumpThreads",      "([" THD ")[[" STE, (void *)&JVM_DumpThreads},
     {"setNativeName",    "(" STR ")V", (void *)&JVM_SetNativeThreadName},
+    {"isInNative",       "()Z",        (void *)&JVM_IsInNative},
 };
 
 #undef THD

@@ -282,6 +282,9 @@ int JvmtiThreadState::cur_stack_depth() {
   if (!is_interp_only_mode() || _cur_stack_depth == UNKNOWN_STACK_DEPTH) {
     _cur_stack_depth = count_frames();
   } else {
+    if (EnableCoroutine) {
+      _cur_stack_depth = count_frames();  // update debug stack depth, for switchToAndExit
+    }
 #ifdef ASSERT
     if (EnableJVMTIStackDepthAsserts) {
       // heavy weight assert

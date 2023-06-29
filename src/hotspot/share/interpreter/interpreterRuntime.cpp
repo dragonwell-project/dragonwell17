@@ -722,6 +722,8 @@ void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code by
 // be shared by method invocation and synchronized blocks.
 //%note synchronization_3
 
+address monitorenter_address_interp = (address)InterpreterRuntime::monitorenter;
+
 //%note monitor_1
 JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* current, BasicObjectLock* elem))
 #ifdef ASSERT
@@ -730,6 +732,14 @@ JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* current, B
   if (PrintBiasedLockingStatistics) {
     Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
   }
+  
+  Thread* t = THREAD;
+  // thread steal support
+  WispPostStealHandleUpdateMark w(current, t, __tiv, __hm);
+
+  // Coroutine work steal support
+  EnableStealMark p(THREAD);
+
   Handle h_obj(current, elem->obj());
   assert(Universe::heap()->is_in_or_null(h_obj()),
          "must be NULL or an object");
@@ -772,15 +782,24 @@ JRT_ENTRY(void, InterpreterRuntime::new_illegal_monitor_state_exception(JavaThre
   // method will be called during an exception unwind.
 
   assert(!HAS_PENDING_EXCEPTION, "no pending exception");
-  Handle exception(current, current->vm_result());
+  // this path will also use vm_result, so we'd hook it again.
+  Handle exception(current, (EnableCoroutine && UseWispMonitor) ? current->vm_result_for_wisp() : current->vm_result());
   assert(exception() != NULL, "vm result should be set");
-  current->set_vm_result(NULL); // clear vm result before continuing (may cause memory leaks and assert failures)
+  if (EnableCoroutine && UseWispMonitor) {
+    current->set_vm_result_for_wisp(NULL);
+  } else {
+    current->set_vm_result(NULL); // clear vm result before continuing (may cause memory leaks and assert failures)
+  }
   if (!exception->is_a(vmClasses::ThreadDeath_klass())) {
     exception = get_preinitialized_exception(
                        vmClasses::IllegalMonitorStateException_klass(),
                        CATCH);
   }
-  current->set_vm_result(exception());
+  if (EnableCoroutine && UseWispMonitor) {
+    current->set_vm_result_for_wisp(exception());
+  } else {
+    current->set_vm_result(exception());
+  }
 JRT_END
 
 

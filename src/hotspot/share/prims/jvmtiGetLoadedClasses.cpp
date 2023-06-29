@@ -124,7 +124,7 @@ JvmtiGetLoadedClasses::getClassLoaderClasses(JvmtiEnv *env, jobject initiatingLo
     // To get a consistent list of classes we need MultiArray_lock to ensure
     // array classes aren't created during this walk.
     MutexLocker ma(MultiArray_lock);
-    MutexLocker sd(SystemDictionary_lock);
+    SystemDictLocker sd(JavaThread::current(), SystemDictionary_lock);
     oop loader = JNIHandles::resolve(initiatingLoader);
     // All classes loaded from this loader as initiating loader are
     // requested, so only need to walk this loader's ClassLoaderData

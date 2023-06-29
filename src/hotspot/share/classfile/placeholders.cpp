@@ -29,6 +29,7 @@
 #include "logging/logTag.hpp"
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/hashtable.inline.hpp"
@@ -109,7 +110,7 @@ void PlaceholderEntry::set_threadQ(SeenThread* seenthread, PlaceholderTable::cla
 // define token. Appends for debugging of requestor order
 void PlaceholderEntry::add_seen_thread(Thread* thread, PlaceholderTable::classloadAction action) {
   assert_lock_strong(SystemDictionary_lock);
-  SeenThread* threadEntry = new SeenThread(thread);
+  SeenThread* threadEntry = new SeenThread(UseWispMonitor ? WispThread::current(thread) : thread);
   SeenThread* seen = actionToQueue(action);
 
   assert(action != PlaceholderTable::LOAD_INSTANCE || seen == NULL,
@@ -130,6 +131,9 @@ void PlaceholderEntry::add_seen_thread(Thread* thread, PlaceholderTable::classlo
 
 bool PlaceholderEntry::check_seen_thread(Thread* thread, PlaceholderTable::classloadAction action) {
   assert_lock_strong(SystemDictionary_lock);
+  if (UseWispMonitor) {
+    thread = WispThread::current(thread);
+  }
   SeenThread* threadQ = actionToQueue(action);
   SeenThread* seen = threadQ;
   while (seen) {
@@ -148,6 +152,9 @@ bool PlaceholderEntry::check_seen_thread(Thread* thread, PlaceholderTable::class
 // if found, deletes SeenThread
 bool PlaceholderEntry::remove_seen_thread(Thread* thread, PlaceholderTable::classloadAction action) {
   assert_lock_strong(SystemDictionary_lock);
+  if (UseWispMonitor) {
+    thread = WispThread::current(thread);
+  }
   SeenThread* threadQ = actionToQueue(action);
   SeenThread* seen = threadQ;
   SeenThread* prev = NULL;

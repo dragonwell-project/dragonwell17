@@ -25,6 +25,9 @@
 
 package jdk.internal.access;
 
+import com.alibaba.wisp.engine.WispEngine;
+import sun.nio.ch.EpollAccess;
+
 import javax.crypto.SealedObject;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.ObjectInputFilter;
@@ -41,6 +44,7 @@ import java.io.ObjectInputStream;
 import java.io.RandomAccessFile;
 import java.security.ProtectionDomain;
 import java.security.Signature;
+import jdk.internal.misc.Unsafe;
 
 /** A repository of "shared secrets", which are a mechanism for
     calling implementation-private methods in another package without
@@ -83,6 +87,8 @@ public class SharedSecrets {
     private static JavaSecuritySpecAccess javaSecuritySpecAccess;
     private static JavaxCryptoSealedObjectAccess javaxCryptoSealedObjectAccess;
     private static JavaxCryptoSpecAccess javaxCryptoSpecAccess;
+    private static WispEngineAccess wispEngineAccess;
+    private static EpollAccess epollAccess;
 
     public static void setJavaUtilCollectionAccess(JavaUtilCollectionAccess juca) {
         javaUtilCollectionAccess = juca;
@@ -456,5 +462,28 @@ public class SharedSecrets {
         try {
             MethodHandles.lookup().ensureInitialized(c);
         } catch (IllegalAccessException e) {}
+    }
+
+    public static WispEngineAccess getWispEngineAccess() {
+        return wispEngineAccess;
+    }
+
+    public static void setWispEngineAccess(WispEngineAccess wispEngineAccess) {
+        SharedSecrets.wispEngineAccess = wispEngineAccess;
+    }
+
+    public static UnsafeAccess getUnsafeAccess() {
+        return Unsafe.access;
+    }
+
+    public static void setEpollAccess(EpollAccess ea) {
+        epollAccess = ea;
+    }
+
+    public static EpollAccess getEpollAccess() {
+        if (epollAccess == null) {
+            EpollAccess.initializeEpoll();
+        }
+        return epollAccess;
     }
 }

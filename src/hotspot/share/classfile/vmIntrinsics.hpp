@@ -233,7 +233,7 @@ class methodHandle;
    do_name(     arraycopy_name,                                  "arraycopy")                                           \
    do_signature(arraycopy_signature,                             "(Ljava/lang/Object;ILjava/lang/Object;II)V")          \
   do_intrinsic(_currentThread,            java_lang_Thread,       currentThread_name, currentThread_signature,   F_S)   \
-   do_name(     currentThread_name,                              "currentThread")                                       \
+   do_name(     currentThread_name,                              "currentThread0")                                      \
    do_signature(currentThread_signature,                         "()Ljava/lang/Thread;")                                \
                                                                                                                         \
   /* reflective intrinsics, for java/lang/Class, etc. */                                                                \
@@ -935,11 +935,12 @@ class methodHandle;
                                                                                                                                                \
    /* (2) Bytecode intrinsics                                                                        */                        \
                                                                                                                                \
-  do_intrinsic(_park,                     jdk_internal_misc_Unsafe,     park_name, park_signature,                     F_R)    \
+  do_intrinsic(_park,                     jdk_internal_misc_Unsafe,     park0_name, park_signature,                    F_R)    \
    do_name(     park_name,                                              "park")                                                \
+   do_name(     park0_name,                                             "park0")                                               \
    do_signature(park_signature,                                         "(ZJ)V")                                               \
-  do_intrinsic(_unpark,                   jdk_internal_misc_Unsafe,     unpark_name, unpark_signature,                 F_R)    \
-   do_name(     unpark_name,                                            "unpark")                                              \
+  do_intrinsic(_unpark,                   jdk_internal_misc_Unsafe,     unpark0_name, unpark_signature,                F_R)    \
+   do_name(     unpark0_name,                                           "unpark0")                                             \
    do_alias(    unpark_signature,                                       /*(LObject;)V*/ object_void_signature)                 \
                                                                                                                                \
   /* coroutine intrinsics */                                                                                            \

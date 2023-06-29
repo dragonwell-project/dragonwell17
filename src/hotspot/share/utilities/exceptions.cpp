@@ -34,6 +34,7 @@
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/init.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -181,6 +182,9 @@ void Exceptions::_throw(JavaThread* thread, const char* file, int line, Handle h
 
 void Exceptions::_throw_msg(JavaThread* thread, const char* file, int line, Symbol* name, const char* message,
                             Handle h_loader, Handle h_protection_domain) {
+  if (UseWispMonitor && thread->is_Wisp_thread()) {
+    thread = ((WispThread*) thread)->thread();
+  }
   // Check for special boot-strapping/compiler-thread handling
   if (special_exception(thread, file, line, name, message)) return;
   // Create and throw exception
@@ -287,6 +291,11 @@ Handle Exceptions::new_exception(JavaThread* thread, Symbol* name,
                                 signature,
                                 args,
                                 thread);
+
+    {
+      guarantee(!EnableSteal || thread == Thread::current(), "fatal: stealed");
+    }
+
   }
 
   // Check if another exception was thrown in the process, if so rethrow that one
@@ -319,6 +328,11 @@ Handle Exceptions::new_exception(JavaThread* thread, Symbol* name,
                                       vmSymbols::throwable_throwable_signature(),
                                       &args1,
                                       thread);
+
+    {
+      guarantee(!EnableSteal || thread == Thread::current(), "fatal: stealed");
+    }
+
   }
 
   // Check if another exception was thrown in the process, if so rethrow that one

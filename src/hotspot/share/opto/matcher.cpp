@@ -2225,6 +2225,7 @@ bool Matcher::find_shared_visit(MStack& mstack, Node* n, uint opcode, bool& mem_
     case Op_FmaF:
     case Op_FmaVD:
     case Op_FmaVF:
+    case Op_ThreadRefetch:      // This must be added, otherwise we couldn't match the ThreadRefetchNode.
     case Op_MacroLogicV:
     case Op_LoadVectorMasked:
     case Op_VectorCmpMasked:

@@ -205,6 +205,13 @@ ifeq ($(call isTargetOs, linux), true)
   TARGETS += $(COPY_SDP_CONF)
 endif
 
+$(eval $(call SetupCopyFiles, COPY_WISP_PROPERTIES, \
+    FILES := $(TOPDIR)/src/java.base/share/conf/wisp.properties, \
+    DEST := $(CONF_DST_DIR), \
+))
+
+TARGETS += $(COPY_WISP_PROPERTIES)
+
 ################################################################################
 
 # JDK license and assembly exception files to be packaged in JMOD

@@ -29,6 +29,7 @@
 #include "oops/markWord.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/handles.hpp"
+#include "runtime/mutex.hpp"
 #include "utilities/growableArray.hpp"
 
 class LogStream;
@@ -90,6 +91,7 @@ class ObjectSynchronizer : AllStatic {
   // This is the "slow path" version of monitor enter and exit.
   static void enter(Handle obj, BasicLock* lock, JavaThread* current);
   static void exit(oop obj, BasicLock* lock, JavaThread* current);
+  static void exit(Handle obj, BasicLock* lock, JavaThread* current);
 
   // Used only to handle jni locks or other unmatched monitor enter/exit
   // Internally they will use heavy weight monitor.
@@ -204,6 +206,39 @@ class ObjectLocker : public StackObj {
   void wait(TRAPS)  { ObjectSynchronizer::wait(_obj, 0, CHECK); } // wait forever
   void notify_all(TRAPS)  { ObjectSynchronizer::notifyall(_obj, CHECK); }
   void wait_uninterruptibly(JavaThread* current) { ObjectSynchronizer::wait_uninterruptibly(_obj, current); }
+};
+
+class SystemDictMonitor : public CHeapObj<mtWisp> {
+  protected:
+    Monitor*  _monitor;
+  public:
+    SystemDictMonitor(Monitor* monitor): _monitor(monitor) { }
+    virtual void lock(BasicLock* lock, TRAPS)    { _monitor->lock();   }
+    virtual void unlock(BasicLock* lock, TRAPS)  { _monitor->unlock(); }
+    virtual void wait(BasicLock* lock, TRAPS)    { _monitor->wait();   }
+    virtual void notify_all(TRAPS)               { _monitor->notify_all(); }
+    virtual void set_obj_lock(oop obj, TRAPS) { ShouldNotReachHere(); }
+    Monitor* monitor()         const    { return _monitor;               }
+    virtual oop obj()          const    { return NULL;                   }
+    virtual bool is_obj_lock() const    { return false;                  }
+    virtual void oops_do(OopClosure* f) { }
+};
+
+class SystemDictObjMonitor : public SystemDictMonitor {
+  private:
+    oop       _obj;
+  public:
+    SystemDictObjMonitor(Monitor* monitor): SystemDictMonitor(monitor), _obj(NULL) {
+      assert(UseWispMonitor, "SystemDictObjMonitor if only for UseWispMonitor");
+    }
+    virtual void lock(BasicLock* lock, TRAPS);
+    virtual void unlock(BasicLock* lock, TRAPS);
+    virtual void wait(BasicLock* lock, TRAPS);
+    virtual void notify_all(TRAPS);
+    virtual void set_obj_lock(oop obj, TRAPS);
+    virtual oop obj()          const    { return _obj;                   }
+    virtual bool is_obj_lock() const    { return _obj != NULL;           }
+    virtual void oops_do(OopClosure* f) { if (_obj != NULL)  f->do_oop(&_obj);   }
 };
 
 #endif // SHARE_RUNTIME_SYNCHRONIZER_HPP

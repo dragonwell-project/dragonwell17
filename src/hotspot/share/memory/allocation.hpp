@@ -141,6 +141,7 @@ class AllocatedObj {
   f(mtArguments,      "Arguments")                                                   \
   f(mtModule,         "Module")                                                      \
   f(mtSafepoint,      "Safepoint")                                                   \
+  f(mtWisp,           "Wisp")        /* memory used by Wisp cod                   */ \
   f(mtSynchronizer,   "Synchronization")                                             \
   f(mtServiceability, "Serviceability")                                              \
   f(mtMetaspace,      "Metaspace")                                                   \

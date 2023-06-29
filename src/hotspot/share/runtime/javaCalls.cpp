@@ -99,7 +99,7 @@ JavaCallWrapper::JavaCallWrapper(const methodHandle& callee_method, Handle recei
   _anchor.copy(_thread->frame_anchor());
   _thread->frame_anchor()->clear();
 
-  debug_only(_thread->inc_java_call_counter());
+  _thread->inc_java_call_counter();
   _thread->set_active_handles(new_handles);     // install new handle block and reset Java frame linkage
 
   assert (_thread->thread_state() != _thread_in_native, "cannot set native pc to NULL");
@@ -133,7 +133,7 @@ JavaCallWrapper::~JavaCallWrapper() {
 
   _thread->frame_anchor()->zap();
 
-  debug_only(_thread->dec_java_call_counter());
+  _thread->dec_java_call_counter();
 
   // Old thread-local info. has been restored. We are not back in the VM.
   ThreadStateTransition::transition_from_java(_thread, _thread_in_vm);
@@ -347,6 +347,9 @@ Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* construct
 void JavaCalls::call(JavaValue* result, const methodHandle& method, JavaCallArguments* args, TRAPS) {
   // Check if we need to wrap a potential OS exception handler around thread.
   // This is used for e.g. Win32 structured exception handlers.
+  assert(!UseWispMonitor || !is_init_completed() ||
+      java_lang_Thread::park_event(((JavaThread*) THREAD)->threadObj()),
+      "park_event need to be set before calling java");
   // Need to wrap each and every time, since there might be native code down the
   // stack that has installed its own exception handlers.
   os::os_exception_wrapper(call_helper, result, method, args, THREAD);
@@ -435,6 +438,11 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
         }
       }
 #endif
+      // thread steal support
+      methodHandle* m = const_cast<methodHandle*>(&method);
+      Thread* t = THREAD;
+      WispPostStealHandleUpdateMark w(thread, t, *m, m, link);
+
       StubRoutines::call_stub()(
         (address)&link,
         // (intptr_t*)&(result->_value), // see NOTE above (compiler problem)

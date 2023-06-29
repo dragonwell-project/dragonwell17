@@ -27,6 +27,7 @@ JVM_ArrayCopy
 JVM_AssertionStatusDirectives
 JVM_BeforeHalt
 JVM_CallStackWalk
+JVM_CheckAndClearNativeInterruptForWisp
 JVM_Clone
 JVM_ConstantPoolGetClassAt
 JVM_ConstantPoolGetClassAtIfLoaded
@@ -124,6 +125,7 @@ JVM_GetPermittedSubclasses
 JVM_GetPrimitiveArrayElement
 JVM_GetProperties
 JVM_GetProtectionDomain
+JVM_GetProxyUnpark
 JVM_GetRandomSeedForDumping
 JVM_GetRecordComponents
 JVM_GetSimpleBinaryName
@@ -148,6 +150,7 @@ JVM_IsCDSDumpingEnabled
 JVM_IsConstructorIx
 JVM_IsDumpingClassList
 JVM_IsHiddenClass
+JVM_IsInNative
 JVM_IsInterface
 JVM_IsPrimitiveClass
 JVM_IsRecord
@@ -161,6 +164,7 @@ JVM_LoadLibrary
 JVM_LookupDefineClass
 JVM_LookupLambdaProxyClassFromArchive
 JVM_LogLambdaFormInvoker
+JVM_MarkPreempt
 JVM_MaxMemory
 JVM_MaxObjectInspectionAge
 JVM_MonitorNotify
@@ -189,6 +193,7 @@ JVM_SetClassSigners
 JVM_SetNativeThreadName
 JVM_SetPrimitiveArrayElement
 JVM_SetThreadPriority
+JVM_SetWispTask
 JVM_Sleep
 JVM_StartThread
 JVM_StopThread

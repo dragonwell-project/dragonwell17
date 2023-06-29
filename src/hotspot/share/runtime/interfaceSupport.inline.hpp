@@ -29,6 +29,7 @@
 // No interfaceSupport.hpp
 
 #include "gc/shared/gc_globals.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/orderAccess.hpp"
@@ -86,6 +87,9 @@ class ThreadStateTransition : public StackObj {
   // Change threadstate in a manner, so safepoint can detect changes.
   // Time-critical: called on exit from every runtime routine
   static inline void transition(JavaThread *thread, JavaThreadState from, JavaThreadState to) {
+    if (UseWispMonitor && thread->is_Wisp_thread()) {
+      thread = ((WispThread*)thread)->thread();
+    }
     assert(from != _thread_in_Java, "use transition_from_java");
     assert(from != _thread_in_native, "use transition_from_native");
     assert((from & 1) == 0 && (to & 1) == 0, "odd numbers are transitions states");
@@ -123,6 +127,11 @@ class ThreadStateTransition : public StackObj {
     // up to handle exceptions floating around at arbitrary points.
     SafepointMechanism::process_if_requested_with_exit_check(thread, false /* check asyncs */);
     thread->set_thread_state(to);
+  }
+
+  Thread *& thread_ref()   {
+    assert(EnableCoroutine, "EnableCoroutine is off");
+    return (Thread *&)_thread;
   }
 
  protected:
@@ -287,6 +296,8 @@ class InFlightMutexRelease {
 // access and release said mutex when transitioning back from blocked to vm (destructor) in
 // case we need to stop for a safepoint or handshake.
 class ThreadBlockInVM {
+  friend class WispPostStealHandleUpdateMark;
+
   InFlightMutexRelease _ifmr;
   ThreadBlockInVMPreprocess<InFlightMutexRelease> _tbivmpp;
  public:

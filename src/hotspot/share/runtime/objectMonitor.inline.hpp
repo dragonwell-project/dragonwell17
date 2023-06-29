@@ -30,9 +30,13 @@
 #include "logging/log.hpp"
 #include "oops/access.inline.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/synchronizer.hpp"
 
 inline intptr_t ObjectMonitor::is_entered(JavaThread* current) const {
+  if (UseWispMonitor) {
+    current = WispThread::current(current);
+  }
   void* owner = owner_raw();
   if (current == owner || current->is_lock_owned((address)owner)) {
     return 1;

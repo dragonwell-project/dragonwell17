@@ -66,6 +66,8 @@ import java.util.WeakHashMap;
 import java.util.function.Supplier;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
+import com.alibaba.wisp.engine.WispEngine;
+import com.alibaba.wisp.engine.WispTask;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.util.StaticProperty;
 import jdk.internal.module.ModuleBootstrap;
@@ -2450,6 +2452,56 @@ public final class System {
             @Override
             public void exit(int statusCode) {
                 Shutdown.exit(statusCode);
+            }
+
+            @Override
+            public Thread currentThread0() {
+                return Thread.currentThread0();
+            }
+
+            @Override
+            public void yield0() {
+                Thread.yield0();
+            }
+
+            @Override
+            public void setWispEngine(Thread thread, WispEngine engine) {
+                thread.wispEngine = engine;
+            }
+
+            @Override
+            public WispEngine getWispEngine(Thread thread) {
+                return thread.wispEngine;
+            }
+
+            @Override
+            public void setWispTask(Thread thread, WispTask task) {
+                thread.wispTask = task;
+            }
+
+            @Override
+            public WispTask getWispTask(Thread thread) {
+                return thread.wispTask;
+            }
+
+            @Override
+            public void setWispAlive(Thread thread, boolean b) {
+                thread.wispIsAlive = b;
+            }
+
+            @Override
+            public boolean isInNative(Thread thread) {
+                return thread.isInNative();
+            }
+
+            @Override
+            public void threadExit(Thread thread) {
+                thread.exit();
+            }
+
+            @Override
+            public void wispBooted() {
+                Thread.wispBooted();
             }
         });
     }

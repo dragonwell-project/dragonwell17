@@ -35,6 +35,10 @@
 
 package java.util.concurrent.locks;
 
+import com.alibaba.wisp.engine.WispEngine;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.access.WispEngineAccess;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -306,6 +310,8 @@ public abstract class AbstractQueuedSynchronizer
     implements java.io.Serializable {
 
     private static final long serialVersionUID = 7373984972572414691L;
+
+    private static WispEngineAccess WEA = SharedSecrets.getWispEngineAccess();
 
     /**
      * Creates a new {@code AbstractQueuedSynchronizer} instance
@@ -713,7 +719,8 @@ public abstract class AbstractQueuedSynchronizer
                 spins = postSpins = (byte)((postSpins << 1) | 1);
                 if (!timed)
                     LockSupport.park(this);
-                else if ((nanos = time - System.nanoTime()) > 0L)
+                else if ((nanos = time - System.nanoTime()) > 0L ||
+                        WispEngine.transparentWispSwitch() && WEA.hasMoreTasks())
                     LockSupport.parkNanos(this, nanos);
                 else
                     break;

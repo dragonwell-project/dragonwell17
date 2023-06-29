@@ -40,6 +40,7 @@
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -363,6 +364,14 @@ class StubGenerator: public StubCodeGenerator {
     // pop parameters
     __ lea(rsp, rsp_after_call);
 
+    if (EnableSteal) {
+      Label L;    // the steal thread patch
+      __ cmpptr(r15_thread, thread);
+      __ jcc(Assembler::equal, L);
+      WISP_j2v_UPDATE;
+      __ bind(L);
+    }
+
 #ifdef ASSERT
     // verify that threads correspond
     {
@@ -452,6 +461,11 @@ class StubGenerator: public StubCodeGenerator {
     // same as in generate_call_stub():
     const Address rsp_after_call(rbp, rsp_after_call_off * wordSize);
     const Address thread        (rbp, thread_off         * wordSize);
+
+    if (EnableSteal) {
+      // to pass the assertion fail
+      WISP_j2v_UPDATE;
+    }
 
 #ifdef ASSERT
     // verify that threads correspond
