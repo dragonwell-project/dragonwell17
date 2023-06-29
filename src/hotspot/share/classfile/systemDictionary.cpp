@@ -224,7 +224,7 @@ Symbol* SystemDictionary::class_name_symbol(const char* name, Symbol* exception,
 #ifdef ASSERT
 // Used to verify that class loading succeeded in adding k to the dictionary.
 void verify_dictionary_entry(Symbol* class_name, InstanceKlass* k) {
-  SystemDictLocker mu(SystemDictionary_lock);
+  SystemDictLocker mu(JavaThread::current(), SystemDictionary_lock);
   ClassLoaderData* loader_data = k->class_loader_data();
   Dictionary* dictionary = loader_data->dictionary();
   assert(class_name == k->name(), "Must be the same");
@@ -470,7 +470,7 @@ InstanceKlass* SystemDictionary::resolve_super_or_fail(Symbol* class_name,
 //
 // The notify allows applications that did an untimed wait() on
 // the classloader object lock to not hang.
-static void double_lock_wait(SystemDictLocker *mu, JavaThread* thread, Handle lockObject) {
+static void double_lock_wait(JavaThread* thread, SystemDictLocker *mu, Handle lockObject) {
   assert_lock_strong(SystemDictionary_lock);
 
   assert(lockObject() != NULL, "lockObject must be non-NULL");
@@ -520,7 +520,8 @@ InstanceKlass* SystemDictionary::handle_parallel_loading(JavaThread* current,
                                                          Symbol* name,
                                                          ClassLoaderData* loader_data,
                                                          Handle lockObject,
-                                                         bool* throw_circularity_error) {
+                                                         bool* throw_circularity_error,
+                                                         SystemDictLocker* mu) {
   PlaceholderEntry* oldprobe = placeholders()->get_entry(name_hash, name, loader_data);
   if (oldprobe != NULL) {
     // only need check_seen_thread once, not on each loop
@@ -549,11 +550,10 @@ InstanceKlass* SystemDictionary::handle_parallel_loading(JavaThread* current,
         // which we will find below in the systemDictionary.
         oldprobe = NULL;  // Other thread could delete this placeholder entry
 
-        SystemDictLocker mu(JavaThread::current(), SystemDictionary_lock);
         if (lockObject.is_null()) {
-          mu.wait();
+          mu->wait();
         } else {
-          double_lock_wait(&mu, current, lockObject);
+          double_lock_wait(current, mu, lockObject);
         }
 
         // Check if classloading completed while we were waiting
@@ -689,7 +689,8 @@ InstanceKlass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
                                                name,
                                                loader_data,
                                                lockObject,
-                                               &throw_circularity_error);
+                                               &throw_circularity_error,
+                                               &mu);
       }
 
       // Recheck if the class has been loaded for all class loader cases and
@@ -732,7 +733,7 @@ InstanceKlass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
       // and initiating loaders
       SystemDictLocker mu(THREAD, SystemDictionary_lock);
       placeholders()->find_and_remove(name_hash, name, loader_data, PlaceholderTable::LOAD_INSTANCE, THREAD);
-      SystemDictionary_lock->notify_all(THREAD);
+      mu.notify_all();
     }
   }
 
@@ -1514,7 +1515,7 @@ InstanceKlass* SystemDictionary::find_or_define_helper(Symbol* class_name, Handl
     if (is_parallelDefine(class_loader) && (probe->instance_klass() != NULL)) {
       InstanceKlass* ik = probe->instance_klass();
       placeholders()->find_and_remove(name_hash, name_h, loader_data, PlaceholderTable::DEFINE_CLASS, THREAD);
-      SystemDictionary_lock->notify_all(THREAD);
+      mu.notify_all();
 #ifdef ASSERT
       InstanceKlass* check = dictionary->find_class(name_hash, name_h);
       assert(check != NULL, "definer missed recording success");
@@ -1538,7 +1539,7 @@ InstanceKlass* SystemDictionary::find_or_define_helper(Symbol* class_name, Handl
     }
     probe->set_definer(NULL);
     placeholders()->find_and_remove(name_hash, name_h, loader_data, PlaceholderTable::DEFINE_CLASS, THREAD);
-    SystemDictionary_lock->notify_all(THREAD);
+    mu.notify_all();
   }
 
   return HAS_PENDING_EXCEPTION ? NULL : k;
@@ -1606,7 +1607,7 @@ bool SystemDictionary::do_unloading(GCTimer* gc_timer) {
       MutexLocker ml2(is_concurrent ? Module_lock : NULL);
       JFR_ONLY(Jfr::on_unloading_classes();)
 
-      SystemDictLocker ml1(JavaThread::current(), is_concurrent ? SystemDictionary_lock : NULL);
+      GCSystemDictLocker ml1(is_concurrent ? SystemDictionary_lock : NULL);
       ClassLoaderDataGraph::clean_module_and_package_info();
       constraints()->purge_loader_constraints();
       resolution_errors()->purge_resolution_errors();
@@ -1777,7 +1778,7 @@ Klass* SystemDictionary::find_constrained_instance_or_array_klass(
     if (t != T_OBJECT) {
       klass = Universe::typeArrayKlassObj(t);
     } else {
-      SystemDictLocker mu(JavaThread::current(), SystemDictionary_lock);
+      SystemDictLocker mu((JavaThread*)current, SystemDictionary_lock);
       klass = constraints()->find_constrained_klass(ss.as_symbol(), class_loader);
     }
     // If element class already loaded, allocate array klass
@@ -1785,7 +1786,7 @@ Klass* SystemDictionary::find_constrained_instance_or_array_klass(
       klass = klass->array_klass_or_null(ndims);
     }
   } else {
-    SystemDictLocker mu(JavaThread::current(), SystemDictionary_lock);
+    SystemDictLocker mu((JavaThread*)current, SystemDictionary_lock);
     // Non-array classes are easy: simply check the constraint table.
     klass = constraints()->find_constrained_klass(class_name, class_loader);
   }
@@ -2487,9 +2488,4 @@ void SystemDictionaryDCmd::execute(DCmdSource source, TRAPS) {
   VM_DumpHashtable dumper(output(), VM_DumpHashtable::DumpSysDict,
                          _verbose.value());
   VMThread::execute(&dumper);
-}
-
-void SystemDictionary::system_dict_lock_change(JavaThread* THREAD) {
-  assert(UseWispMonitor, "UseWispMonitor is off");
-  SystemDictionary_lock->set_obj_lock(oopFactory::new_intArray(0, THREAD),  THREAD);
 }

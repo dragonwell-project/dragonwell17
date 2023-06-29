@@ -1,14 +1,14 @@
 /*
  * @test
  * @summary test coroutine throw Error
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true ThrowErrorTest
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 ThrowErrorTest
 */
 
 import com.alibaba.wisp.engine.WispEngine;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class ThrowErrorTest {
     public static void main(String[] args) {

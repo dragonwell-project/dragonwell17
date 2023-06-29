@@ -1,13 +1,13 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary test bug fix of thread object leak in thread group
  * @run main/othervm -XX:+UseWisp2 Wisp2ThreadObjLeakInThreadGroupTest
  */
 
 import java.util.concurrent.CountDownLatch;
 
-import static jdk.testlibrary.Asserts.assertEQ;
+import static jdk.test.lib.Asserts.assertEQ;
 
 public class Wisp2ThreadObjLeakInThreadGroupTest {
     public static void main(String[] args) throws Exception {

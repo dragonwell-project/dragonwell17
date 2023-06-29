@@ -277,6 +277,11 @@ class SharedRuntime: AllStatic {
   static int dtrace_method_exit(JavaThread* thread, Method* m);
   static int wisp_yield(JavaThread* thread, Method* m);
 
+#ifdef ASSERT
+  // Trace wisp coroutine switch.
+  static void coroutine_switch_trace(JavaThread* thread, void* arg);
+#endif
+
   // Utility method for retrieving the Java thread id, returns 0 if the
   // thread is not a well formed Java thread.
   static jlong get_java_tid(Thread* thread);

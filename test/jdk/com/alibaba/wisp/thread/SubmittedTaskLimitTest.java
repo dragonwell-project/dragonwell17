@@ -2,7 +2,7 @@
  * @test
  * @summary Test to verify threshold setting for submitted wisp tasks.
  * @modules java.base/com.alibaba.wisp.engine:+open
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true SubmittedTaskLimitTest
  */
 
@@ -14,9 +14,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static jdk.testlibrary.Asserts.assertGT;
-import static jdk.testlibrary.Asserts.assertGTE;
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertGT;
+import static jdk.test.lib.Asserts.assertGTE;
+import static jdk.test.lib.Asserts.assertTrue;
 
 
 public class SubmittedTaskLimitTest {

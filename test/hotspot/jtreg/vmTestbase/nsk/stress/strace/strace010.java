@@ -71,6 +71,7 @@ public class strace010 {
     static final int THRD_COUNT = 100;
     static final String[] EXPECTED_METHODS = {
             "java.lang.Thread.sleep",
+            "java.lang.Thread.sleep0",
             "nsk.stress.strace.strace010Thread.run",
             "nsk.stress.strace.strace010Thread.recursiveMethod"
     };

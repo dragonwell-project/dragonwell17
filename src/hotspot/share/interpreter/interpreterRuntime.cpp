@@ -590,6 +590,11 @@ JRT_ENTRY(void, InterpreterRuntime::throw_pending_exception(JavaThread* current)
   // nothing to do - eventually we should remove this code entirely (see comments @ call sites)
 JRT_END
 
+#ifdef ASSERT
+JRT_ENTRY(void, InterpreterRuntime::print_site(JavaThread* current, void* arg0, void* arg1))
+  assert(current->has_pending_exception(), "must only be called if there's an exception pending");
+JRT_END
+#endif
 
 JRT_ENTRY(void, InterpreterRuntime::throw_AbstractMethodError(JavaThread* current))
   THROW(vmSymbols::java_lang_AbstractMethodError());
@@ -732,10 +737,9 @@ JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* current, B
   if (PrintBiasedLockingStatistics) {
     Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
   }
-  
-  Thread* t = THREAD;
+
   // thread steal support
-  WispPostStealHandleUpdateMark w(current, t, __tiv, __hm);
+  WispPostStealHandleUpdateMark w(current, (Thread *&)THREAD, __tiv, __hm);
 
   // Coroutine work steal support
   EnableStealMark p(THREAD);

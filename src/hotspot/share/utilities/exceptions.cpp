@@ -291,11 +291,6 @@ Handle Exceptions::new_exception(JavaThread* thread, Symbol* name,
                                 signature,
                                 args,
                                 thread);
-
-    {
-      guarantee(!EnableSteal || thread == Thread::current(), "fatal: stealed");
-    }
-
   }
 
   // Check if another exception was thrown in the process, if so rethrow that one

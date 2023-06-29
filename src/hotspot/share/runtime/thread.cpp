@@ -82,6 +82,7 @@
 #include "runtime/flags/jvmFlagLimit.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/handshake.hpp"
 #include "runtime/init.hpp"
@@ -310,7 +311,7 @@ Thread::Thread() {
     // and that happens just before Thread::current is set. No other thread
     // can attach as the VM is not created yet, so they can't execute this code.
     // If the main thread creates other threads before the barrier set that is an error.
-    assert(Thread::current_or_null() == NULL, "creating thread before barrier set");
+    assert(UseWispMonitor || Thread::current_or_null() == NULL, "creating thread before barrier set");
   }
 
   MACOS_AARCH64_ONLY(DEBUG_ONLY(_wx_init = false));
@@ -1134,9 +1135,7 @@ JavaThread::JavaThread() :
   // Setup safepoint state info for this thread
   ThreadSafepointState::create(this);
 
-#ifdef ASSERT
   _java_call_counter = 0;
-#endif
 
   SafepointMechanism::initialize_header(this);
 
@@ -1175,10 +1174,7 @@ void JavaThread::interrupt() {
 }
 
 bool JavaThread::is_interrupted(bool clear_interrupted) {
-  JavaThread* thread = JavaThread::current();
-  if (UseWispMonitor && thread->is_Wisp_thread()) {
-    thread = ((WispThread*) thread)->thread();
-  }
+  guarantee(!UseWispMonitor || !is_Wisp_thread(), "sanity check");
   debug_only(check_for_dangling_thread_pointer(this);)
 
   if (_threadObj.peek() == NULL) {
@@ -1212,6 +1208,22 @@ bool JavaThread::is_interrupted(bool clear_interrupted) {
     java_lang_Thread::set_interrupted(threadObj(), false);
     osthread()->set_interrupted(false);
   }
+
+  return interrupted;
+}
+
+bool JavaThread::clear_interrupt_for_wisp() {
+  assert(EnableCoroutine, "Coroutine is disabled");
+  // If we only use -XX:+EnableCoroutine and
+  // -Dcom.alibaba.transparentAsync=true, we will fall here, so we cannot use
+  // `assert(UseWispMonitor)` only.
+  JavaThread* thread = this;
+  if (UseWispMonitor && thread->is_Wisp_thread()) {
+    thread = ((WispThread*)thread)->thread();
+  }
+
+  bool interrupted = thread->is_interrupted(false);
+  java_lang_Thread::set_interrupted(thread->threadObj(), false);
 
   return interrupted;
 }
@@ -1525,7 +1537,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
       // SurrogateLockerThread and ServiceThread are "is_hidden_from_external_view()"
       !is_jvmti_agent_thread()) {
     assert(!UseWispMonitor || destroy_vm ||
-        java_lang_Thread::park_event(_threadObj), "park_event should been set");
+        java_lang_Thread::park_event(threadObj()), "park_event should been set");
     EXCEPTION_MARK;
     JavaValue result(T_VOID);
     JavaCalls::call_virtual(&result,

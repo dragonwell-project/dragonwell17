@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test for thread WispTask leak
  * @modules java.base/com.alibaba.wisp.engine:+open
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true Id2TaskMapLeakTest
@@ -13,7 +13,7 @@ import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static jdk.testlibrary.Asserts.assertEQ;
+import static jdk.test.lib.Asserts.assertEQ;
 
 public class Id2TaskMapLeakTest {
     public static void main(String[] args) throws Exception {

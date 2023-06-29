@@ -105,6 +105,11 @@ public class TestSystemPropertyEvent {
             result.put(key, System.getProperty(key));
             System.out.println("initialProp: " + key);
         }
+        {
+            // Add a property that is not set at JVM start.
+            String key = "com.alibaba.coroutine.enableCoroutine";
+            result.put(key, System.getProperty(key));
+        }
         return result;
     }
 }

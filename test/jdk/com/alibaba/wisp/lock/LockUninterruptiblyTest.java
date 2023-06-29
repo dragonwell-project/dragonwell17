@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test to verify we are not spinning when we're trying to acquire monitor with interrupted status
  * @modules java.base/com.alibaba.wisp.engine:+open
  * @run main/othervm -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true LockUninterruptiblyTest
@@ -12,7 +12,7 @@ import com.alibaba.wisp.engine.WispEngine;
 import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class LockUninterruptiblyTest {
 

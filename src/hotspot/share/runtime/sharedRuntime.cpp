@@ -558,6 +558,12 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* curr
   return NULL;
 }
 
+#ifdef ASSERT
+JRT_LEAF(void, SharedRuntime::coroutine_switch_trace(JavaThread* current, void* arg))
+  tty->print_cr("Current thread = (%p, %s), arg = %p\n", current, current->name(), arg);
+JRT_END
+#endif
+
 
 JRT_LEAF(address, SharedRuntime::exception_handler_for_return_address(JavaThread* current, address return_address))
   return raw_exception_handler_for_return_address(current, return_address);
@@ -2151,8 +2157,7 @@ void SharedRuntime::monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThre
   }
 
   // must place it befor EnableStealMark.
-  Thread* t = THREAD;
-  WispPostStealHandleUpdateMark w(current, t, __tiv);
+  WispPostStealHandleUpdateMark w(current, (Thread *&)THREAD, __tiv);
 
   // Coroutine work steal support
   EnableStealMark p(THREAD);

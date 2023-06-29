@@ -267,6 +267,10 @@ public class DatagramSocket implements java.io.Closeable {
      * @param delegate The wrapped DatagramSocket implementation, or null.
      */
     DatagramSocket(DatagramSocket delegate) {
+        if (WispEngine.transparentWispSwitch()) {
+            asyncImpl = new WispUdpSocketImpl(this);
+            assert delegate == null;
+        }
         assert delegate == null
                 || delegate instanceof NetMulticastSocket
                 || delegate instanceof sun.nio.ch.DatagramSocketAdaptor;
@@ -332,12 +336,15 @@ public class DatagramSocket implements java.io.Closeable {
      * @since   1.4
      */
     public DatagramSocket(SocketAddress bindaddr) throws SocketException {
-        // if (WispEngine.transparentWispSwitch()) {
-        //     asyncImpl = new WispUdpSocketImpl(this);
-        // } else {
-        //     DatagramSocket(createDelegate(bindaddr, DatagramSocket.class));
-        // }
         this(createDelegate(bindaddr, DatagramSocket.class));
+        if (WispEngine.transparentWispSwitch() && bindaddr != null) {
+            try {
+                bind(bindaddr);
+            } finally {
+                if (!isBound())
+                    close();
+            }
+        }
     }
 
     /**
@@ -1489,6 +1496,9 @@ public class DatagramSocket implements java.io.Closeable {
      */
     static <T extends DatagramSocket> T createDelegate(SocketAddress bindaddr, Class<T> type)
             throws SocketException {
+        if (WispEngine.transparentWispSwitch()) {
+            return null;
+        }
 
         // Temporary solution until JDK-8237352 is addressed
         if (bindaddr == NO_DELEGATE) return null;

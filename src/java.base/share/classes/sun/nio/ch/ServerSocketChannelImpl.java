@@ -394,14 +394,16 @@ class ServerSocketChannelImpl
             final boolean wispAndBlocking = WispEngine.transparentWispSwitch() && blocking;
             try {
                 begin(blocking);
+                if (wispAndBlocking) {
+                    IOUtil.configureBlocking(fd, false);
+                }
                 n = implAccept(this.fd, newfd, saa);
                 if (blocking) {
                     while (IOStatus.okayToRetry(n) && isOpen()) {
                         if (wispAndBlocking && n < 0) {
                             WEA.registerEvent(this, SelectionKey.OP_ACCEPT);
                             WEA.park(-1);
-                        }
-                        else {
+                        } else {
                             park(Net.POLLIN);
                         }
                         n = implAccept(this.fd, newfd, saa);

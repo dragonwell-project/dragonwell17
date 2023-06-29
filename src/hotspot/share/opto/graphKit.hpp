@@ -803,8 +803,7 @@ class GraphKit : public Phase {
                           Node* parm0 = NULL, Node* parm1 = NULL,
                           Node* parm2 = NULL, Node* parm3 = NULL,
                           Node* parm4 = NULL, Node* parm5 = NULL,
-                          Node* parm6 = NULL, Node* parm7 = NULL,
-                          Node* ctrl = NULL);
+                          Node* parm6 = NULL, Node* parm7 = NULL);
 
   void make_wisp_yield(ciMethod* method);
   Node* sign_extend_byte(Node* in);

@@ -1,8 +1,8 @@
 /*
  * @test
  * @summary Test elision spin
- * @modules java.base/jdk.internal.misc
- * @library /lib/testlibrary
+ * @modules java.base/jdk.internal.access
+ * @library /test/lib
  * @run main/othervm  -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.useStealLock=false ElisionSpinTest
  */
 
@@ -12,8 +12,8 @@ import jdk.internal.access.SharedSecrets;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static jdk.testlibrary.Asserts.assertFalse;
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertFalse;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class ElisionSpinTest {
     public static void main(String[] args) {

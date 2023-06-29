@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary test basic coroutine steal mechanism
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm -XX:+EnableCoroutine BasicStealTest
  */
 
@@ -9,8 +9,8 @@ import java.dyn.Coroutine;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import static jdk.testlibrary.Asserts.assertEQ;
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertEQ;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class BasicStealTest {
     public static void main(String[] args) {

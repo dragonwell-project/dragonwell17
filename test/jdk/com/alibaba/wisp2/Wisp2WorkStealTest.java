@@ -1,8 +1,8 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary verification of work stealing really happened
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @run main/othervm -XX:+UseWisp2 Wisp2WorkStealTest
  */
 
@@ -11,7 +11,7 @@ import jdk.internal.access.SharedSecrets;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import static jdk.testlibrary.Asserts.assertNE;
+import static jdk.test.lib.Asserts.assertNE;
 
 public class Wisp2WorkStealTest {
     public static void main(String[] args) {

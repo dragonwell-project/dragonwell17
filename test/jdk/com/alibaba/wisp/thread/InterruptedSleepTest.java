@@ -1,16 +1,16 @@
 /*
  * @test
  * @summary test InterruptedException was thrown by sleep()
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true InterruptedSleepTest
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 InterruptedSleepTest
 */
 
 import com.alibaba.wisp.engine.WispEngine;
 
-import static jdk.testlibrary.Asserts.assertFalse;
-import static jdk.testlibrary.Asserts.assertLessThan;
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertFalse;
+import static jdk.test.lib.Asserts.assertLessThan;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class InterruptedSleepTest {
     public static void main(String[] args) {

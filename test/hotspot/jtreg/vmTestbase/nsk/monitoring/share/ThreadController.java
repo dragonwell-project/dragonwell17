@@ -655,6 +655,7 @@ class SleepingThread extends BaseThread {
         expectedLength += 3;
 
         expectedMethods.add(Thread.class.getName() + ".sleep");
+        expectedMethods.add(Thread.class.getName() + ".sleep0");
         expectedMethods.add(SleepingThread.class.getName() + ".run");
 
         switch (controller.invocationType) {
@@ -722,6 +723,7 @@ class RunningThread extends BaseThread {
         expectedLength += 2;
 
         expectedMethods.add(Thread.class.getName() + ".yield");
+        expectedMethods.add(Thread.class.getName() + ".yield0");
 
         switch (controller.invocationType) {
             case ThreadController.JAVA_TYPE:

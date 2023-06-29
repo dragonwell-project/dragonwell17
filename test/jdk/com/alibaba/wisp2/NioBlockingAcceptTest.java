@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary test nio blocking accept
  * @run main/othervm -Dcom.alibaba.wisp.carrierEngines=1 -XX:ActiveProcessorCount=1 -XX:+EnableCoroutine  -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.version=2 -XX:+UseWispMonitor -Dcom.alibaba.wisp.enableThreadAsWisp=true -Dcom.alibaba.wisp.allThreadAsWisp=true NioBlockingAcceptTest
  */
@@ -13,7 +13,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class NioBlockingAcceptTest {
     public static void main(String[] args) throws Exception {

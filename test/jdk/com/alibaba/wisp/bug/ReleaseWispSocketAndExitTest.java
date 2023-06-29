@@ -4,7 +4,7 @@
  *      1. task A fetch a socket S and release it.
  *      2. task B get the socket S and block on IO.
  *      3. task A exit and clean S's event, now B waiting forever...
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=1 ReleaseWispSocketAndExitTest
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 ReleaseWispSocketAndExitTest
 */

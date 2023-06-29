@@ -36,6 +36,7 @@ public class SleepingThread extends RecursiveMonitoringThread {
         private Object readyLock = new Object();
         private static final String[] expectedMethods = {
                 "java.lang.Thread.sleep",
+                "java.lang.Thread.sleep0",
                 "nsk.monitoring.share.thread.SleepingThread.runInside"
         };
 

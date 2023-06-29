@@ -108,7 +108,7 @@ JavaThread* ProgrammableUpcallHandler::on_entry(OptimizedEntryBlob::FrameData* c
   context->jfa.copy(thread->frame_anchor());
   thread->frame_anchor()->clear();
 
-  debug_only(thread->inc_java_call_counter());
+  thread->inc_java_call_counter();
   thread->set_active_handles(context->new_handles);     // install new handle block and reset Java frame linkage
 
   // clear any pending exception in thread (native calls start with no exception pending)
@@ -133,7 +133,7 @@ void ProgrammableUpcallHandler::on_exit(OptimizedEntryBlob::FrameData* context) 
 
   thread->frame_anchor()->zap();
 
-  debug_only(thread->dec_java_call_counter());
+  thread->dec_java_call_counter();
 
   // Old thread-local info. has been restored. We are now back in native code.
   ThreadStateTransition::transition_from_java(thread, _thread_in_native);

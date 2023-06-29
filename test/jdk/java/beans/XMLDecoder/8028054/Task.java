@@ -130,6 +130,11 @@ abstract class Task<T> implements Runnable {
                 .map(s -> s.substring(s.indexOf("java")))
                 .collect(Collectors.toList());
 
+        // If enclude java.dyn.CoroutineSupport, it will cause the following error:
+        // java.lang.UnsatisfiedLinkError: 'void java.dyn.CoroutineSupport.registerNatives()'
+        // Let any brilliant guy to fix it.
+        fileNames.remove("java.dyn.CoroutineSupport");
+
         for (String name : fileNames) {
             classes.add(Class.forName(name));
             if (count == classes.size()) {

@@ -2,7 +2,7 @@
 #
 # @test
 # @summary test Thread.getStackTrace() in wisp transparentAsync model
-# @modules java.base/jdk.internal.misc
+# @modules java.base/jdk.internal.access
 # @modules java.base/com.alibaba.wisp.engine:+open
 # @run shell TestThreadStackTrace.sh
 #
@@ -107,7 +107,7 @@ public class TmpThreadStackTrace {
 EOF
 
 # Do compilation
-${JAVAC} --add-exports java.base/jdk.internal.misc=ALL-UNNAMED -cp ${TESTCLASSES} -d ${TESTCLASSES} ${TESTCLASSES}${FS}$TEST_SOURCE >> /dev/null 2>&1
+${JAVAC} --add-exports java.base/jdk.internal.access=ALL-UNNAMED -cp ${TESTCLASSES} -d ${TESTCLASSES} ${TESTCLASSES}${FS}$TEST_SOURCE >> /dev/null 2>&1
 if [ $? != '0' ]
 then
 	printf "Failed to compile ${TESTCLASSES}${FS}${TEST_SOURCE}"
@@ -115,7 +115,7 @@ then
 fi
 
 #run
-${JAVA} -XX:+PrintSafepointStatistics  -XX:PrintSafepointStatisticsCount=1 -Dcom.alibaba.wisp.config=${TEST_WISP_CONFIG} -XX:-UseBiasedLocking -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.enableThreadAsWisp=true -cp ${TESTCLASSES} ${TEST_CLASS} > output.txt  2>&1
+${JAVA} -Xlog:safepoint+stats=debug -Dcom.alibaba.wisp.config=${TEST_WISP_CONFIG} -XX:-UseBiasedLocking -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.enableThreadAsWisp=true -cp ${TESTCLASSES} ${TEST_CLASS} > output.txt  2>&1
 rm -f $TEST_WISP_CONFIG
 cat output.txt
 

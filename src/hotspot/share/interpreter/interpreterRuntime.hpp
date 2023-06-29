@@ -94,6 +94,11 @@ class InterpreterRuntime: AllStatic {
   static void    throw_pending_exception(JavaThread* current);
 
   static void resolve_from_cache(JavaThread* current, Bytecodes::Code bytecode);
+
+#ifdef ASSERT
+  static void print_site(JavaThread* current, void* arg0, void* arg1);
+#endif
+
  private:
   // Statics & fields
   static void resolve_get_put(JavaThread* current, Bytecodes::Code bytecode);

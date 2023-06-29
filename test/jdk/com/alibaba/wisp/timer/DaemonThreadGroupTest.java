@@ -1,8 +1,8 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test Daemon Thread Group implementation
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @modules java.base/com.alibaba.wisp.engine:+open
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.version=2 DaemonThreadGroupTest
 */
@@ -18,7 +18,7 @@ import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 
 /**

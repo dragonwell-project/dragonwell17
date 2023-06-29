@@ -1,13 +1,13 @@
 /*
  * @test
  * @summary test yield()
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true YieldTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;
 
-import static jdk.testlibrary.Asserts.*;
+import static jdk.test.lib.Asserts.*;
 
 public class YieldTest {
     private static int i = 0;

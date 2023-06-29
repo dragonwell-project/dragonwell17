@@ -26,7 +26,7 @@
 #define SHARE_OOPS_WEAKHANDLE_HPP
 
 #include "oops/oop.hpp"
-#include "runtime/handles.hpp"
+#include "runtime/handles.inline.hpp"
 
 class outputStream;
 class OopStorage;

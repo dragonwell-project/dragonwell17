@@ -196,6 +196,15 @@ $(NET_PROPERTIES_DST): $(NET_PROPERTIES_SRCS)
 
 TARGETS += $(NET_PROPERTIES_DST)
 
+################################################################################
+
+$(eval $(call SetupCopyFiles, COPY_WISP_PROPERTIES, \
+    FILES := $(TOPDIR)/src/java.base/share/conf/wisp.properties, \
+    DEST := $(CONF_DST_DIR), \
+))
+
+TARGETS += $(COPY_WISP_PROPERTIES)
+
 ifeq ($(call isTargetOs, linux), true)
   $(eval $(call SetupCopyFiles, COPY_SDP_CONF, \
       FILES := $(TOPDIR)/src/java.base/$(OPENJDK_TARGET_OS_TYPE)/conf/sdp/sdp.conf.template, \
@@ -204,13 +213,6 @@ ifeq ($(call isTargetOs, linux), true)
 
   TARGETS += $(COPY_SDP_CONF)
 endif
-
-$(eval $(call SetupCopyFiles, COPY_WISP_PROPERTIES, \
-    FILES := $(TOPDIR)/src/java.base/share/conf/wisp.properties, \
-    DEST := $(CONF_DST_DIR), \
-))
-
-TARGETS += $(COPY_WISP_PROPERTIES)
 
 ################################################################################
 

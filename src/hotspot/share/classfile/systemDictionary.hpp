@@ -334,7 +334,8 @@ private:
                                                 Symbol* name,
                                                 ClassLoaderData* loader_data,
                                                 Handle lockObject,
-                                                bool* throw_circularity_error);
+                                                bool* throw_circularity_error,
+                                                SystemDictLocker *mu);
 
   static void define_instance_class(InstanceKlass* k, Handle class_loader, TRAPS);
   static InstanceKlass* find_or_define_helper(Symbol* class_name,
@@ -416,9 +417,6 @@ public:
   static TableStatistics placeholders_statistics();
   static TableStatistics loader_constraints_statistics();
   static TableStatistics protection_domain_cache_statistics();
-
-public:
-  static void system_dict_lock_change(TRAPS);
 };
 
 #endif // SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP

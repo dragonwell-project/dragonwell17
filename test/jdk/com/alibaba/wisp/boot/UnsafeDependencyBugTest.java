@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary test bug fix of SharedSecrets and Unsafe class initializer circular dependency
  * @run main UnsafeDependencyBugTest 10
  */
@@ -9,7 +9,7 @@
 import java.io.File;
 import java.util.concurrent.TimeUnit;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 /**
  * We need thousand times to reproduce the DEADLOCK. Don't spend too much time here..

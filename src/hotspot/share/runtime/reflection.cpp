@@ -1108,8 +1108,7 @@ static oop invoke(InstanceKlass* klass,
   JavaValue result(rtype);
 
   {
-    Thread* t = THREAD;
-    WispPostStealHandleUpdateMark w(t, const_cast<methodHandle*>(&reflected_method), &method);
+    WispPostStealHandleUpdateMark w((Thread *&)THREAD, const_cast<methodHandle*>(&reflected_method), &method);
     EnableStealMark p(THREAD);
     JavaCalls::call(&result, method, &java_args, THREAD);
   }
@@ -1159,8 +1158,7 @@ oop Reflection::invoke_method(oop method_mirror, Handle receiver, objArrayHandle
   methodHandle method(THREAD, m);
 
   // Coroutine work steal support
-  Thread* t = THREAD;
-  WispPostStealHandleUpdateMark w(t, &method);
+  WispPostStealHandleUpdateMark w((Thread *&)THREAD, &method);
 
   return invoke(klass, method, receiver, override, ptypes, rtype, args, true, THREAD);
 }
@@ -1188,8 +1186,7 @@ oop Reflection::invoke_constructor(oop constructor_mirror, objArrayHandle args, 
   Handle receiver = klass->allocate_instance_handle(CHECK_NULL);
 
   // Coroutine work steal support
-  Thread* t = THREAD;
-  WispPostStealHandleUpdateMark w(t, &method);
+  WispPostStealHandleUpdateMark w((Thread *&)THREAD, &method);
 
   // Ignore result from call and return receiver
   invoke(klass, method, receiver, override, ptypes, T_VOID, args, false, CHECK_NULL);

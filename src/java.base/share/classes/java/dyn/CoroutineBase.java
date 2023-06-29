@@ -28,7 +28,7 @@ package java.dyn;
 import jdk.internal.access.SharedSecrets;
 
 /**
- * * Abstract of coroutines.
+ * Abstract of coroutines.
  */
 public abstract class CoroutineBase {
     transient long data;

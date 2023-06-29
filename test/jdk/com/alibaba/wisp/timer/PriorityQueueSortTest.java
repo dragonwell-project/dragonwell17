@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test TimeOut.Queue's offer and remove function, make sure it's consistent with the behavior of the jdk's priority queue
  * @modules java.base/com.alibaba.wisp.engine:+open
  * @run main/othervm PriorityQueueSortTest
@@ -14,7 +14,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class PriorityQueueSortTest {
 

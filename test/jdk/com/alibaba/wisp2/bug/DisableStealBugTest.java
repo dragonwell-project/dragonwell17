@@ -1,7 +1,7 @@
 /*
  * @test
- * @library /lib/testlibrary
- * @modules java.base/jdk.internal.misc
+ * @library /test/lib
+ * @modules java.base/jdk.internal.access
  * @modules java.base/com.alibaba.wisp.engine:+open
  * @summary test bug of update stealEnable fail
  * @run main/othervm -XX:+UseWisp2 -XX:-EnableSteal DisableStealBugTest
@@ -14,7 +14,7 @@ import jdk.internal.access.SharedSecrets;
 import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class DisableStealBugTest {
     public static void main(String[] args) throws Exception {

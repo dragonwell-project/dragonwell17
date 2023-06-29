@@ -328,7 +328,6 @@ class HandleMarkCleaner: public StackObj {
   inline HandleMarkCleaner(Thread* thread);
   inline ~HandleMarkCleaner();
   Thread *& thread_ref() {
-    assert(EnableCoroutine, "EnableCoroutine is off");
     return _thread;
   }
 };

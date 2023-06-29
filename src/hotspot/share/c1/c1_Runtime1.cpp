@@ -716,8 +716,8 @@ JRT_END
 JRT_ENTRY_NO_ASYNC(void, Runtime1::monitorexit_wisp(JavaThread* current, BasicObjectLock* lock))
   NOT_PRODUCT(_monitorexit_slowcase_cnt++;)
   assert(UseWispMonitor, "UseWispMonitor is off");
-  JavaThread* thread_tmp = NULL;
-  ExceptionMark __em(thread_tmp);
+  assert(current == Thread::current(), "sanity check");
+  ExceptionMark em(current);
   oop obj = lock->obj();
   // Almost a copy from Runtime1::monitorexit,
   // excpet that handles are used to access objects.
@@ -733,7 +733,7 @@ JRT_END
 // 3. There is no exception handler in this method, So it needs to unwind to its caller
 // 4. GC happened during unpark
 // This path will not call Java, so JRT_LEAF is used.
-JRT_LEAF(void, Runtime1::monitorexit_wisp_proxy(JavaThread* thread, BasicObjectLock* lock))
+JRT_LEAF(void, Runtime1::monitorexit_wisp_proxy(JavaThread* current, BasicObjectLock* lock))
   NOT_PRODUCT(_monitorexit_slowcase_cnt++;)
   assert(UseWispMonitor, "UseWispMonitor is off");
   EXCEPTION_MARK;
@@ -741,7 +741,7 @@ JRT_LEAF(void, Runtime1::monitorexit_wisp_proxy(JavaThread* thread, BasicObjectL
   assert(oopDesc::is_oop(obj), "must be NULL or an object");
   // Setting _is_proxy_unpark of current wisp thread to true.
   // Proxy unpark will be used when this flag is true.
-  WispThread* wisp_thread = WispThread::current(thread);
+  WispThread* wisp_thread = WispThread::current(current);
   wisp_thread->set_proxy_unpark_flag();
   // When using fast locking, the compiled code has already tried the fast case
   ObjectSynchronizer::exit(obj, lock->lock(), THREAD);

@@ -607,8 +607,7 @@ JVM_ENTRY(void, JVM_MonitorWait(JNIEnv* env, jobject handle, jlong ms))
   Handle obj(THREAD, JNIHandles::resolve_non_null(handle));
   JavaThreadInObjectWaitState jtiows(thread, ms != 0);
 
-  Thread* t = THREAD;
-  WispPostStealHandleUpdateMark w(thread, t, env, __tiv, __hm, &jtiows);
+  WispPostStealHandleUpdateMark w(thread, (Thread *&)THREAD, env, __tiv, __hm, &jtiows);
 
   // Coroutine work steal support
   EnableStealMark p(THREAD);
@@ -3119,7 +3118,7 @@ JVM_ENTRY(jboolean, JVM_CheckAndClearNativeInterruptForWisp(JNIEnv* env, jobject
   assert(EnableCoroutine, "Coroutine is disabled");
   JavaThread *th = java_lang_Thread::thread(JNIHandles::resolve_non_null(jthread));
   if (th != NULL) {
-    return (jboolean)clear_interrupt_for_wisp(th);
+    return (jboolean)(th->clear_interrupt_for_wisp());
   } else {
     return (jboolean)false;
   }
@@ -3514,8 +3513,7 @@ jclass find_class_from_class_loader(JNIEnv* env, Symbol* name, jboolean init,
 
 JVM_ENTRY(jobject, JVM_InvokeMethod(JNIEnv *env, jobject method, jobject obj, jobjectArray args0))
   // Coroutine work steal support
-  Thread* t = THREAD;
-  WispPostStealHandleUpdateMark w(thread, t, env, __tiv, __hm);
+  WispPostStealHandleUpdateMark w(thread, (Thread *&)THREAD, env, __tiv, __hm);
 
   Handle method_handle;
   if (thread->stack_overflow_state()->stack_available((address) &method_handle) >= JVMInvokeMethodSlack) {
@@ -3542,8 +3540,7 @@ JVM_END
 
 JVM_ENTRY(jobject, JVM_NewInstanceFromConstructor(JNIEnv *env, jobject c, jobjectArray args0))
   // Coroutine work steal support
-  Thread* t = THREAD;
-  WispPostStealHandleUpdateMark w(thread, t, env, __tiv, __hm);
+  WispPostStealHandleUpdateMark w(thread, (Thread *&)THREAD, env, __tiv, __hm);
 
   oop constructor_mirror = JNIHandles::resolve(c);
   objArrayHandle args(THREAD, objArrayOop(JNIHandles::resolve(args0)));

@@ -4755,9 +4755,9 @@ void java_dyn_CoroutineBase::set_data(oop obj, jlong value) {
 int com_alibaba_wisp_engine_WispEngine::_isInCritical_offset = 0;
 
 void com_alibaba_wisp_engine_WispEngine::compute_offsets() {
-  Klass* k = vmClasses::com_alibaba_wisp_engine_WispEngine_klass();
-  assert(k != NULL, "WispEngine_klass is null");
-  compute_offset(_isInCritical_offset, InstanceKlass::cast(k), vmSymbols::isInCritical_name(),         vmSymbols::bool_signature());
+  InstanceKlass* ik = vmClasses::com_alibaba_wisp_engine_WispEngine_klass();
+  assert(ik != NULL, "WispEngine_klass is null");
+  compute_offset(_isInCritical_offset, ik, vmSymbols::isInCritical_name(), vmSymbols::bool_signature());
 }
 
 bool com_alibaba_wisp_engine_WispEngine::in_critical(oop obj) {
@@ -4773,9 +4773,8 @@ int com_alibaba_wisp_engine_WispTask::_stealCount_offset = 0;
 int com_alibaba_wisp_engine_WispTask::_stealFailureCount_offset = 0;
 
 void com_alibaba_wisp_engine_WispTask::compute_offsets() {
-  Klass* k = vmClasses::com_alibaba_wisp_engine_WispTask_klass();
-  assert(k != NULL, "WispTask_klass is null");
-  InstanceKlass *ik = InstanceKlass::cast(k);
+  InstanceKlass* ik = vmClasses::com_alibaba_wisp_engine_WispTask_klass();
+  assert(ik != NULL, "WispTask_klass is null");
   compute_offset(_jvmParkStatus_offset, ik, vmSymbols::jvmParkStatus_name(),   vmSymbols::int_signature());
   compute_offset(_id_offset,            ik, vmSymbols::id_name(),              vmSymbols::int_signature());
   compute_offset(_threadWrapper_offset, ik, vmSymbols::threadWrapper_name(),   vmSymbols::thread_signature());

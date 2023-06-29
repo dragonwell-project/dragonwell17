@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test Wisp engine park / unpark
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @run main/othervm -XX:+EnableCoroutine ParkTest
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.version=2 ParkTest
 */

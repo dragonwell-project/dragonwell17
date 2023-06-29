@@ -117,6 +117,7 @@ public class strace003 {
             "java.lang.Object.wait",
             "java.lang.Thread.exit",
             "java.lang.Thread.yield",
+            "java.lang.Thread.yield0",
             "java.lang.ThreadGroup.remove",
             "java.lang.ThreadGroup.threadTerminated",
             "nsk.stress.strace.strace003Thread.run",

@@ -2,7 +2,7 @@
  * @test
  * @summary test XX:+UseWisp2 switch with -Dcom.alibaba.wisp.allThreadAsWisp=false
  * @library /test/lib
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @modules java.base/com.alibaba.wisp.engine:+open
  * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.wisp.allThreadAsWisp=false Wisp2SwitchTest2
  */

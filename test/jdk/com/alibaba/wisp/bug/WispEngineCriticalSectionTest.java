@@ -1,8 +1,9 @@
 /*
  * @test
  * @summary Test case for fix a deadlock caused by critical section of WispEngine
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @modules java.base/com.alibaba.wisp.engine:+open
+ * @modules java.base/java.nio.channels.spi:+open
  * @run main/othervm   -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.globalPoller=false WispEngineCriticalSectionTest
  */
 
@@ -14,6 +15,7 @@ import java.lang.reflect.Field;
 import java.net.Socket;
 import java.nio.channels.spi.AbstractSelector;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 public class WispEngineCriticalSectionTest {
@@ -31,8 +33,8 @@ public class WispEngineCriticalSectionTest {
         AbstractSelector selector = (AbstractSelector) f.get(WispEngine.current());
         f = AbstractSelector.class.getDeclaredField("cancelledKeys");
         f.setAccessible(true);
-        final HashSet cancelSet = (HashSet) f.get(selector);
-
+        Set set = (Set)(f.get(selector));
+        final HashSet cancelSet = new HashSet(set);
 
         // made an runnable wisp
         CountDownLatch cd = new CountDownLatch(1);
