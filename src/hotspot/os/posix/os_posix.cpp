@@ -24,6 +24,7 @@
 
 
 #include "jvm.h"
+#include "memory/allocation.hpp"
 #ifdef LINUX
 #include "classfile/classLoader.hpp"
 #endif
@@ -873,6 +874,19 @@ void os::naked_short_sleep(jlong ms) {
   assert(ms < MILLIUNITS, "Un-interruptable sleep, short time use only");
   os::naked_short_nanosleep(millis_to_nanos(ms));
   return;
+}
+
+bool clear_interrupt_for_wisp(Thread* thread) {
+  assert(EnableCoroutine, "Coroutine is disabled");
+  // If we only use -XX:+EnableCoroutine and -Dcom.alibaba.transparentAsync=true, we will
+  // fall here, so we cannot use `assert(UseWispMonitor)` only.
+  if (UseWispMonitor && thread->is_Wisp_thread()) {
+    thread = ((WispThread *)thread)->thread();
+  }
+  bool interrupted = ((JavaThread*) thread->as_Java_thread())->is_interrupted(false);
+  thread->osthread()->set_interrupted(false);
+
+  return interrupted;
 }
 
 char* os::Posix::describe_pthread_attr(char* buf, size_t buflen, const pthread_attr_t* attr) {

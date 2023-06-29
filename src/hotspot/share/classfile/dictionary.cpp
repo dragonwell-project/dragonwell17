@@ -423,7 +423,7 @@ void Dictionary::validate_protection_domain(unsigned int name_hash,
   // security manager is installed later. Calls to load the same class with class loader
   // and protection domain are expected to succeed.
   {
-    MutexLocker mu(THREAD, SystemDictionary_lock);
+    SystemDictLocker mu(THREAD, SystemDictionary_lock);
     int d_index = hash_to_index(name_hash);
     add_protection_domain(d_index, name_hash, klass,
                           protection_domain);

@@ -248,7 +248,7 @@ void javaVFrame::print_lock_info_on(outputStream* st, int frame_count) {
         // the monitor is associated with an object, i.e., it is locked
 
         const char *lock_state = "locked"; // assume we have the monitor locked
-        if (!found_first_monitor && frame_count == 0) {
+        if (!found_first_monitor && frame_count == 0 || UseWispMonitor) {
           // If this is the first frame and we haven't found an owned
           // monitor before, then we need to see if we have completed
           // the lock or if we are blocked trying to acquire it. Only

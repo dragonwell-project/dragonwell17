@@ -39,10 +39,13 @@
 //   }
 //   ...
 
+class WispPostStealHandleUpdateMark;
+
 //------------------------------ResourceArea-----------------------------------
 // A ResourceArea is an Arena that supports safe usage of ResourceMark.
 class ResourceArea: public Arena {
   friend class VMStructs;
+  friend class WispPostStealHandleUpdateMark;
 
 #ifdef ASSERT
   int _nesting;                 // current # of nested ResourceMarks

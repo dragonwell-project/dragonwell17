@@ -154,6 +154,8 @@ DEF_HANDLE(typeArray        , is_typeArray_noinline        )
     ~name##Handle ();                            \
     void remove();                               \
                                                  \
+    Thread *& thread_ref() { return _thread; }   \
+                                                 \
     /* Operators for ease of use */              \
     type*        operator () () const            { return obj(); } \
     type*        operator -> () const            { return non_null_obj(); } \
@@ -278,6 +280,9 @@ class HandleMark {
   void* operator new [](size_t size) throw();
   void operator delete(void* p);
   void operator delete[](void* p);
+
+  // only for wisp
+  void change_thread_for_wisp(Thread *thread);
 };
 
 //------------------------------------------------------------------------------------------------------------------------
@@ -322,6 +327,10 @@ class HandleMarkCleaner: public StackObj {
  public:
   inline HandleMarkCleaner(Thread* thread);
   inline ~HandleMarkCleaner();
+  Thread *& thread_ref() {
+    assert(EnableCoroutine, "EnableCoroutine is off");
+    return _thread;
+  }
 };
 
 #endif // SHARE_RUNTIME_HANDLES_HPP

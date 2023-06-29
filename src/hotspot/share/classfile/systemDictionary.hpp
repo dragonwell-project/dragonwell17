@@ -416,6 +416,9 @@ public:
   static TableStatistics placeholders_statistics();
   static TableStatistics loader_constraints_statistics();
   static TableStatistics protection_domain_cache_statistics();
+
+public:
+  static void system_dict_lock_change(TRAPS);
 };
 
 #endif // SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP

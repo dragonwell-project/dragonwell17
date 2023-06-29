@@ -25,6 +25,8 @@
 
 package java.dyn;
 
+import jdk.internal.access.SharedSecrets;
+
 /**
  * Implementation of symmetric coroutines. A Coroutine will take part in thread-wide scheduling of coroutines. It transfers control to
  * the next coroutine whenever yield is called.
@@ -42,8 +44,8 @@ package java.dyn;
  * 		for (int i = 0; i &lt; 10; i++) {
  * 			System.out.println(i);
  * 			yield();
- * 		}
- * 	}
+ *        }
+ *    }
  * }
  * </pre>
  *
@@ -64,86 +66,117 @@ package java.dyn;
  * @author Lukas Stadler
  */
 public class Coroutine extends CoroutineBase {
-	private final Runnable target;
+    private final Runnable target;
 
-	Coroutine next;
-	Coroutine last;
+    Coroutine next;
+    Coroutine last;
 
     /**
      * Allocates a new {@code Coroutine} object.
      */
-	public Coroutine() {
-		this.target = null;
-		threadSupport.addCoroutine(this, -1);
-	}
+    public Coroutine() {
+        this.target = null;
+        threadSupport.addCoroutine(this, -1);
+    }
 
     /**
      * Allocates a new {@code Coroutine} object.
+	 * 
      * @param target the runnable
      */
-	public Coroutine(Runnable target) {
-		this.target = target;
-		threadSupport.addCoroutine(this, -1);
-	}
+    public Coroutine(Runnable target) {
+        this.target = target;
+        threadSupport.addCoroutine(this, -1);
+    }
 
     /**
      * Allocates a new {@code Coroutine} object.
+	 * 
      * @param stacksize the size of stack
      */
-	public Coroutine(long stacksize) {
-		this.target = null;
-		threadSupport.addCoroutine(this, stacksize);
-	}
+    public Coroutine(long stacksize) {
+        this.target = null;
+        threadSupport.addCoroutine(this, stacksize);
+    }
 
     /**
      * Allocates a new {@code Coroutine} object.
+	 * 
      * @param target runnable
      * @param stacksize the size of stack
      */
-	public Coroutine(Runnable target, long stacksize) {
-		this.target = target;
-		threadSupport.addCoroutine(this, stacksize);
-	}
-
-	/**
-     * Creates the initial coroutine for a new thread
-     * @param threadSupport the CoroutineSupport
-     * @param data the value
-     */
-	Coroutine(CoroutineSupport threadSupport, long data) {
-		super(threadSupport, data);
-		this.target = null;
-	}
-
-	/**
-	 * Yields execution to the next coroutine in the current threads coroutine queue.
-	 */
-	public static void yield() {
-		Thread.currentThread().getCoroutineSupport().symmetricYield();
-	}
-
-	/**
-	 * Yields execution to the other coroutine.
-     * @param target Coroutine
-	 */
-	public static void yieldTo(Coroutine target) {
-		Thread.currentThread().getCoroutineSupport().symmetricYieldTo(target);
-	}
-
-	/**
-	 * Coroutine exit.
-	 */
-	public void stop() {
-		Thread.currentThread().getCoroutineSupport().symmetricStopCoroutine(this);
-	}
+    public Coroutine(Runnable target, long stacksize) {
+        this.target = target;
+        threadSupport.addCoroutine(this, stacksize);
+    }
 
     /**
-     * the entry to run the coroutine
+     * Creates the initial coroutine for a new thread
+	 * 
+     * @param threadSupport the CoroutineSupport
+     * @param data 			the value
      */
-	protected void run() {
-		assert Thread.currentThread() == threadSupport.getThread();
-		if (target != null) {
-			target.run();
-		}
-	}
+    Coroutine(CoroutineSupport threadSupport, long data) {
+        super(threadSupport, data);
+        this.target = null;
+    }
+
+    /**
+     * Yields execution to the next coroutine in the current threads coroutine queue.
+     */
+    public static void yield() {
+        SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().symmetricYield();
+    }
+
+    /**
+     * Yields execution to the target coroutine.
+     *
+     * @param target Coroutine
+     */
+    public static void yieldTo(Coroutine target) {
+        SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().symmetricYieldTo(target);
+    }
+
+    /**
+     * Steal a coroutine from it's carrier thread to current thread.
+     *
+     * @param failOnContention steal fail if there's too much lock contention
+     * @return if stealing succeeds. Also return true directly if coroutine's carrier thread is current.
+     */
+    public boolean steal(boolean failOnContention) {
+        return threadSupport.steal(this, failOnContention);
+    }
+
+    /**
+     * Coroutine exit.
+     */
+    public void stop() {
+        SharedSecrets.getJavaLangAccess().currentThread0().getCoroutineSupport().symmetricStopCoroutine(this);
+    }
+
+    /**
+     * Relate Coroutine to wisp data structures
+     *
+     * @param id     wispTask id
+     * @param task   task oop
+     * @param engine wispEngine oop
+     */
+    public void setWispTask(int id, Object task, Object engine) {
+        setWispTask(data, id, task, engine);
+    }
+
+    protected void run() {
+        assert Thread.currentThread() == threadSupport.getThread();
+        if (target != null) {
+            target.run();
+        }
+    }
+
+    static {
+        registerNatives();
+    }
+
+    private static native void registerNatives();
+
+    private static native void setWispTask(long coroutine, int id, Object task, Object engine);
 }

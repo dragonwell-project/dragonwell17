@@ -142,7 +142,7 @@ inline JavaThreadState JavaThread::thread_state() const    {
 }
 
 inline void JavaThread::set_thread_state(JavaThreadState s) {
-  assert(current_or_null() == NULL || current_or_null() == this,
+  assert(UseWispMonitor || current_or_null() == NULL || current_or_null() == this,
          "state change should only be called by the current thread");
 #if defined(PPC64) || defined (AARCH64)
   // Use membars when accessing volatile _thread_state. See

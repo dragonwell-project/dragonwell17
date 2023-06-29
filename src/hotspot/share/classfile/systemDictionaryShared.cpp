@@ -1009,7 +1009,7 @@ InstanceKlass* SystemDictionaryShared::find_or_load_shared_class(
       // which are parallel-capable loaders, so a lock here is NOT taken.
       assert(get_loader_lock_or_null(class_loader) == NULL, "ObjectLocker not required");
       {
-        MutexLocker mu(THREAD, SystemDictionary_lock);
+        SystemDictLocker mu(THREAD, SystemDictionary_lock);
         InstanceKlass* check = dictionary->find_class(d_hash, name);
         if (check != NULL) {
           return check;

@@ -433,6 +433,9 @@ class JavaThreadStatusChanger : public StackObj {
  public:
   static void set_thread_status(JavaThread* java_thread,
                                 JavaThreadStatus state) {
+    if (UseWispMonitor && java_thread->is_Wisp_thread()) {
+      return;
+    }
     java_lang_Thread::set_thread_status(java_thread->threadObj(), state);
   }
 
@@ -463,6 +466,8 @@ class JavaThreadStatusChanger : public StackObj {
   bool is_alive() {
     return _is_alive;
   }
+
+  Thread *& thread_ref()  { return (Thread *&)_java_thread; }
 };
 
 // Change status to waiting on an object  (timed or indefinite)

@@ -33,7 +33,8 @@
 
 extern Mutex*   Patching_lock;                   // a lock used to guard code patching of compiled code
 extern Mutex*   CompiledMethod_lock;             // a lock used to guard a compiled method and OSR queues
-extern Monitor* SystemDictionary_lock;           // a lock on the system dictionary
+extern Monitor* SystemDictionary_monitor_lock;   // a lock on the system dictonary
+extern SystemDictMonitor* SystemDictionary_lock; // a lock on the system dictonary, transform to ObjectMonitor after wisp is booted
 extern Mutex*   SharedDictionary_lock;           // a lock on the CDS shared dictionary
 extern Monitor* ClassInitError_lock;             // a lock on the class initialization error table
 extern Mutex*   Module_lock;                     // a lock on module and package related data structures
@@ -162,6 +163,7 @@ extern Mutex*   Bootclasspath_lock;
 
 extern Mutex* tty_lock;                          // lock to synchronize output.
 
+extern Monitor* Wisp_lock;                       // used to sync Wisp operations
 // A MutexLocker provides mutual exclusion with respect to a given mutex
 // for the scope which contains the locker.  The lock is an OS lock, not
 // an object lock, and the two do not interoperate.  Do not use Mutex-based
@@ -188,6 +190,10 @@ void assert_locked_or_safepoint(const Mutex* lock);
 void assert_locked_or_safepoint_weak(const Mutex* lock);
 void assert_lock_strong(const Mutex* lock);
 void assert_locked_or_safepoint_or_handshake(const Mutex* lock, const JavaThread* thread);
+void assert_locked_or_safepoint(const SystemDictMonitor * lock);
+void assert_locked_or_safepoint_weak(const SystemDictMonitor * lock);
+void assert_lock_strong(const SystemDictMonitor * lock);
+void assert_locked_or_safepoint_or_handshake(const SystemDictMonitor * lock, const JavaThread* thread);
 #else
 #define assert_locked_or_safepoint(lock)
 #define assert_locked_or_safepoint_weak(lock)
@@ -312,6 +318,36 @@ class MutexUnlocker: StackObj {
       _mutex->lock();
     }
   }
+};
+
+class SystemDictLocker: StackObj {
+ private:
+  SystemDictMonitor* _mutex;
+  JavaThread*        _thread;
+  BasicLock          _lock;
+  bool               _locked;
+ public:
+  SystemDictLocker(JavaThread* THREAD, SystemDictMonitor* mutex, bool do_lock=true) {
+    _locked = do_lock;
+    _mutex = mutex;
+    _thread = THREAD;
+    if (do_lock) {
+      _mutex->lock(&_lock, _thread);
+    }
+  }
+
+  void wait()       { _mutex->wait(&_lock, _thread);   }
+  void notify_all() { _mutex->notify_all(_thread);     }
+  void lock()       { _mutex->lock(&_lock, _thread);   }
+  void unlock()     { _mutex->unlock(&_lock, _thread); }
+
+
+  ~SystemDictLocker() { if (_locked)  _mutex->unlock(&_lock, _thread); }
+};
+
+class GCSystemDictLocker: public SystemDictLocker {
+ public:
+  GCSystemDictLocker(SystemDictMonitor* mutex);
 };
 
 #endif // SHARE_RUNTIME_MUTEXLOCKER_HPP

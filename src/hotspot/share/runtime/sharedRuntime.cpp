@@ -256,6 +256,27 @@ JRT_LEAF(jfloat, SharedRuntime::frem(jfloat  x, jfloat  y))
 #endif
 JRT_END
 
+JRT_ENTRY_NO_ASYNC(int, SharedRuntime::wisp_yield(JavaThread* current, Method* method))
+  assert(EnableCoroutine, "Coroutine is disabled");
+  JavaThread* jt = current;
+  JavaValue result(T_VOID);
+  JavaCallArguments args;
+  // Class not found exception may appear here.
+  // We do not continue yield with exceptions.
+  if (jt->has_pending_exception()) {
+      return 0;
+  }
+  jt->set_wisp_preempt(0);
+  assert(jt->thread_state() == _thread_in_vm, "sanity check");
+  // Do java calls to perform yield work.
+  JavaCalls::call_static(&result,
+        vmClasses::Thread_klass(),
+        vmSymbols::yield_name(),
+        vmSymbols::void_method_signature(),
+        &args,
+        jt);
+  return 0;
+JRT_END
 
 JRT_LEAF(jdouble, SharedRuntime::drem(jdouble x, jdouble y))
 #ifdef _WIN64
@@ -2128,6 +2149,14 @@ void SharedRuntime::monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThre
   if (PrintBiasedLockingStatistics) {
     Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
   }
+
+  // must place it befor EnableStealMark.
+  Thread* t = THREAD;
+  WispPostStealHandleUpdateMark w(current, t, __tiv);
+
+  // Coroutine work steal support
+  EnableStealMark p(THREAD);
+
   Handle h_obj(THREAD, obj);
   ObjectSynchronizer::enter(h_obj, lock, current);
   assert(!HAS_PENDING_EXCEPTION, "Should have no exception here");
@@ -2136,7 +2165,44 @@ void SharedRuntime::monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThre
 
 // Handles the uncommon case in locking, i.e., contention or an inflated lock.
 JRT_BLOCK_ENTRY(void, SharedRuntime::complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* current))
+  WispPostStealHandleUpdateMark w(__hm);
   SharedRuntime::monitor_enter_helper(obj, lock, current);
+JRT_END
+
+JRT_ENTRY_NO_ASYNC(void, SharedRuntime::complete_wisp_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current))
+  assert(EnableCoroutine, "Coroutine is disabled");
+  JavaThread* cur_thread = JavaThread::current();
+  // I'm not convinced we need the code contained by MIGHT_HAVE_PENDING anymore
+  // testing was unable to ever fire the assert that guarded it so I have removed it.
+  assert(!HAS_PENDING_EXCEPTION, "Do we need code below anymore?");
+#undef MIGHT_HAVE_PENDING
+#ifdef MIGHT_HAVE_PENDING
+  // Save and restore any pending_exception around the exception mark.
+  // While the slow_exit must not throw an exception, we could come into
+  // this routine with one set.
+  oop pending_excep = NULL;
+  const char* pending_file;
+  int pending_line;
+  if (HAS_PENDING_EXCEPTION) {
+    pending_excep = PENDING_EXCEPTION;
+    pending_file  = cur_thread->exception_file();
+    pending_line  = cur_thread->exception_line();
+    CLEAR_PENDING_EXCEPTION;
+  }
+#endif /* MIGHT_HAVE_PENDING */
+
+  // Use handle to access objects since we will call java code
+  Handle h_obj(current, obj);
+  {
+    EXCEPTION_MARK;
+    ObjectSynchronizer::exit(h_obj, lock, cur_thread);
+  }
+
+#ifdef MIGHT_HAVE_PENDING
+  if (pending_excep != NULL) {
+    cur_thread->set_pending_exception(pending_excep, pending_file, pending_line);
+  }
+#endif /* MIGHT_HAVE_PENDING */
 JRT_END
 
 void SharedRuntime::monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* current) {
@@ -2151,7 +2217,13 @@ void SharedRuntime::monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThrea
     }
     return;
   }
-  ObjectSynchronizer::exit(obj, lock, current);
+  if (UseWispMonitor) {
+      HandleMarkCleaner __hm(current);
+      Handle h_obj(current, obj);
+      ObjectSynchronizer::exit(h_obj, lock, current);
+    } else {
+      ObjectSynchronizer::exit(obj, lock, current);
+    }
 }
 
 // Handles the uncommon cases of monitor unlocking in compiled code

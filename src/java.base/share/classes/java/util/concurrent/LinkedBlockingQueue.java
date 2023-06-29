@@ -166,6 +166,10 @@ public class LinkedBlockingQueue<E> extends AbstractQueue<E>
     @SuppressWarnings("serial") // Classes implementing Condition may be serializable.
     private final Condition notFull = putLock.newCondition();
 
+    int getCapacity() {
+        return capacity;
+    }
+
     /**
      * Signals a waiting take. Called only from put/offer (which do not
      * otherwise ordinarily lock takeLock.)

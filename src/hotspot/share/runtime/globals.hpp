@@ -2097,6 +2097,19 @@ const intx ObjectAlignmentInBytes = 8;
                                                                             \
   product(uintx, MaxFreeCoroutinesCacheSize, 20,                            \
           "The max number of free coroutine stacks a thread can keep")      \
+                                                                            \
+  product(bool, EnableCoroutineTimeSlice, false,                            \
+          "Wisp will perform yield periodically")                           \
+                                                                            \
+  product(bool, UseWispMonitor, false,                                      \
+          "yields to next coroutine when ObjectMonitor is contended")       \
+                                                                            \
+  product(bool, EnableSteal, true,                                          \
+          "Enable coroutine steal")                                         \
+                                                                            \
+  product(bool, UseWisp2, false,                                            \
+          "Enable Wisp2")                                                   \
+                                                                            \
 
 
 // end of RUNTIME_FLAGS

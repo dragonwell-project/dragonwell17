@@ -1162,6 +1162,7 @@ source_hpp %{
 // we switch between source %{ }% and source_hpp %{ }% freely as needed.
 
 #include "runtime/vm_version.hpp"
+#include "runtime/coroutine.hpp"
 
 class NativeJump;
 

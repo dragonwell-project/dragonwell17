@@ -35,6 +35,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/weakHandle.inline.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/thread.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/hashtable.inline.hpp"
 
@@ -121,7 +122,7 @@ void ProtectionDomainCacheTable::unlink() {
     // point to a protection_domain that has been unloaded.
     // The dictionary pd_set points at entries in the ProtectionDomainCacheTable.
     MutexLocker ml(ClassLoaderDataGraph_lock);
-    MutexLocker mldict(SystemDictionary_lock);  // need both.
+    SystemDictLocker mldict(JavaThread::current(), SystemDictionary_lock);  // need both.
     CleanProtectionDomainEntries clean(_delete_list);
     ClassLoaderDataGraph::loaded_cld_do(&clean);
   }
@@ -129,7 +130,7 @@ void ProtectionDomainCacheTable::unlink() {
   // Purge any deleted entries outside of the SystemDictionary_lock.
   purge_deleted_entries();
 
-  MutexLocker ml(SystemDictionary_lock);
+  SystemDictLocker ml(JavaThread::current(), SystemDictionary_lock);
   int oops_removed = 0;
   for (int i = 0; i < table_size(); ++i) {
     ProtectionDomainCacheEntry** p = bucket_addr(i);

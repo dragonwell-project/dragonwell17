@@ -31,6 +31,7 @@
 #include "opto/opcodes.hpp"
 #include "opto/subnode.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/stubRoutines.hpp"
 
@@ -597,8 +598,17 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
   // It's inflated and we use scrReg for ObjectMonitor* in this section.
   movq(scrReg, tmpReg);
   xorq(tmpReg, tmpReg);
+
+  // It's inflated and appears unlocked
+  if (UseWispMonitor) {
+    movptr (r15_thread, Address(r15_thread, JavaThread::current_coroutine_offset()));
+    movptr (r15_thread, Address(r15_thread, Coroutine::wisp_thread_offset()));
+  }
   lock();
   cmpxchgptr(r15_thread, Address(scrReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
+  if (UseWispMonitor) {
+    movptr (r15_thread, Address(r15_thread, WispThread::thread_offset()));
+  }
   // Unconditionally set box->_displaced_header = markWord::unused_mark().
   // Without cast to int32_t this style of movptr will destroy r10 which is typically obj.
   movptr(Address(boxReg, 0), (int32_t)intptr_t(markWord::unused_mark().value()));
@@ -688,7 +698,12 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
   jcc   (Assembler::zero, DONE_LABEL);                              // 0 indicates recursive stack-lock
   movptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes())); // Examine the object's markword
   testptr(tmpReg, markWord::monitor_value);                         // Inflated?
-  jccb  (Assembler::zero, Stacked);
+  // If UseWispMonitor is enable, insert more code, then the length in jccb isn't enough.
+  if (UseWispMonitor) {
+    jcc  (Assembler::zero, Stacked);
+  } else {
+    jccb (Assembler::zero, Stacked);
+  }
 
   // It's inflated.
 #if INCLUDE_RTM_OPT
@@ -814,8 +829,15 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
 
   // box is really RAX -- the following CMPXCHG depends on that binding
   // cmpxchg R,[M] is equivalent to rax = CAS(M,rax,R)
+  if (UseWispMonitor) {
+    movptr (r15_thread, Address(r15_thread, JavaThread::current_coroutine_offset()));
+    movptr (r15_thread, Address(r15_thread, Coroutine::wisp_thread_offset()));
+  }
   lock();
   cmpxchgptr(r15_thread, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
+  if (UseWispMonitor) {
+    movptr (r15_thread, Address(r15_thread, WispThread::thread_offset()));
+  }
   // There's no successor so we tried to regrab the lock.
   // If that didn't work, then another thread grabbed the
   // lock so we're done (and exit was a success).

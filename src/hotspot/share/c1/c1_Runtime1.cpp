@@ -697,13 +697,54 @@ JRT_ENTRY(void, Runtime1::throw_incompatible_class_change_error(JavaThread* curr
 JRT_END
 
 
+// funtions in `Runtime1` are all private, so add a function pointer to get its address
+void (*Runtime1::monitorenter_address_C1)(JavaThread *, oopDesc* obj, BasicObjectLock *) = Runtime1::monitorenter;
+address monitorenter_address_C1 = (address)Runtime1::monitorenter_address_C1;
+
+
 JRT_BLOCK_ENTRY(void, Runtime1::monitorenter(JavaThread* current, oopDesc* obj, BasicObjectLock* lock))
   NOT_PRODUCT(_monitorenter_slowcase_cnt++;)
   if (!UseFastLocking) {
     lock->set_obj(obj);
   }
   assert(obj == lock->obj(), "must match");
+  WispPostStealHandleUpdateMark w(__hm);
   SharedRuntime::monitor_enter_helper(obj, lock->lock(), current);
+JRT_END
+
+
+JRT_ENTRY_NO_ASYNC(void, Runtime1::monitorexit_wisp(JavaThread* current, BasicObjectLock* lock))
+  NOT_PRODUCT(_monitorexit_slowcase_cnt++;)
+  assert(UseWispMonitor, "UseWispMonitor is off");
+  JavaThread* thread_tmp = NULL;
+  ExceptionMark __em(thread_tmp);
+  oop obj = lock->obj();
+  // Almost a copy from Runtime1::monitorexit,
+  // excpet that handles are used to access objects.
+  Handle h_obj(current, obj);
+  ObjectSynchronizer::exit(h_obj, lock->lock(), THREAD);
+JRT_END
+
+
+// Handle spcecial case for wisp unpark.
+// This function is executed only when the following four conditions are all satisfied
+// 1. A synchronized method is compiled by C1
+// 2. An exception happened in this method
+// 3. There is no exception handler in this method, So it needs to unwind to its caller
+// 4. GC happened during unpark
+// This path will not call Java, so JRT_LEAF is used.
+JRT_LEAF(void, Runtime1::monitorexit_wisp_proxy(JavaThread* thread, BasicObjectLock* lock))
+  NOT_PRODUCT(_monitorexit_slowcase_cnt++;)
+  assert(UseWispMonitor, "UseWispMonitor is off");
+  EXCEPTION_MARK;
+  oop obj = lock->obj();
+  assert(oopDesc::is_oop(obj), "must be NULL or an object");
+  // Setting _is_proxy_unpark of current wisp thread to true.
+  // Proxy unpark will be used when this flag is true.
+  WispThread* wisp_thread = WispThread::current(thread);
+  wisp_thread->set_proxy_unpark_flag();
+  // When using fast locking, the compiled code has already tried the fast case
+  ObjectSynchronizer::exit(obj, lock->lock(), THREAD);
 JRT_END
 
 
@@ -712,7 +753,12 @@ JRT_LEAF(void, Runtime1::monitorexit(JavaThread* current, BasicObjectLock* lock)
   assert(current->last_Java_sp(), "last_Java_sp must be set");
   oop obj = lock->obj();
   assert(oopDesc::is_oop(obj), "must be NULL or an object");
-  SharedRuntime::monitor_exit_helper(obj, lock->lock(), current);
+  if (UseWispMonitor) {
+    HandleMarkCleaner __hm(current);
+    SharedRuntime::monitor_exit_helper(obj, lock->lock(), current);
+  } else {
+    SharedRuntime::monitor_exit_helper(obj, lock->lock(), current);
+  }
 JRT_END
 
 // Cf. OptoRuntime::deoptimize_caller_frame

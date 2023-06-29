@@ -25,6 +25,9 @@
 
 package jdk.internal.misc;
 
+import com.alibaba.wisp.engine.WispEngine;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.access.UnsafeAccess;
 import jdk.internal.ref.Cleaner;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
@@ -63,6 +66,19 @@ public final class Unsafe {
     private Unsafe() {}
 
     private static final Unsafe theUnsafe = new Unsafe();
+
+    public static final UnsafeAccess access = new UnsafeAccess() {
+    // static final UnsafeAccess access = new UnsafeAccess() {
+        @Override
+        public void unpark0(Object thread) {
+            theUnsafe.unpark0(thread);
+        }
+
+        @Override
+        public void park0(boolean isAbsolute, long time) {
+            theUnsafe.park0(isAbsolute, time);
+        }
+    };
 
     /**
      * Provides the caller with the capability of performing unsafe
@@ -2382,8 +2398,23 @@ public final class Unsafe {
      *
      * @param thread the thread to unpark.
      */
+    public void unpark(Object thread) {
+        if (WispEngine.transparentWispSwitch()) {
+            if (thread instanceof Thread) {
+                SharedSecrets.getWispEngineAccess().unpark(
+                        SharedSecrets.getJavaLangAccess().getWispTask((Thread) thread));
+            }
+            return;
+        }
+        unpark0(thread);
+    }
+
+    /**
+     * Unblock the given thread. Always use the thread semantic.
+     * @param thread
+     */
     @IntrinsicCandidate
-    public native void unpark(Object thread);
+    private native void unpark0(Object thread);
 
     /**
      * Blocks current thread, returning when a balancing
@@ -2396,8 +2427,26 @@ public final class Unsafe {
      * because {@code unpark} is, so it would be strange to place it
      * elsewhere.
      */
+    public void park(boolean isAbsolute, long time) {
+        if (WispEngine.transparentWispSwitch()) {
+            if (time <= 0) { // non-timeouted park
+                SharedSecrets.getWispEngineAccess().park(0);
+            }
+            long timeout = !isAbsolute ? time:
+                    java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(time - System.currentTimeMillis());
+            if (timeout > 0) {
+                SharedSecrets.getWispEngineAccess().park(timeout);
+            }
+            return;
+        }
+        park0(isAbsolute, time);
+    }
+
+    /**
+     * Block current thread. Always use the thread semantic.
+     */
     @IntrinsicCandidate
-    public native void park(boolean isAbsolute, long time);
+    private native void park0(boolean isAbsolute, long time);
 
     /**
      * Gets the load average in the system run queue assigned
