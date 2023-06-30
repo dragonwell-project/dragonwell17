@@ -47,6 +47,9 @@ public class NotFoundClassSet {
                     int hash = Integer.parseUnsignedInt(line.substring(tagStart + INITIATING_LOADER_STR.length(), end == -1 ? line.length() : end), 16);
                     return toKey(line.substring(0, line.indexOf(" ")), hash);
                 }).collect(Collectors.toSet());
+        for(String s: notFoundClasses) {
+            System.out.println(s);
+        }
     }
 
     private boolean findClass(String name) {

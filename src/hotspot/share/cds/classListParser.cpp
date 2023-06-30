@@ -129,23 +129,25 @@ int ClassListParser::parse(TRAPS) {
       continue;
     }
 
-    assert(klass != NULL, "sanity");
-    if (log_is_enabled(Trace, cds)) {
-      ResourceMark rm(THREAD);
-      log_trace(cds)("Shared spaces preloaded: %s", klass->external_name());
+    assert(klass != NULL || NotFoundClassOpt, "klass should not be null");
+    if (klass != NULL) {
+      if (log_is_enabled(Trace, cds)) {
+        ResourceMark rm(THREAD);
+        log_trace(cds)("Shared spaces preloaded: %s", klass->external_name());
+      }
+
+      if (klass->is_instance_klass()) {
+        InstanceKlass* ik = InstanceKlass::cast(klass);
+
+        // Link the class to cause the bytecodes to be rewritten and the
+        // cpcache to be created. The linking is done as soon as classes
+        // are loaded in order that the related data structures (klass and
+        // cpCache) are located together.
+        MetaspaceShared::try_link_class(THREAD, ik);
+      }
+
+      class_count++;
     }
-
-    if (klass->is_instance_klass()) {
-      InstanceKlass* ik = InstanceKlass::cast(klass);
-
-      // Link the class to cause the bytecodes to be rewritten and the
-      // cpcache to be created. The linking is done as soon as classes
-      // are loaded in order that the related data structures (klass and
-      // cpCache) are located together.
-      MetaspaceShared::try_link_class(THREAD, ik);
-    }
-
-    class_count++;
   }
 
   return class_count;
@@ -518,7 +520,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
   }
 
   bool added = SystemDictionaryShared::add_unregistered_class(THREAD, k);
-  if (!added) {
+  if (!added && !EagerAppCDS) {
     // We allow only a single unregistered class for each unique name.
     error("Duplicated class %s", _class_name);
   }
@@ -698,7 +700,7 @@ Klass* ClassListParser::load_current_class(Symbol* class_name_symbol, TRAPS) {
   if (is_id_specified()) {
     InstanceKlass* ik = InstanceKlass::cast(klass);
     int id = this->id();
-    SystemDictionaryShared::update_shared_entry(ik, id);
+    SystemDictionaryShared::update_shared_entry(ik, id, _initiating_loader_hash);
     InstanceKlass** old_ptr = table()->lookup(id);
     if (old_ptr != NULL) {
       error("Duplicated ID %d for class %s", id, _class_name);

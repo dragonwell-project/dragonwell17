@@ -121,7 +121,7 @@ public class TestDumpAndLoadNotFound {
             "-XX:+EagerAppCDS",
             "-XX:SharedClassListFile=" + CLASSLIST_FILE_2,
             "-XX:SharedArchiveFile=" + ARCHIVE_FILE,
-            "-Xlog:class+eagerappcds=trace",
+            "-Xlog:cds,class+eagerappcds=trace",
             "-Xshare:dump",
             "-XX:MetaspaceSize=12M",
             "-XX:MaxMetaspaceSize=12M");

@@ -672,8 +672,9 @@ public:
 
   // Used by RunTimeSharedDictionary to implement OffsetCompactHashtable::EQUALS
   static inline bool EQUALS(
-       const RunTimeSharedClassInfo* value, Symbol* key, int len_unused) {
-    return (value->_klass->name() == key);
+       const RunTimeSharedClassInfo* value, Symbol* key, int initiating_loader_hash) {  // TODO change this, this is strange
+    return EagerAppCDS ? (value->_klass->name() == key && value->crc()->_initiating_loader_hash == initiating_loader_hash)
+            : value->_klass->name() == key;
   }
 };
 
@@ -1242,7 +1243,7 @@ InstanceKlass* SystemDictionaryShared::lookup_shared(Symbol* class_name, Handle 
   bool loop = false;
 
   int loader_hash = java_lang_ClassLoader::signature(class_loader());
-  const RunTimeSharedClassInfo* record = find_record(&_unregistered_dictionary, &_dynamic_unregistered_dictionary, class_name);
+  const RunTimeSharedClassInfo* record = find_unregistered_record(&_unregistered_dictionary, class_name, loader_hash);
   if (record && record->crc()->_initiating_loader_hash == loader_hash) {
     InstanceKlass* ik = record->_klass;
     InstanceKlass *loaded = load_class_from_cds(class_name, class_loader, ik, record->crc()->_defining_loader_hash, THREAD);
@@ -2484,6 +2485,26 @@ SystemDictionaryShared::find_record(RunTimeSharedDictionary* static_dict, RunTim
   return record;
 }
 
+const RunTimeSharedClassInfo*
+SystemDictionaryShared::find_unregistered_record(RunTimeSharedDictionary* static_dict,
+                                                                           Symbol* name,
+                                                                           int initiating_loader_hash) {
+  if (!UseSharedSpaces || !name->is_shared()) {
+    // The names of all shared classes must also be a shared Symbol.
+    return NULL;
+  }
+
+  unsigned int hash = SystemDictionaryShared::hash_for_shared_dictionary_quick(name);
+  const RunTimeSharedClassInfo* record = NULL;
+
+  if (!MetaspaceShared::is_shared_dynamic(name)) {
+    // The names of all shared classes in the static dict must also be in the
+    // static archive
+    record = static_dict->lookup(name, hash, initiating_loader_hash);
+  }
+  return record;
+}
+
 InstanceKlass* SystemDictionaryShared::find_builtin_class(Symbol* name) {
   const RunTimeSharedClassInfo* record = find_record(&_builtin_dictionary, &_dynamic_builtin_dictionary, name);
   if (record != NULL) {
@@ -2495,10 +2516,11 @@ InstanceKlass* SystemDictionaryShared::find_builtin_class(Symbol* name) {
   }
 }
 
-void SystemDictionaryShared::update_shared_entry(InstanceKlass* k, int id) {
+void SystemDictionaryShared::update_shared_entry(InstanceKlass* k, int id, int initiating_loader_hash) {
   assert(DumpSharedSpaces, "supported only when dumping");
   DumpTimeSharedClassInfo* info = find_or_allocate_info_for(k);
   info->_id = id;
+  info->_initiating_loader_hash = initiating_loader_hash;
 }
 
 const char* class_loader_name_for_shared(Klass* k) {

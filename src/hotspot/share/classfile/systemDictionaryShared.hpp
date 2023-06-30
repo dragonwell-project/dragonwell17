@@ -251,9 +251,9 @@ public:
   static InstanceKlass* find_builtin_class(Symbol* class_name);
 
 
-  // static const RunTimeSharedClassInfo* find_record_for_unregistered_loader(const Symbol* name,
-  //                                                                          int clsfile_size,
-  //                                                                          int clsfile_crc32);
+  static const RunTimeSharedClassInfo* find_unregistered_record(RunTimeSharedDictionary* static_dict,
+                                                                           Symbol* name,
+                                                                           int initiating_loader_hash);
   static const RunTimeSharedClassInfo* find_record(RunTimeSharedDictionary* static_dict,
                                                    RunTimeSharedDictionary* dynamic_dict,
                                                    Symbol* name);
@@ -282,7 +282,7 @@ public:
     return ClassLoaderData::the_null_class_loader_data()->dictionary();
   }
 
-  static void update_shared_entry(InstanceKlass* klass, int id);
+  static void update_shared_entry(InstanceKlass* klass, int id, int initiating_loader_hash);
   static void set_shared_class_misc_info(InstanceKlass* k, ClassFileStream* cfs, int defining_loader_hash, int initiating_loader_hash);
 
   static void log_not_found_klass(Symbol* name, Handle class_loader, TRAPS);
