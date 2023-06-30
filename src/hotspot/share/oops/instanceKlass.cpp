@@ -490,6 +490,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _nest_host(NULL),
   _permitted_subclasses(NULL),
   _record_components(NULL),
+  _source_file_path(NULL),
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
@@ -2424,6 +2425,10 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   // _fields might be written into by Rewriter::scan_method() -> fd.set_has_initialized_final_update()
   it->push(&_fields, MetaspaceClosure::_writable);
 
+  if (EagerAppCDS) {
+    it->push(&_source_file_path);
+  }
+
   if (itable_length() > 0) {
     itableOffsetEntry* ioe = (itableOffsetEntry*)start_of_itable();
     int method_table_offset_in_words = ioe->offset()/wordSize;
@@ -4217,7 +4222,7 @@ void InstanceKlass::log_to_classlist() const {
        DumpLoadedClassList = NULL;
        return;
     }
-    if (is_shareable()) {
+    if (is_shareable() && !EagerAppCDS) {
       ClassListWriter w;
       w.stream()->print_cr("%s", name()->as_C_string());
       w.stream()->flush();

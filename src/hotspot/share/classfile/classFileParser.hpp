@@ -209,6 +209,7 @@ class ClassFileParser {
   void fill_instance_klass(InstanceKlass* ik, bool cf_changed_in_CFLH,
                            const ClassInstanceInfo& cl_inst_info, TRAPS);
 
+  void set_class_source(InstanceKlass* ik, TRAPS);
   void set_klass(InstanceKlass* instance);
 
   void set_class_bad_constant_seen(short bad_constant);
@@ -525,6 +526,10 @@ class ClassFileParser {
                                TRAPS);
 
   void update_class_name(Symbol* new_name);
+
+#if INCLUDE_CDS
+  void log_loaded_klass(InstanceKlass* k, const ClassFileStream* stream, TRAPS);
+#endif
 
  public:
   ClassFileParser(ClassFileStream* stream,

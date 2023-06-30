@@ -3935,6 +3935,10 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
     return JNI_EINVAL;
   }
 
+  if (EagerAppCDS && !FLAG_IS_CMDLINE(NotFoundClassOpt)) {
+    NotFoundClassOpt = true;
+  }
+
   // Set object alignment values.
   set_object_alignment();
 

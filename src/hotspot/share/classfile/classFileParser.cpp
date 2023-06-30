@@ -83,6 +83,7 @@
 #include "utilities/ostream.hpp"
 #include "utilities/resourceHash.hpp"
 #include "utilities/utf8.hpp"
+#include "cds/classListWriter.hpp"
 
 #if INCLUDE_CDS
 #include "classfile/systemDictionaryShared.hpp"
@@ -5240,6 +5241,11 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
   return ik;
 }
 
+void ClassFileParser::set_class_source(InstanceKlass* ik, TRAPS) {
+  const char* path = _stream->source();
+  ik->set_source_file_path(path ? SymbolTable::new_symbol(path) : NULL);
+}
+
 void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
                                           bool changed_by_loadhook,
                                           const ClassInstanceInfo& cl_inst_info,
@@ -5323,6 +5329,10 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   ik->set_major_version(_major_version);
   ik->set_has_nonstatic_concrete_methods(_has_nonstatic_concrete_methods);
   ik->set_declares_nonstatic_concrete_methods(_declares_nonstatic_concrete_methods);
+
+  if (EagerAppCDS) {
+    set_class_source(ik, THREAD);
+  }
 
   if (_is_hidden) {
     ik->set_is_hidden();
@@ -5465,6 +5475,12 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     }
   }
 
+#if INCLUDE_CDS
+  if (EagerAppCDS && DumpLoadedClassList != NULL) {
+    log_loaded_klass(ik, _stream, THREAD);
+  }
+#endif
+
   JFR_ONLY(INIT_ID(ik);)
 
   // If we reach here, all is well.
@@ -5477,6 +5493,77 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   debug_only(ik->verify();)
 }
+
+#if INCLUDE_CDS
+static bool should_skip_class(ClassLoaderData* loader_data, const ClassFileStream* const stream) {
+  // Only dump the classes that can be stored into CDS archive.
+  // Anonymous classes such as generated LambdaForm classes are also not included.
+  oop class_loader = loader_data->class_loader();
+  bool skip = false;
+  if (class_loader == NULL || SystemDictionary::is_platform_class_loader(class_loader)) {
+    // For the boot and platform class loaders, skip classes that are not found in the
+    // java runtime image, such as those found in the --patch-module entries.
+    // These classes can't be loaded from the archive during runtime.
+    if (!stream->from_boot_loader_modules_image() && strncmp(stream->source(), "jrt:", 4) != 0) {
+      skip = true;
+    }
+ 
+    if (class_loader == NULL && ClassLoader::contains_append_entry(stream->source())) {
+      // .. but don't skip the boot classes that are loaded from -Xbootclasspath/a
+      // as they can be loaded from the archive during runtime.
+      skip = false;
+    }
+  }
+  return skip;
+}
+ 
+void ClassFileParser::log_loaded_klass(InstanceKlass* ik, const ClassFileStream *stream, TRAPS) {
+  if (stream->source() == NULL || !ClassListWriter::is_enabled()) {
+    return;
+  }
+ 
+  ClassLoaderData *loader_data = ik->class_loader_data();
+  ResourceMark rm(THREAD);
+  const char *name = ik->name()->as_C_string();
+  bool is_builtin = loader_data->is_builtin_class_loader_data();
+
+  ClassListWriter w;
+  if (is_builtin) {
+    if (!should_skip_class(loader_data, stream)) {
+      w.stream()->print("%s klass: " INTPTR_FORMAT, name, p2i(ik));
+    } else {
+      return;
+    }
+  } else {
+    if (SystemDictionary::should_not_dump_class(ik)) {
+      return;
+    }
+    // sample:
+    // TestSimple source: file:/tmp/classes/com/alibaba/cds/TestDumpAndLoadClass.d/ klass: 0x0000000800066840
+    // super: 0x0000000800001000 defining_loader_hash: fa474cbf fingerprint: 0x00000199e3c89ea7
+    // If the signature is 0, still dump the class loading information for AppCDS usage
+    MutexLocker mu(THREAD, DumpLoadedClassList_lock);
+    w.stream()->print("%s source: %s klass: " INTPTR_FORMAT, name, stream->source(), p2i(ik));
+    w.stream()->print(" super: " INTPTR_FORMAT, p2i(ik->superklass()));
+
+    const Array<InstanceKlass*>* const intf = ik->local_interfaces();
+    if (intf->length() > 0) {
+      w.stream()->print(" interfaces:");
+      int length = intf->length();
+      for (int i=0; i < length; i++) {
+        w.stream()->print(" " INTPTR_FORMAT, p2i(intf->at(i)));
+      }
+    }
+    int hash = java_lang_ClassLoader::signature(loader_data->class_loader());
+    if (hash != 0) {
+      w.stream()->print(" defining_loader_hash: %x", hash);
+    }
+    w.stream()->print(" fingerprint: " PTR64_FORMAT, stream->compute_fingerprint());
+  }
+  w.stream()->cr();
+  w.stream()->flush();
+}
+#endif
 
 void ClassFileParser::update_class_name(Symbol* new_class_name) {
   // Decrement the refcount in the old name, since we're clobbering it.
@@ -5831,6 +5918,10 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
       }
       ls.cr();
     }
+
+    // remove classfile->write codes here
+    // see commit: 56881d646560d3c4367d9c96687598932cac24b2
+    // 8249096: Clean up code for DumpLoadedClassList
   }
 
   // SUPERKLASS

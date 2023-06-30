@@ -1130,6 +1130,8 @@ typedef struct JDK1_1InitArgs {
 } JDK1_1InitArgs;
 
 
+JNIEXPORT jclass JNICALL
+JVM_DefineClassFromCDS(JNIEnv *env, jclass clz, jobject loader, jobject pd, jlong iklass);
 #ifdef __cplusplus
 } /* extern "C" */
 

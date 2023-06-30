@@ -2087,7 +2087,12 @@ const intx ObjectAlignmentInBytes = 8;
                                                                             \
   develop(bool, TraceOptimizedUpcallStubs, false,                              \
                 "Trace optimized upcall stub generation")                      \
-
+  product(bool, EagerAppCDS, false,                                         \
+          "aggressively skip over loadClass() to speed up boot time")       \
+  product(bool, EagerAppCDSLegacyVerisonSupport, false, EXPERIMENTAL,       \
+          "dump the classes which is compiled JDK1.5 or below")             \
+  product(bool, NotFoundClassOpt, false,                                    \
+          "optimization for not found class in EagerAppCDS flow")           \
 // end of RUNTIME_FLAGS
 
 DECLARE_FLAGS(LP64_RUNTIME_FLAGS)

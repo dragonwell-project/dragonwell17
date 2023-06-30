@@ -108,7 +108,8 @@ public:
   }
 
   static void record_result(const s2 classpath_index, InstanceKlass* result);
-  static InstanceKlass* load_class(Symbol* h_name, const char* path, TRAPS);
+  static InstanceKlass* load_class(Symbol* h_name, const char* path, int defining_loader_hash,
+                                  int initiating_loader_hash, uint64_t fingerprint, TRAPS);
   static void set_has_app_classes() {
     _has_app_classes = true;
   }

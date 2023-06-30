@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "cds/heapShared.hpp"
+#include "cds/classListWriter.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
@@ -153,7 +154,7 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
 // ----------------------------------------------------------------------------
 // Parallel class loading check
 
-bool is_parallelCapable(Handle class_loader) {
+bool SystemDictionary::is_parallelCapable(Handle class_loader) {
   if (class_loader.is_null()) return true;
   if (AlwaysLockClassLoader) return false;
   return java_lang_ClassLoader::parallelCapable(class_loader());
@@ -264,6 +265,9 @@ Klass* SystemDictionary::resolve_or_fail(Symbol* class_name, Handle class_loader
   Klass* klass = resolve_or_null(class_name, class_loader, protection_domain, THREAD);
   // Check for pending exception or null klass, and throw exception
   if (HAS_PENDING_EXCEPTION || klass == NULL) {
+    if (NotFoundClassOpt) {
+      SystemDictionaryShared::log_not_found_klass(class_name, class_loader, THREAD);
+    }
     handle_resolution_exception(class_name, throw_error, CHECK_NULL);
   }
   return klass;
@@ -476,7 +480,7 @@ static void double_lock_wait(JavaThread* thread, Handle lockObject) {
   bool calledholdinglock
       = ObjectSynchronizer::current_thread_holds_lock(thread, lockObject);
   assert(calledholdinglock, "must hold lock for notify");
-  assert(!is_parallelCapable(lockObject), "lockObject must not be parallelCapable");
+  assert(!SystemDictionary::is_parallelCapable(lockObject), "lockObject must not be parallelCapable");
   // These don't throw exceptions.
   ObjectSynchronizer::notifyall(lockObject, thread);
   intx recursions = ObjectSynchronizer::complete_exit(lockObject, thread);
@@ -509,7 +513,7 @@ static void handle_parallel_super_load(Symbol* name,
 // parallelCapable class loaders do NOT wait for parallel superclass loads to complete
 // Serial class loaders and bootstrap classloader do wait for superclass loads
 static bool should_wait_for_loading(Handle class_loader) {
-  return class_loader.is_null() || !is_parallelCapable(class_loader);
+  return class_loader.is_null() || !SystemDictionary::is_parallelCapable(class_loader);
 }
 
 // For bootstrap and non-parallelCapable class loaders, check and wait for
@@ -1202,7 +1206,61 @@ void SystemDictionary::load_shared_class_misc(InstanceKlass* ik, ClassLoaderData
   ClassLoadingService::notify_class_loaded(ik, true /* shared class */);
 }
 
+bool SystemDictionary::should_not_dump_class(InstanceKlass* k) {
+  // remove anonymous class judge here
+  // see 8243287: Removal of Unsafe::defineAnonymousClass
+
+  const char *name = k->name()->as_C_string();
+  if (name[0] == '$') {
+    // ignore the name starts with "$", which is gened by javac.
+    return true;
+  }
+
+  if (strstr(name, "$$")) {
+    // ignore the class which is dynamically generated.
+    return true;
+  }
+  return false;
+}
+
+// Sample:
+// TestSimple klass: 0x0000000800066840 defining_loader_hash: fa474cbf initiating_loader_hash: fa474cbf
+void SystemDictionary::dump_class_and_loader_relationship(InstanceKlass* k, ClassLoaderData* initiating_loader_data, TRAPS) {
+  if (DumpLoadedClassList == NULL || !ClassListWriter::is_enabled()) {
+    return;
+  }
+
+  ResourceMark rm(THREAD);
+  if (should_not_dump_class(k)) {
+    return;
+  }
+
+  ClassLoaderData *defining_loader_data = k->class_loader_data();
+
+  if (defining_loader_data->is_builtin_class_loader_data()) {
+    return;    // don't dump the bootstrap. dummy.
+  }
+
+  int hash = java_lang_ClassLoader::signature(defining_loader_data->class_loader());
+
+  if (hash == 0 || java_lang_ClassLoader::signature(initiating_loader_data->class_loader()) == 0) {
+    return;
+  }
+
+  MutexLocker mu(THREAD, DumpLoadedClassList_lock);
+  ClassListWriter w;
+  w.stream()->print("%s klass: " INTPTR_FORMAT, k->name()->as_C_string(), p2i(k));
+  w.stream()->print(" defining_loader_hash: %x", hash);
+  w.stream()->print(" initiating_loader_hash: %x", java_lang_ClassLoader::signature(initiating_loader_data->class_loader()));
+  w.stream()->cr();
+  w.stream()->flush();
+}
 #endif // INCLUDE_CDS
+
+bool SystemDictionary::invalid_class_name_for_EagerAppCDS(const char* name) {
+  // ignore the class which is dynamically generated.
+  return strstr(name, DOUBLE_DOLLAR_STR) != NULL;
+}
 
 InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Handle class_loader, TRAPS) {
 
@@ -1302,6 +1360,22 @@ InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Ha
 
     JavaThread* jt = THREAD;
 
+    // when coming here, class_loader() can not be null.
+    if (EagerAppCDS && UseSharedSpaces && java_lang_ClassLoader::signature(class_loader()) != 0) {
+      char* name = class_name->as_C_string();
+      // Only boot and platform class loaders can define classes in "java/" packages
+      // in EagerAppCDS, ignore the classes in "java/" packages
+      if (!(strncmp(name, JAVAPKG, JAVAPKG_LEN) == 0 && name[JAVAPKG_LEN] == '/') && !invalid_class_name_for_EagerAppCDS(name)) {
+        bool not_found = false;
+        InstanceKlass *k = SystemDictionaryShared::lookup_shared(class_name, class_loader, not_found, CHECK_NULL);
+        if (k) {
+          return k;
+        } else if (not_found) {
+          return NULL;
+        }
+      }
+    }
+
     PerfClassTraceTime vmtimer(ClassLoader::perf_app_classload_time(),
                                ClassLoader::perf_app_classload_selftime(),
                                ClassLoader::perf_app_classload_count(),
@@ -1340,6 +1414,11 @@ InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Ha
       // the same as that requested.  This check is done for the bootstrap
       // loader when parsing the class file.
       if (class_name == k->name()) {
+#if INCLUDE_CDS
+        if (EagerAppCDS && DumpLoadedClassList != NULL) {
+          dump_class_and_loader_relationship(k, class_loader_data(class_loader), THREAD);
+        }
+#endif
         return k;
       }
     }
