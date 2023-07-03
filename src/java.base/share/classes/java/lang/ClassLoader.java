@@ -701,7 +701,7 @@ public abstract class ClassLoader {
             synchronized (definingLoader.getClassLoadingLock(className)) {
                 // First, check if the class has already been loaded
                 Class<?> c;
-                if ((c = definingLoader.findLoadedClass(className)) == null) {
+                if ((c = definingLoader.findLoadedClass0(className, true)) == null) {
                     long t1 = System.nanoTime();
                     c = definingLoader.findClassFromCDS(className, sourcePath, ik);
                     // this is the defining class loader; record the stats
@@ -1407,10 +1407,13 @@ public abstract class ClassLoader {
     protected final Class<?> findLoadedClass(String name) {
         if (!checkName(name))
             return null;
-        return findLoadedClass0(name);
+        return findLoadedClass0(name, false);
     }
 
-    private final native Class<?> findLoadedClass0(String name);
+    /**
+     * @param loadfromCDS set the parameter to avoid nested call
+     */
+    private final native Class<?> findLoadedClass0(String name, boolean onlyFind);
 
     /**
      * Sets the signers of a class.  This should be invoked after defining a

@@ -1029,6 +1029,8 @@ InstanceKlass* SystemDictionaryShared::find_or_load_shared_class(
         SharedClassLoadingMark slm(THREAD, k);
         k = find_or_define_instance_class(name, class_loader, k, CHECK_NULL);
       }
+    } else if (EagerAppCDS && java_lang_ClassLoader::signature(class_loader()) != 0) {
+      k = load_shared_class_for_registerd_loader(name, class_loader, CHECK_NULL);
     }
   }
   return k;
@@ -1049,6 +1051,21 @@ PackageEntry* SystemDictionaryShared::get_package_entry_from_class(InstanceKlass
     pkg_entry = NULL;
   }
   return pkg_entry;
+}
+
+InstanceKlass* SystemDictionaryShared::load_shared_class_for_registerd_loader(
+                 Symbol* class_name, Handle class_loader, TRAPS) {
+  ResourceMark rm(THREAD);
+  char* name = class_name->as_C_string();
+  // Only boot and platform class loaders can define classes in "java/" packages
+  // in EagerAppCDS, ignore the classes in "java/" packages
+  if ((strncmp(name, JAVAPKG, JAVAPKG_LEN) == 0 && name[JAVAPKG_LEN] == '/') || invalid_class_name_for_EagerAppCDS(name)) {
+      return NULL;
+  }
+
+  bool not_found = false;
+  // In findLoadedClass flow, disable the optimization for not found class
+  return SystemDictionaryShared::lookup_shared(class_name, class_loader, not_found, false, THREAD);
 }
 
 InstanceKlass* SystemDictionaryShared::load_shared_class_for_builtin_loader(
@@ -1237,7 +1254,7 @@ InstanceKlass* SystemDictionaryShared::load_class_from_cds(const Symbol* class_n
        +---------------------------------------------+
 */
 InstanceKlass* SystemDictionaryShared::lookup_shared(Symbol* class_name, Handle class_loader,
-                                                     bool& not_found, TRAPS) {
+                                                     bool& not_found, bool check_not_found, TRAPS) {
   assert(EagerAppCDS, "must be EagerAppCDS");
 
   bool loop = false;
@@ -1254,7 +1271,7 @@ InstanceKlass* SystemDictionaryShared::lookup_shared(Symbol* class_name, Handle 
     }
   }
 
-  if (NotFoundClassOpt && !loop && check_class_not_found(class_name, loader_hash, THREAD)) {
+  if (NotFoundClassOpt && check_not_found && !loop && check_class_not_found(class_name, loader_hash, THREAD)) {
       not_found = true;
       log_trace(class, eagerappcds) ("[CDS load class] Not found class %s with class loader %s (%x)", class_name->as_C_string(),
                 class_loader()->klass()->name()->as_C_string(), loader_hash);

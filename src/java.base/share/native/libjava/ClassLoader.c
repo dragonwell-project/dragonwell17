@@ -313,11 +313,11 @@ Java_java_lang_ClassLoader_findBootstrapClass(JNIEnv *env, jclass dummy,
 
 JNIEXPORT jclass JNICALL
 Java_java_lang_ClassLoader_findLoadedClass0(JNIEnv *env, jobject loader,
-                                           jstring name)
+                                           jstring name, jboolean onlyFind)
 {
     if (name == NULL) {
         return 0;
     } else {
-        return JVM_FindLoadedClass(env, loader, name);
+        return JVM_FindLoadedClass(env, loader, name, onlyFind);
     }
 }

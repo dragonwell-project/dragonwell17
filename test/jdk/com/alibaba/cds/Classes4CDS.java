@@ -213,7 +213,11 @@ public class Classes4CDS {
         if (data.initiatingHash != null) {
             out.print("initiating_loader_hash: " + data.initiatingHash);
             out.print(" ");
+        } else if (data.definingHash != null) {
+            out.print("initiating_loader_hash: " + data.definingHash);
+            out.print(" ");
         }
+
         if (data.definingHash != null) {
             out.print("defining_loader_hash: " + data.definingHash);
             out.print(" ");
@@ -255,14 +259,10 @@ public class Classes4CDS {
             }
         } else {
             //eagerAppCDS
-            if (data.initiatingHash == null) {
+            if (appCDSSet.contains(data.className)) {
                 return true;
             } else {
-                if (appCDSSet.contains(data.className)) {
-                    return true;
-                } else {
-                    eagerCDSSet.add(data.className);
-                }
+                eagerCDSSet.add(data.className);
             }
         }
         return false;

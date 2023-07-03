@@ -1034,7 +1034,7 @@ JVM_ENTRY(jclass, JVM_DefineClassWithSource(JNIEnv *env, const char *name, jobje
   return jvm_define_class_common(name, loader, buf, len, pd, source, THREAD);
 JVM_END
 
-JVM_ENTRY(jclass, JVM_FindLoadedClass(JNIEnv *env, jobject loader, jstring name))
+JVM_ENTRY(jclass, JVM_FindLoadedClass(JNIEnv *env, jobject loader, jstring name, jboolean onlyFind))
   ResourceMark rm(THREAD);
 
   Handle h_name (THREAD, JNIHandles::resolve_non_null(name));
@@ -1068,7 +1068,7 @@ JVM_ENTRY(jclass, JVM_FindLoadedClass(JNIEnv *env, jobject loader, jstring name)
                                                               h_loader,
                                                               Handle());
 #if INCLUDE_CDS
-  if (k == NULL) {
+  if (k == NULL && !onlyFind) {
     // If the class is not already loaded, try to see if it's in the shared
     // archive for the current classloader (h_loader).
     k = SystemDictionaryShared::find_or_load_shared_class(klass_name, h_loader, CHECK_NULL);

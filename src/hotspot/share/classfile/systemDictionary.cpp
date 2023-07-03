@@ -1367,7 +1367,7 @@ InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Ha
       // in EagerAppCDS, ignore the classes in "java/" packages
       if (!(strncmp(name, JAVAPKG, JAVAPKG_LEN) == 0 && name[JAVAPKG_LEN] == '/') && !invalid_class_name_for_EagerAppCDS(name)) {
         bool not_found = false;
-        InstanceKlass *k = SystemDictionaryShared::lookup_shared(class_name, class_loader, not_found, CHECK_NULL);
+        InstanceKlass *k = SystemDictionaryShared::lookup_shared(class_name, class_loader, not_found, true, CHECK_NULL);
         if (k) {
           return k;
         } else if (not_found) {
