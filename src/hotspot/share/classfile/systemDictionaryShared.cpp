@@ -1204,7 +1204,7 @@ InstanceKlass* SystemDictionaryShared::load_class_from_cds(const Symbol* class_n
                           &args,
                           CHECK_NULL);
 
-  oop klass = (oop)result.get_jobject();
+  oop klass = (oop)result.get_oop();
   if (klass != NULL) {
     return InstanceKlass::cast(java_lang_Class::as_Klass(klass));
   }
