@@ -346,9 +346,6 @@ public class Classes4CDS {
         printCDSData(data);
         for (int i = 1; i < all.size(); i++) {
             data = all.get(i);
-            if (invalidCheck(data)) {
-                continue;
-            }
             String newId = String.valueOf(++klassID);
             idIds.put(data.id, newId);
             data.id = newId;

@@ -673,8 +673,7 @@ public:
   // Used by RunTimeSharedDictionary to implement OffsetCompactHashtable::EQUALS
   static inline bool EQUALS(
        const RunTimeSharedClassInfo* value, Symbol* key, int initiating_loader_hash) {  // TODO change this, this is strange
-    return EagerAppCDS ? (value->_klass->name() == key && value->crc()->_initiating_loader_hash == initiating_loader_hash)
-            : value->_klass->name() == key;
+    return value->_klass->name() == key;
   }
 };
 
@@ -1135,7 +1134,8 @@ InstanceKlass* SystemDictionaryShared::lookup_from_stream(Symbol* class_name,
     return NULL;
   }
 
-  const RunTimeSharedClassInfo* record = find_record(&_unregistered_dictionary, &_dynamic_unregistered_dictionary, class_name);
+  const RunTimeSharedClassInfo* record = EagerAppCDS ? find_unregistered_record_by_defining_loader_hash(&_unregistered_dictionary, class_name, java_lang_ClassLoader::signature(class_loader()))
+                                                     : find_record(&_unregistered_dictionary, &_dynamic_unregistered_dictionary, class_name);
   if (record == NULL) {
     return NULL;
   }
@@ -1260,8 +1260,8 @@ InstanceKlass* SystemDictionaryShared::lookup_shared(Symbol* class_name, Handle 
   bool loop = false;
 
   int loader_hash = java_lang_ClassLoader::signature(class_loader());
-  const RunTimeSharedClassInfo* record = find_unregistered_record(&_unregistered_dictionary, class_name, loader_hash);
-  if (record && record->crc()->_initiating_loader_hash == loader_hash) {
+  const RunTimeSharedClassInfo* record = find_unregistered_record_by_initiating_loader_hash(&_unregistered_dictionary, class_name, loader_hash);
+  if (record) {
     InstanceKlass* ik = record->_klass;
     InstanceKlass *loaded = load_class_from_cds(class_name, class_loader, ik, record->crc()->_defining_loader_hash, THREAD);
     if (loaded != NULL) {
@@ -2502,24 +2502,53 @@ SystemDictionaryShared::find_record(RunTimeSharedDictionary* static_dict, RunTim
   return record;
 }
 
-const RunTimeSharedClassInfo*
+GrowableArray<const RunTimeSharedClassInfo*>*
 SystemDictionaryShared::find_unregistered_record(RunTimeSharedDictionary* static_dict,
-                                                                           Symbol* name,
-                                                                           int initiating_loader_hash) {
+                                                                           Symbol* name) {
   if (!UseSharedSpaces || !name->is_shared()) {
     // The names of all shared classes must also be a shared Symbol.
     return NULL;
   }
 
   unsigned int hash = SystemDictionaryShared::hash_for_shared_dictionary_quick(name);
-  const RunTimeSharedClassInfo* record = NULL;
+  GrowableArray<const RunTimeSharedClassInfo*>* records = NULL;
 
   if (!MetaspaceShared::is_shared_dynamic(name)) {
     // The names of all shared classes in the static dict must also be in the
     // static archive
-    record = static_dict->lookup(name, hash, initiating_loader_hash);
+    records = static_dict->lookup_multi(name, hash, 0);
   }
-  return record;
+  return records;
+}
+
+const RunTimeSharedClassInfo*
+SystemDictionaryShared::find_unregistered_record_by_initiating_loader_hash(RunTimeSharedDictionary* static_dict,
+                                                                           Symbol* name,
+                                                                           int initiating_loader_hash) {
+  GrowableArray<const RunTimeSharedClassInfo*>* records = find_unregistered_record(static_dict, name);
+  if (records) {
+    for(const RunTimeSharedClassInfo* info: *records) {
+      if(info->crc()->_initiating_loader_hash == initiating_loader_hash) {
+        return info;
+      }
+    }
+  }
+  return NULL;
+}
+
+const RunTimeSharedClassInfo*
+SystemDictionaryShared::find_unregistered_record_by_defining_loader_hash(RunTimeSharedDictionary* static_dict,
+                                                                           Symbol* name,
+                                                                           int defining_loader_hash) {
+  GrowableArray<const RunTimeSharedClassInfo*>* records = find_unregistered_record(static_dict, name);
+  if (records) {
+    for(const RunTimeSharedClassInfo* info: *records) {
+      if(info->crc()->_defining_loader_hash == defining_loader_hash) {
+        return info;
+      }
+    }
+  }
+  return NULL;
 }
 
 InstanceKlass* SystemDictionaryShared::find_builtin_class(Symbol* name) {

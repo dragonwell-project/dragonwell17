@@ -281,6 +281,40 @@ public:
     return NULL;
   }
 
+  inline GrowableArray<V>* lookup_multi(K key, unsigned int hash, int len) const {
+    GrowableArray<V>* result = new GrowableArray<V>();
+    if (_entry_count > 0) {
+      int index = hash % _bucket_count;
+      u4 bucket_info = _buckets[index];
+      u4 bucket_offset = BUCKET_OFFSET(bucket_info);
+      int bucket_type = BUCKET_TYPE(bucket_info);
+      u4* entry = _entries + bucket_offset;
+
+      if (bucket_type == VALUE_ONLY_BUCKET_TYPE) {
+        V value = decode(entry[0]);
+        if (EQUALS(value, key, len)) {
+          result->push(value);
+        }
+      } else {
+        // This is a regular bucket, which has more than one
+        // entries. Each entry is a pair of entry (hash, offset).
+        // Seek until the end of the bucket.
+        u4* entry_max = _entries + BUCKET_OFFSET(_buckets[index + 1]);
+        while (entry < entry_max) {
+          unsigned int h = (unsigned int)(entry[0]);
+          if (h == hash) {
+            V value = decode(entry[1]);
+            if (EQUALS(value, key, len)) {
+              result->push(value);
+            }
+          }
+          entry += 2;
+        }
+      }
+    }
+    return result;
+  }
+
   template <class ITER>
   inline void iterate(ITER* iter) const {
     for (u4 i = 0; i < _bucket_count; i++) {

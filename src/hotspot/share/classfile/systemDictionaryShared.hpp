@@ -250,10 +250,14 @@ public:
   static Handle init_security_info(Handle class_loader, InstanceKlass* ik, PackageEntry* pkg_entry, TRAPS);
   static InstanceKlass* find_builtin_class(Symbol* class_name);
 
-
-  static const RunTimeSharedClassInfo* find_unregistered_record(RunTimeSharedDictionary* static_dict,
+  static GrowableArray<const RunTimeSharedClassInfo*>* find_unregistered_record(RunTimeSharedDictionary* static_dict,
+                                                                           Symbol* name);
+  static const RunTimeSharedClassInfo* find_unregistered_record_by_initiating_loader_hash(RunTimeSharedDictionary* static_dict,
                                                                            Symbol* name,
                                                                            int initiating_loader_hash);
+  static const RunTimeSharedClassInfo* find_unregistered_record_by_defining_loader_hash(RunTimeSharedDictionary* static_dict,
+                                                                           Symbol* name,
+                                                                           int defining_loader_hash);
   static const RunTimeSharedClassInfo* find_record(RunTimeSharedDictionary* static_dict,
                                                    RunTimeSharedDictionary* dynamic_dict,
                                                    Symbol* name);
