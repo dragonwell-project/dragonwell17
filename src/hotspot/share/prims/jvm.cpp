@@ -2388,12 +2388,16 @@ JVM_ENTRY(jclass, JVM_DefineClassFromCDS(JNIEnv *env, jclass clz, jobject loader
   ResourceMark rm(THREAD);
   HandleMark hm(THREAD);
 
+#if INCLUDE_CDS
   Handle protection_domain (THREAD, JNIHandles::resolve(pd));
   Handle class_loader (THREAD, JNIHandles::resolve(loader));
   InstanceKlass* loaded = SystemDictionaryShared::define_class_from_cds((InstanceKlass*) iklass, class_loader,
                                                                          protection_domain, THREAD);
 
   return loaded ? (jclass)JNIHandles::make_local(THREAD, loaded->java_mirror()) : NULL;
+#else
+  return NULL;
+#endif
 JVM_END
 
 // Verification ////////////////////////////////////////////////////////////////////////////////

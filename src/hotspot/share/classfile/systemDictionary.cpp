@@ -265,9 +265,11 @@ Klass* SystemDictionary::resolve_or_fail(Symbol* class_name, Handle class_loader
   Klass* klass = resolve_or_null(class_name, class_loader, protection_domain, THREAD);
   // Check for pending exception or null klass, and throw exception
   if (HAS_PENDING_EXCEPTION || klass == NULL) {
+#if INCLUDE_CDS
     if (NotFoundClassOpt) {
       SystemDictionaryShared::log_not_found_klass(class_name, class_loader, THREAD);
     }
+#endif
     handle_resolution_exception(class_name, throw_error, CHECK_NULL);
   }
   return klass;
@@ -1359,7 +1361,7 @@ InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Ha
     ResourceMark rm(THREAD);
 
     JavaThread* jt = THREAD;
-
+#if INCLUDE_CDS
     // when coming here, class_loader() can not be null.
     if (EagerAppCDS && UseSharedSpaces && java_lang_ClassLoader::signature(class_loader()) != 0) {
       char* name = class_name->as_C_string();
@@ -1375,7 +1377,7 @@ InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Ha
         }
       }
     }
-
+#endif
     PerfClassTraceTime vmtimer(ClassLoader::perf_app_classload_time(),
                                ClassLoader::perf_app_classload_selftime(),
                                ClassLoader::perf_app_classload_count(),
