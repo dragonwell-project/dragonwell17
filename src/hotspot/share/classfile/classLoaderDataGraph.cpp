@@ -46,6 +46,7 @@
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/vmError.hpp"
+#include "prims/jvmtiExport.hpp"
 
 volatile size_t ClassLoaderDataGraph::_num_array_classes = 0;
 volatile size_t ClassLoaderDataGraph::_num_instance_classes = 0;
@@ -202,7 +203,7 @@ bool ClassLoaderDataGraph::_metaspace_oom = false;
 
 // Add a new class loader data node to the list.  Assign the newly created
 // ClassLoaderData into the java/lang/ClassLoader object as a hidden field
-ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool has_class_mirror_holder) {
+ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool has_class_mirror_holder, bool& is_created) {
 
   assert_lock_strong(ClassLoaderDataGraph_lock);
 
@@ -215,6 +216,7 @@ ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool has_clas
     if (cld != NULL) {
       return cld;
     }
+    is_created = true;
   }
 
   // We mustn't GC until we've installed the ClassLoaderData in the Graph since the CLD
@@ -248,8 +250,13 @@ ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool has_clas
 }
 
 ClassLoaderData* ClassLoaderDataGraph::add(Handle loader, bool has_class_mirror_holder) {
+  bool created_by_current_thread = false;
   MutexLocker ml(ClassLoaderDataGraph_lock);
-  ClassLoaderData* loader_data = add_to_graph(loader, has_class_mirror_holder);
+  ClassLoaderData* loader_data = add_to_graph(loader, has_class_mirror_holder, created_by_current_thread);
+  if (created_by_current_thread && !loader_data->is_builtin_class_loader_data() && JvmtiExport::should_post_first_class_load_prepare()) {
+    Thread* thread = Thread::current();
+    JvmtiExport::post_first_class_load_prepare((JavaThread *) thread, loader);
+  }
   return loader_data;
 }
 

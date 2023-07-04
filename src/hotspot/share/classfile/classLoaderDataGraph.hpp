@@ -56,7 +56,7 @@ class ClassLoaderDataGraph : public AllStatic {
   static volatile size_t  _num_instance_classes;
   static volatile size_t  _num_array_classes;
 
-  static ClassLoaderData* add_to_graph(Handle class_loader, bool has_class_mirror_holder);
+  static ClassLoaderData* add_to_graph(Handle class_loader, bool has_class_mirror_holder, bool& is_created);
 
  public:
   static ClassLoaderData* find_or_create(Handle class_loader);
