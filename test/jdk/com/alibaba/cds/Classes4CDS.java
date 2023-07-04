@@ -298,7 +298,10 @@ public class Classes4CDS {
                         String initiatingHash = getInitiatingLoaderHash(line);
                         CDSData newData = new CDSData(name, source, initiatingHash);
                         allnotfound.add(newData);
-                    } else {
+                    } else if (line.contains("@lambda-form-invoker") || line.contains("@lambda-proxy")) {
+                        out.println(line);
+                    }
+                    else {
                         String name = getKlassName(line);
                         String id = getId(line);
                         String source = getKlassPath(line);
