@@ -253,9 +253,13 @@ ClassLoaderData* ClassLoaderDataGraph::add(Handle loader, bool has_class_mirror_
   bool created_by_current_thread = false;
   MutexLocker ml(ClassLoaderDataGraph_lock);
   ClassLoaderData* loader_data = add_to_graph(loader, has_class_mirror_holder, created_by_current_thread);
-  if (created_by_current_thread && !loader_data->is_builtin_class_loader_data() && JvmtiExport::should_post_first_class_load_prepare()) {
-    Thread* thread = Thread::current();
-    JvmtiExport::post_first_class_load_prepare((JavaThread *) thread, loader);
+  // post_first_class_load_prepare isn't applied on anonymous class loader,
+  // built-in class loader, reflection class loader
+  if (created_by_current_thread && JvmtiExport::should_post_first_class_load_prepare() &&
+    !loader_data->is_builtin_class_loader_data() &&
+    !java_lang_ClassLoader::is_reflection_class_loader(loader())) {
+      Thread* thread = Thread::current();
+      JvmtiExport::post_first_class_load_prepare((JavaThread *) thread, loader);
   }
   return loader_data;
 }
