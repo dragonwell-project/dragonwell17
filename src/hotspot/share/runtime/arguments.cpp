@@ -49,6 +49,8 @@
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
+#include "runtime/os.inline.hpp"
+#include "runtime/quickStart.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/vm_version.hpp"
@@ -2733,6 +2735,20 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
       // Deprecated flag to redirect GC output to a file. -Xloggc:<filename>
       log_warning(gc)("-Xloggc is deprecated. Will use -Xlog:gc:%s instead.", tail);
       _gc_log_filename = os::strdup_check_oom(tail);
+    } else if (match_option(option, "-Xquickstart", &tail)) {
+      bool ret = false;
+      if (*tail == '\0') {
+        ret = QuickStart::parse_command_line_arguments();
+        assert(ret, "-Xquickstart without arguments should never fail to parse");
+      } else if (*tail == ':') {
+        ret = QuickStart::parse_command_line_arguments(tail + 1);
+      }
+      if (!ret) {
+        jio_fprintf(defaultStream::error_stream(),
+                    "Invalid -Xquickstart option '-Xquickstart%s', see the error log for details.\n",
+                    tail);
+        return JNI_EINVAL;
+      }
     } else if (match_option(option, "-Xlog", &tail)) {
       bool ret = false;
       if (strcmp(tail, ":help") == 0) {
@@ -3889,6 +3905,9 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
 
   if (result != JNI_OK) {
     return result;
+  }
+  if (QuickStart::is_enabled()) {
+    QuickStart::post_process_arguments();
   }
 
   // Delay warning until here so that we've had a chance to process
