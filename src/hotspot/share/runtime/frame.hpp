@@ -395,6 +395,7 @@ class frame {
                DerivedPointerIterationMode derived_mode) const;
   void oops_do(OopClosure* f, CodeBlobClosure* cf, const RegisterMap* map) const;
   void nmethods_do(CodeBlobClosure* cf) const;
+  void compiledMethods_do(CodeBlobClosure* cf) const;
 
   // RedefineClasses support for finding live interpreted methods on the stack
   void metadata_do(MetadataClosure* f) const;

@@ -3653,41 +3653,6 @@ Node* GraphKit::insert_mem_bar_volatile(int opcode, int alias_idx, Node* precede
 
 #define __ ideal.
 
-void GraphKit::make_wisp_yield(ciMethod* method) {
-  assert(EnableCoroutine, "Coroutine is disabled");
-  IdealKit ideal(this, true);
-  Node* no_base = __ top();
-  Node* tls = __ thread();
-  const int mark_offset = in_bytes(JavaThread::wisp_preempt_offset());
-  Node* mark_preempt_addr = __ AddP(no_base, tls, __ ConX(mark_offset));
-  Node* mark_preempt_val = __ load(__ ctrl(), mark_preempt_addr, TypeInt::BYTE, T_BYTE, Compile::AliasIdxRaw);
-  Node*   zero = __ ConI(0);
-
-  // Get base of thread-local storage area
-  Node* thread = _gvn.transform( new ThreadLocalNode() );
-
-  // Get method
-  const TypePtr* method_type = TypeMetadataPtr::make(method);
-  Node *method_node = _gvn.transform( ConNode::make(method_type) );
-
-  kill_dead_locals();
-
-  // For some reason, this call reads only raw memory.
-  __ if_then(mark_preempt_val, BoolTest::ne, zero) ; {
-    // Totally 8 parameters, 2 used, 6 NULL.
-    // make_runtime_call itself would set control node, so
-    // we should never pass control node here.
-    Node* call = make_runtime_call(RC_NARROW_MEM,
-                    OptoRuntime::yield_method_exit_Type(),
-                    CAST_FROM_FN_PTR(address, SharedRuntime::wisp_yield),
-                    "wisp_yield",
-                    TypeRawPtr::BOTTOM,
-                    thread, method_node);
-  } __ end_if();
-  final_sync(ideal);
-}
-
-
 //------------------------------shared_lock------------------------------------
 // Emit locking code.
 FastLockNode* GraphKit::shared_lock(Node* obj) {

@@ -32,6 +32,7 @@
 #include "jvmci/vmStructs_jvmci.hpp"
 #include "oops/klassVtable.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/osThread.hpp"
@@ -190,6 +191,9 @@
   nonstatic_field(JavaThread,                  _jni_environment,                              JNIEnv)                                \
   nonstatic_field(JavaThread,                  _poll_data,                                    SafepointMechanism::ThreadData)        \
   nonstatic_field(JavaThread,                  _stack_overflow_state._reserved_stack_activation, address)                            \
+  nonstatic_field(JavaThread,                  _current_coroutine,                            Coroutine*)                            \
+  nonstatic_field(Coroutine,                   _wisp_thread,                                  WispThread*)                           \
+  nonstatic_field(WispThread,                  _thread,                                       JavaThread*)                           \
                                                                                                                                      \
   static_field(java_lang_Class,                _klass_offset,                                 int)                                   \
   static_field(java_lang_Class,                _array_klass_offset,                           int)                                   \
