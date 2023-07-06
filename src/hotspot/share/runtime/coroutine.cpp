@@ -22,7 +22,6 @@
  *
  */
 
-#include "classfile/vmClasses.hpp"
 #include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/linkResolver.hpp"

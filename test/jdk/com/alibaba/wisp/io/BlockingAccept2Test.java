@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary test blocking accept
  * @run main/othervm -Dcom.alibaba.wisp.carrierEngines=1 -XX:+UseWisp2 BlockingAccept2Test
  */

@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary test long running or blocking syscall task could be retaken
  * @run main/othervm -Dcom.alibaba.wisp.carrierEngines=2 -XX:+UseWisp2 -Dcom.alibaba.wisp.enableHandOff=true -Dcom.alibaba.wisp.sysmonTickUs=100000 -Dcom.alibaba.wisp.handoffPolicy=ADAPTIVE HandOffWithStealTest
  */
@@ -15,7 +15,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class HandOffWithStealTest {
     public static void main(String[] args) throws Exception {

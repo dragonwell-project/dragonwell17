@@ -1,20 +1,20 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary test Thread.isInNative() is correct
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  * @run main/othervm -XX:+EnableCoroutine IsInNativeTest
  */
 
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
-import static jdk.testlibrary.Asserts.assertFalse;
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertFalse;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class IsInNativeTest {
     public static void main(String[] args) throws Exception {

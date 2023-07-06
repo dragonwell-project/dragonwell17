@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary Test wisp worker thread isn't created without -Dcom.alibaba.wisp.transparentWispSwitch=true
  * @run main/othervm -XX:ActiveProcessorCount=2 WorkerContainerTest
  */
@@ -14,7 +14,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static jdk.testlibrary.Asserts.assertFalse;
+import static jdk.test.lib.Asserts.assertFalse;
 
 public class WorkerContainerTest {
 

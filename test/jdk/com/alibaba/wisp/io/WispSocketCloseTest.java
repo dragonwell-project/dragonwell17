@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @summary test close will wake up blocking wispTask
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.version=1  WispSocketCloseTest
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true  -Dcom.alibaba.wisp.version=1  -Dcom.alibaba.globalPoller=false WispSocketCloseTest
@@ -12,7 +12,7 @@ import java.net.*;
 import java.nio.channels.ClosedChannelException;
 
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 
 public class WispSocketCloseTest {

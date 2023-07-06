@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary test wisp time slice preempt
- * @library /lib/testlibrary
+ * @library /test/lib
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.carrierEngines=1 -Dcom.alibaba.wisp.enableHandOff=true -Dcom.alibaba.wisp.version=2 PreemptTest
 
  */
@@ -14,7 +14,7 @@ import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class PreemptTest {
     public static void main(String[] args) throws Exception {
