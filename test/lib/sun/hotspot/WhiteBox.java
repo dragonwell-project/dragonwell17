@@ -393,6 +393,9 @@ public class WhiteBox {
   // Intered strings
   public native boolean isInStringTable(String str);
 
+  // Directory
+  public native void removeDirectory(String dir);
+
   // Memory
   public native void readReservedMemory();
   public native long allocateMetaspace(ClassLoader classLoader, long size);

@@ -18,7 +18,7 @@ public class TestQuickStartOptions {
     void verifyPathSetting() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=/a/b/c", "-Xquickstart:verbose", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        output.shouldContain("[QuickStart] cache path is set from");
+        output.shouldContain("cache path is set from");
         output.shouldHaveExitValue(0);
     }
 
