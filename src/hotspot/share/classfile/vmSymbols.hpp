@@ -695,7 +695,6 @@
                                                                                                                   \
   /* CDS */                                                                                                       \
   template(dumpSharedArchive,                               "dumpSharedArchive")                                  \
-  template(dumpSharedArchive_signature,                     "(ZLjava/lang/String;)V")                             \
   template(generateLambdaFormHolderClasses,                 "generateLambdaFormHolderClasses")                    \
   template(generateLambdaFormHolderClasses_signature,       "([Ljava/lang/String;)[Ljava/lang/Object;")           \
   template(java_lang_invoke_Invokers_Holder,                "java/lang/invoke/Invokers$Holder")                   \
@@ -714,6 +713,9 @@
   template(com_alibaba_cds_NotFoundClassSet,           "com/alibaba/cds/NotFoundClassSet")                        \
   template(isNotFound_name,                            "isNotFound")                                              \
   template(isNotFound_signature,                       "(Ljava/lang/String;I)Z")                                  \
+  template(com_alibaba_util_QuickStart,                "com/alibaba/util/QuickStart")                             \
+  template(initialize_name,                           "initialize")                                               \
+  template(boolean_String_void_signature,             "(ZLjava/lang/String;)V")                                   \
   /*end*/
 
 // enum for figuring positions and size of Symbol::_vm_symbols[]

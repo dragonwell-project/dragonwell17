@@ -208,3 +208,6 @@ JVM_AddReadsModule
 JVM_DefineArchivedModules
 JVM_DefineModule
 JVM_SetBootLoaderUnnamedModule
+
+# Quickstart API
+JVM_NotifyDump

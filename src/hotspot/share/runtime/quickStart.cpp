@@ -3,7 +3,12 @@
 #include <stdlib.h>
 #include <strings.h>
 #include "classfile/vmSymbols.hpp"
+#include "classfile/javaClasses.hpp"
+#include "classfile/stringTable.hpp"
+#include "classfile/vmClasses.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/java.hpp"
+#include "runtime/javaCalls.hpp"
 #include "runtime/quickStart.hpp"
 #include "utilities/defaultStream.hpp"
 
@@ -12,7 +17,6 @@ bool QuickStart::_is_enabled = false;
 bool QuickStart::_verbose = false;
 bool QuickStart::_print_stat_enabled = false;
 bool QuickStart::_need_destroy = false;
-bool QuickStart::_need_finish_check = true;
 
 QuickStart::QuickStartRole QuickStart::_role = QuickStart::Normal;
 
@@ -77,16 +81,6 @@ bool QuickStart::parse_command_line_arguments(const char* options) {
       _need_destroy = true;
     } else if (match_option(cur, "path=", &tail)) {
       _cache_path = os::strdup_check_oom(tail, mtArguments);
-    } else if (match_option(cur, "dumpPolicy=", &tail)) {
-      size_t len = strlen(tail);
-      if (strncmp(tail, "api", len) == 0) {
-        _need_finish_check = false;
-      } else if (strncmp(tail, "auto", len) == 0) {
-        _need_finish_check = true;
-      } else {
-        success = false;
-        tty->print_cr("[QuickStart] Invalid -Xquickstart option '%s'", cur);
-      }
     } else if (match_option(cur, "dockerImageEnv=", &tail)) {
       _image_env = os::strdup_check_oom(tail, mtArguments);
     } else {
@@ -143,6 +137,14 @@ void QuickStart::print_command_line_help(outputStream* out) {
 
 // initialize JDK part for QuickStart
 void QuickStart::initialize(TRAPS) {
+  Klass* klass = vmClasses::com_alibaba_util_QuickStart_klass();
+  JavaValue result(T_VOID);
+  JavaCallArguments args(2);
+  args.push_int(is_tracer());
+  args.push_oop(java_lang_String::create_from_str(QuickStart::cache_path(), THREAD));
+
+  JavaCalls::call_static(&result, klass, vmSymbols::initialize_name(),
+                         vmSymbols::boolean_String_void_signature(), &args, CHECK);
 }
 
 void QuickStart::post_process_arguments() {
@@ -346,4 +348,8 @@ int QuickStart::remove_dir(const char* dir) {
     jio_fprintf(defaultStream::error_stream(), "[QuickStart] unknow file type\n");
   }
   return ret;
+}
+
+void QuickStart::notify_dump() {
+  log("startup finishes");
 }

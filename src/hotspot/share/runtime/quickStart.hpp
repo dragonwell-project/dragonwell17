@@ -55,7 +55,6 @@ private:
   static bool _verbose;
   static bool _print_stat_enabled;
   static bool _need_destroy;
-  static bool _need_finish_check;
   static const char* _opt_name[];
   static bool _opt_enabled[];
 
@@ -69,6 +68,9 @@ private:
   static bool match_option(const char* option, const char* name, const char** tail);
   static void print_command_line_help(outputStream* out);
   static void log(const char* msg, ...) ATTRIBUTE_PRINTF(1, 2);
+
+public:
+  static void notify_dump();
 };
 
 #endif

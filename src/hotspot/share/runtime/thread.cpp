@@ -118,6 +118,7 @@
 #include "runtime/vmThread.hpp"
 #include "runtime/vmOperations.hpp"
 #include "runtime/vm_version.hpp"
+#include "runtime/quickStart.hpp"
 #include "services/attachListener.hpp"
 #include "services/management.hpp"
 #include "services/memTracker.hpp"
@@ -2644,6 +2645,12 @@ static void call_initPhase3(TRAPS) {
   JavaValue result(T_VOID);
   JavaCalls::call_static(&result, klass, vmSymbols::initPhase3_name(),
                                          vmSymbols::void_method_signature(), CHECK);
+  if (QuickStart::is_tracer() || QuickStart::is_replayer()) {
+    QuickStart::initialize(THREAD);
+    if (HAS_PENDING_EXCEPTION) {
+      vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));
+    }
+  }
 }
 
 void Threads::initialize_java_lang_classes(JavaThread* main_thread, TRAPS) {

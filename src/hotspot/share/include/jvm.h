@@ -1099,6 +1099,8 @@ JVM_GetTemporaryDirectory(JNIEnv *env);
 JNIEXPORT jobjectArray JNICALL
 JVM_GetEnclosingMethodInfo(JNIEnv* env, jclass ofClass);
 
+JNIEXPORT void JNICALL
+JVM_NotifyDump(JNIEnv *env, jclass ignored);
 /*
  * This structure is used by the launcher to get the default thread
  * stack size from the VM using JNI_GetDefaultJavaVMInitArgs() with a
