@@ -3907,7 +3907,7 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
     return result;
   }
   if (QuickStart::is_enabled()) {
-    QuickStart::post_process_arguments();
+    QuickStart::post_process_arguments(cur_cmd_args);
   }
 
   // Delay warning until here so that we've had a chance to process

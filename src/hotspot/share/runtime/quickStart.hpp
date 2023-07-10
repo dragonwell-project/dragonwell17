@@ -3,6 +3,7 @@
 
 #include "memory/allocation.hpp"
 #include "utilities/growableArray.hpp"
+#include "utilities/ostream.hpp"
 
 #define OPT_TAG_LIST_EXT
 
@@ -24,27 +25,30 @@ public:
     Replayer
   } QuickStartRole;
 
-  ~QuickStart();
   static const char* cache_path()       { return _cache_path; }
   static bool is_enabled()              { return _is_enabled; }
+  static bool verbose()                 { return _verbose; }
   static bool parse_command_line_arguments(const char* opts = NULL);
-  static void post_process_arguments();
+  static void post_process_arguments(JavaVMInitArgs* options_args);
   static void initialize(TRAPS);
   static bool is_tracer()               { return _role == Tracer; }
   static bool is_replayer()             { return _role == Replayer; }
   static bool is_starting()             { return is_enabled() && _is_starting; }
 
   static int remove_dir(const char* dir);
+  static const char* image_id()         { return _image_id; }
+  static const char* vm_version()       { return _vm_version; }
 
 private:
   static const char* _cache_path;
-  static const char* _image_env;
+  static const char* _image_id;
+  static const char* _vm_version;
   static const char* _lock_path;
   static const char* _temp_metadata_file_path;
   static const char* _metadata_file_path;
 
-  static FILE *_METADATA_FILE;
-  static FILE *_TEMP_METADATA_FILE;
+  static FILE*       _metadata_file;
+  static fileStream* _temp_metadata_file;
 
   static int _lock_file_fd;
 
@@ -56,17 +60,23 @@ private:
   static bool _print_stat_enabled;
   static bool _need_destroy;
   static const char* _opt_name[];
+  static const char* _identifier_name[];
   static bool _opt_enabled[];
+  static int _features;
+  static int _jvm_option_count;
 
   static bool set_optimization(const char* option, bool enabled);
-  static bool determine_tracer_or_replayer();
+  static bool determine_tracer_or_replayer(JavaVMInitArgs* options_args);
   static void calculate_cache_path();
   static void destroy_cache_folder();
   static void process_argument_for_optimaztion();
-  static bool check_integrity();
+  static bool check_integrity(JavaVMInitArgs* options_args);
   static void generate_metadata_file();
   static bool match_option(const char* option, const char* name, const char** tail);
   static void print_command_line_help(outputStream* out);
+  static bool dump_cached_info(JavaVMInitArgs* options_args);
+  static bool load_and_validate(JavaVMInitArgs* options_args);
+  static void print_stat(bool isReplayer);
   static void log(const char* msg, ...) ATTRIBUTE_PRINTF(1, 2);
 
 public:

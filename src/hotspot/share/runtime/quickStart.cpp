@@ -6,7 +6,9 @@
 #include "runtime/arguments.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/os.inline.hpp"
 #include "runtime/quickStart.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/defaultStream.hpp"
 
 bool QuickStart::_is_starting = true;
@@ -18,14 +20,33 @@ bool QuickStart::_need_destroy = false;
 QuickStart::QuickStartRole QuickStart::_role = QuickStart::Normal;
 
 const char* QuickStart::_cache_path = NULL;
-const char* QuickStart::_image_env = NULL;
+const char* QuickStart::_image_id = NULL;
+const char* QuickStart::_vm_version = NULL;
 const char* QuickStart::_lock_path = NULL;
 const char* QuickStart::_temp_metadata_file_path = NULL;
 const char* QuickStart::_metadata_file_path = NULL;
+
+int QuickStart::_features = 0;
+int QuickStart::_jvm_option_count = 0;
+
 const char* QuickStart::_opt_name[] = {
 #define OPT_TAG(name) #name,
   OPT_TAG_LIST
 #undef OPT_TAG
+};
+
+enum identifier {
+  Features,
+  VMVersion,
+  ContainerImageID,
+  JVMOptionCount
+};
+
+const char* QuickStart::_identifier_name[] = {
+  "Features: ",
+  "VM_Version: ",
+  "Container_Image_ID: ",
+  "JVM_Option_Count: "
 };
 
 bool QuickStart::_opt_enabled[] = {
@@ -34,8 +55,8 @@ bool QuickStart::_opt_enabled[] = {
 #undef OPT_TAG
 };
 
-FILE *QuickStart::_METADATA_FILE = NULL;
-FILE *QuickStart::_TEMP_METADATA_FILE = NULL;
+FILE* QuickStart::_metadata_file = NULL;
+fileStream* QuickStart::_temp_metadata_file = NULL;
 
 int QuickStart::_lock_file_fd = 0;
 
@@ -71,15 +92,30 @@ bool QuickStart::parse_command_line_arguments(const char* options) {
       print_command_line_help(&stream);
       vm_exit(0);
     } else if (match_option(cur, "verbose", &tail)) {
+      if (tail[0] != '\0') {
+        success = false;
+        tty->print_cr("[QuickStart] Invalid -Xquickstart option '%s'", cur);
+      }
       _verbose = true;
     } else if (match_option(cur, "printStat", &tail)) {
+      if (tail[0] != '\0') {
+        success = false;
+        tty->print_cr("[QuickStart] Invalid -Xquickstart option '%s'", cur);
+      }
       _print_stat_enabled = true;
     } else if (match_option(cur, "destroy", &tail)) {
+      if (tail[0] != '\0') {
+        success = false;
+        tty->print_cr("[QuickStart] Invalid -Xquickstart option '%s'", cur);
+      }
       _need_destroy = true;
     } else if (match_option(cur, "path=", &tail)) {
       _cache_path = os::strdup_check_oom(tail, mtArguments);
-    } else if (match_option(cur, "dockerImageEnv=", &tail)) {
-      _image_env = os::strdup_check_oom(tail, mtArguments);
+    } else if (match_option(cur, "containerImageEnv=", &tail)) {
+      char *buffer = ::getenv(tail);
+      if (buffer != NULL) {
+        _image_id = os::strdup_check_oom(buffer, mtArguments);
+      }
     } else {
       success = false;
       tty->print_cr("[QuickStart] Invalid -Xquickstart option '%s'", cur);
@@ -125,7 +161,7 @@ void QuickStart::print_command_line_help(outputStream* out) {
   out->print_cr("  path=<path>          Specify the location of the cache files");
   out->print_cr("  destroy              Destroy the cache files (use specified path or default)");
   out->print_cr("  +/-<opt>             Enable/disable the specific optimization");
-  out->print_cr("  dockerImageEnv=<env> Specify the environment variable to get the unique identifier of the container");
+  out->print_cr("  containerImageEnv=<env>   Specify the environment variable to get the unique identifier of the container");
   out->cr();
 
   out->print_cr("Available optimization:");
@@ -144,27 +180,113 @@ void QuickStart::initialize(TRAPS) {
                          vmSymbols::boolean_String_void_signature(), &args, CHECK);
 }
 
-void QuickStart::post_process_arguments() {
+void QuickStart::post_process_arguments(JavaVMInitArgs* options_args) {
   // Prepare environment
   calculate_cache_path();
   // destroy the cache directory
   destroy_cache_folder();
   // Determine the role
-  if (!determine_tracer_or_replayer()) {
+  if (!determine_tracer_or_replayer(options_args)) {
     _role = Normal;
     return;
   }
   // Process argument for each optimization
   process_argument_for_optimaztion();
-
-  if (_role == Tracer) {
-    // Temporarily put here to ensure the integrity of the test
-    generate_metadata_file();
-  }
 }
 
-bool QuickStart::check_integrity() {
-  // check the integrity
+bool QuickStart::check_integrity(JavaVMInitArgs* options_args) {
+  if (_print_stat_enabled) {
+    print_stat(true);
+  }
+
+  _metadata_file = os::fopen(_metadata_file_path, "r");
+  if (!_metadata_file) {
+    // if one process removes metadata here, will NULL.
+    log("metadata file may be destroyed by another process.");
+    return false;
+  }
+  bool result = load_and_validate(options_args);
+
+  ::fclose(_metadata_file);
+  return result;
+}
+
+bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
+  char line[PATH_MAX];
+  const char* tail          = NULL;
+  bool feature_checked      = false;
+  bool version_checked      = false;
+  bool container_checked    = false;
+  bool option_checked       = false;
+
+  _vm_version = VM_Version::internal_vm_info_string();
+
+  while (fgets(line, sizeof(line), _metadata_file) != NULL) {
+
+    if (!feature_checked && match_option(line, _identifier_name[Features], &tail)) {
+      // read features
+      if (sscanf(tail, "%d", &_features) != 1) {
+        log("Unable to read the features.");
+        return false;
+      }
+      feature_checked = true;
+    } else if (!version_checked && match_option(line, _identifier_name[VMVersion], &tail)) {
+      // read jvm info
+      if (options_args != NULL && strncmp(tail, _vm_version, strlen(_vm_version)) != 0) {
+        log("VM Version isn't the same.");
+        return false;
+      }
+      version_checked = true;
+    } else if (!container_checked && match_option(line, _identifier_name[ContainerImageID], &tail)) {
+      container_checked = true;
+      // read image info
+      if (options_args == NULL) {
+        continue;
+      }
+      // ignore \n
+      int size = strlen(tail) - 1;
+      const char *image_ident = QuickStart::image_id();
+      int ident_size = image_ident != NULL ? strlen(image_ident) : 0;
+      if (size != ident_size) {
+        QuickStart::log("Container image isn't the same.");
+        return false;
+      }
+
+      if (strncmp(tail, QuickStart::image_id(), size) != 0) {
+        log("Container image isn't the same.");
+        return false;
+      }
+    } else if (!option_checked && match_option(line, _identifier_name[JVMOptionCount], &tail)) {
+      // read options args
+      if (sscanf(tail, "%d", &_jvm_option_count) != 1) {
+        log("Unable to read the option number.");
+        return false;
+      }
+      option_checked = true;
+      if (options_args != NULL) {
+        int option_count = options_args->nOptions > 2 ? options_args->nOptions - 2 : 0;
+        if (_jvm_option_count != option_count) {
+          log("JVM option isn't the same.");
+          return false;
+        }
+      }
+      for (int index = 0; index < _jvm_option_count; index++) {
+        if (fgets(line, sizeof(line), _metadata_file) == NULL) {
+          log("Unable to read JVM option.");
+          return false;
+        }
+
+        if (options_args == NULL) {
+          continue;
+        }
+        const JavaVMOption *option = options_args->options + index;
+        if (strncmp(line, option->optionString, strlen(option->optionString)) != 0) {
+          log("JVM option isn't the same.");
+          return false;
+        }
+      }
+    }
+  }
   return true;
 }
 
@@ -197,6 +319,29 @@ void QuickStart::destroy_cache_folder() {
   }
 }
 
+void QuickStart::print_stat(bool isReplayer) {
+  if (!_print_stat_enabled) {
+    return;
+  }
+  if (isReplayer) {
+    _metadata_file = os::fopen(_metadata_file_path, "r");
+    if (_metadata_file) {
+      bool result = load_and_validate(NULL);
+      ::fclose(_metadata_file);
+      if (result) {
+        // print cache information for replayer
+        jio_fprintf(defaultStream::output_stream(), "[QuickStart] Current statistics for cache %s\n", _cache_path);
+        jio_fprintf(defaultStream::output_stream(), "\n");
+        jio_fprintf(defaultStream::output_stream(), "Cache created with:\n");
+        vm_exit(0);
+      }
+    }
+  }
+
+  jio_fprintf(defaultStream::output_stream(), "[QuickStart] There is no cache in %s\n", _cache_path);
+  vm_exit(0);
+}
+
 void QuickStart::process_argument_for_optimaztion() {
   switch(_role) {
     case Replayer:
@@ -208,11 +353,14 @@ void QuickStart::process_argument_for_optimaztion() {
   }
 }
 
-bool QuickStart::determine_tracer_or_replayer() {
+bool QuickStart::determine_tracer_or_replayer(JavaVMInitArgs* options_args) {
   struct stat st;
   char buf[PATH_MAX];
   int ret = os::stat(_cache_path, &st);
   if (ret != 0) {
+    if (_print_stat_enabled) {
+      print_stat(false);
+    }
     ret = ::mkdir(_cache_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (ret != 0) {
       log("Could not mkdir [%s] because [%s]", _cache_path, os::strerror(errno));
@@ -231,6 +379,9 @@ bool QuickStart::determine_tracer_or_replayer() {
   _metadata_file_path = os::strdup_check_oom(buf, mtArguments);
   ret = os::stat(_metadata_file_path, &st);
   if (ret < 0 && errno == ENOENT) {
+    if (_print_stat_enabled) {
+      print_stat(false);
+    }
     // Create a LOCK file
     jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), LOCK_FILE);
     _lock_path = os::strdup_check_oom(buf, mtArguments);
@@ -248,15 +399,19 @@ bool QuickStart::determine_tracer_or_replayer() {
       jio_fprintf(defaultStream::error_stream(), "[QuickStart] The %s file exists\n", TEMP_METADATA_FILE);
       return false;
     }
-    _TEMP_METADATA_FILE = os::fopen(buf, "w");
-    if (!_TEMP_METADATA_FILE) {
+    _temp_metadata_file = new(ResourceObj::C_HEAP, mtInternal) fileStream(_temp_metadata_file_path, "w");
+    if (!_temp_metadata_file) {
       jio_fprintf(defaultStream::error_stream(), "[QuickStart] Failed to create %s file\n", TEMP_METADATA_FILE);
+      return false;
+    }
+    if (!dump_cached_info(options_args)) {
+      jio_fprintf(defaultStream::error_stream(), "[QuickStart] Failed to dump cached information\n");
       return false;
     }
     _role = Tracer;
     log("Running as tracer");
     return true;
-  } else if (ret == 0 && check_integrity()) {
+  } else if (ret == 0 && check_integrity(options_args)) {
     _role = Replayer;
     log("Running as replayer");
     return true;
@@ -266,7 +421,7 @@ bool QuickStart::determine_tracer_or_replayer() {
 
 void QuickStart::generate_metadata_file() {
   // mv metadata to metadata.tmp
-  ::fclose(_TEMP_METADATA_FILE);
+  delete _temp_metadata_file;
   int ret = ::rename(_temp_metadata_file_path, _metadata_file_path);
   if (ret != 0) {
     jio_fprintf(defaultStream::error_stream(),
@@ -348,5 +503,44 @@ int QuickStart::remove_dir(const char* dir) {
 }
 
 void QuickStart::notify_dump() {
-  log("startup finishes");
+  if (_role == Tracer) {
+    generate_metadata_file();
+  }
+  log("notifying dump done.");
 }
+
+bool QuickStart::dump_cached_info(JavaVMInitArgs* options_args) {
+  if (_temp_metadata_file == NULL) {
+    return false;
+  }
+  _vm_version = VM_Version::internal_vm_info_string();
+  _features = 0;
+
+  // calculate argument, ignore the last two option:
+  // -Dsun.java.launcher=SUN_STANDARD
+  // -Dsun.java.launcher.pid=<pid>
+  _jvm_option_count = options_args->nOptions > 2 ? options_args->nOptions - 2 : 0;
+
+  _temp_metadata_file->print_cr("%s%d", _identifier_name[Features], _features);
+  // write jvm info
+  _temp_metadata_file->print_cr("%s%s", _identifier_name[VMVersion], _vm_version);
+
+  // write image info
+  const char *image_ident = QuickStart::image_id();
+  if (image_ident != NULL) {
+    _temp_metadata_file->print_cr("%s%s", _identifier_name[ContainerImageID], image_ident);
+  } else {
+    _temp_metadata_file->print_cr("%s", _identifier_name[ContainerImageID]);
+  }
+
+  _temp_metadata_file->print_cr("%s%d", _identifier_name[JVMOptionCount], _jvm_option_count);
+  // write options args
+  for (int index = 0; index < _jvm_option_count; index++) {
+    const JavaVMOption *option = options_args->options + index;
+    _temp_metadata_file->print_cr("%s", option->optionString);
+  }
+
+  _temp_metadata_file->flush();
+  return true;
+}
+

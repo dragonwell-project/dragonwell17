@@ -20,13 +20,14 @@ public class TestNotifyDump {
 
     public static void main(String[] args) throws Exception {
         String dir = AccessController.doPrivileged(new GetPropertyAction("test.classes"));
+        TestNotifyDump.destroyCache(dir);
         TestNotifyDump.verifyPathSetting(dir);
         new File(dir).delete();
     }
 
     static void verifyPathSetting(String parentDir) throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-                "-Xquickstart:path=" + parentDir + "/quickstartcache",
+                "-Xquickstart:path=" + parentDir + "/testnotifydump",
                 "-Xquickstart:verbose",
                 // In sleeping condition there is no classloading happens,
                 // we will consider it as the start-up finish
@@ -39,4 +40,10 @@ public class TestNotifyDump {
         output.shouldHaveExitValue(0);
     }
 
+    static void destroyCache(String parentDir) throws Exception {
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + parentDir + "/testnotifydump", "-Xquickstart:verbose,destroy", "-version");
+        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        output.shouldContain("destory the cache folder");
+        output.shouldHaveExitValue(0);
+    }
 }
