@@ -1,7 +1,4 @@
 #include "precompiled.hpp"
-#include <limits.h>
-#include <stdlib.h>
-#include <strings.h>
 #include "classfile/vmSymbols.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/stringTable.hpp"
