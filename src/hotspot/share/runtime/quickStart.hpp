@@ -71,7 +71,8 @@ private:
   static bool determine_tracer_or_replayer(JavaVMInitArgs* options_args);
   static void calculate_cache_path();
   static void destroy_cache_folder();
-  static void process_argument_for_optimaztion();
+  static void setenv_for_roles();
+  static void process_argument_for_optimization();
   static bool check_integrity(JavaVMInitArgs* options_args);
   static void generate_metadata_file();
   static bool match_option(const char* option, const char* name, const char** tail);

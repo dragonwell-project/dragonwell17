@@ -214,8 +214,10 @@ void QuickStart::post_process_arguments(JavaVMInitArgs* options_args) {
     _role = Normal;
     return;
   }
+  // Set environment for roles of this process
+  setenv_for_roles();
   // Process argument for each optimization
-  process_argument_for_optimaztion();
+  process_argument_for_optimization();
 }
 
 bool QuickStart::check_integrity(JavaVMInitArgs* options_args) {
@@ -266,6 +268,48 @@ void QuickStart::check_features(const char* &str) {
   }
 }
 
+static bool need_to_ignore(const char *option) {
+  // options need to be ignored
+  static const char *skip_list[] = { // use strncmp to compare
+    "-D",               // skip -D java options
+    "-Xquickstart",     // skip -Xquickstart* options
+
+    "-Xmx",             // skip -Xmx related options
+    "-XX:InitialHeapSize",
+    "-XX:MaxHeapSize",
+    "-XX:InitialCodeCacheSize",
+    "-XX:ReservedCodeCacheSize",
+    "-XX:MaxMetaspaceSize",
+    "-XX:MetaspaceSize",
+    "-XX:MaxNewSize",
+    "-XX:NewSize",
+    "-Xms",
+    "-Xlog",
+  };
+
+  static const int size = sizeof(skip_list) / sizeof(const char*);
+  // traverse
+  for (int i = 0; i < size; i++) {
+    const char *skip = skip_list[i];
+    if (strncmp(option, skip, strlen(skip)) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static int compare_strings(const char** s1, const char** s2) {
+  return ::strcmp(*s1, *s2);
+}
+
+static void free_tmp_buffers(GrowableArray<const char *> *&prev_options, GrowableArray<const char *> *&current_options) {
+  delete current_options; current_options = NULL;
+  for (int i = 0; i < prev_options->length(); i++) {
+    free((void*)prev_options->at(i));
+  }
+  delete prev_options; prev_options = NULL;
+}
+
 bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
   char line[PATH_MAX];
   const char* tail          = NULL;
@@ -308,12 +352,14 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
         return false;
       }
     } else if (!option_checked && match_option(line, _identifier_name[JVMOptionCount], &tail)) {
-      // read options args
+      // read previous jvm options count
       if (sscanf(tail, "%d", &_jvm_option_count) != 1) {
-        log("Unable to read the option number.");
+        log_error(quickstart)("Unable to read the option number.");
         return false;
       }
       option_checked = true;
+      // current jvm option count
+      int current_valid_option_count = 0;
       if (options_args != NULL) {
         int option_count = options_args->nOptions > 2 ? options_args->nOptions - 2 : 0;
         if (_jvm_option_count != option_count) {
@@ -321,34 +367,63 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
           return false;
         }
       }
+      // record prev options with skipping ones ignored
+      // Note: at this time of argument parsing, we cannot use Thread local and ResourceMark
+      GrowableArray<const char *> *prev_options = new (ResourceObj::C_HEAP, mtArguments) GrowableArray<const char *>(_jvm_option_count, mtInternal);
+      GrowableArray<const char *> *current_options = new (ResourceObj::C_HEAP, mtArguments) GrowableArray<const char *>(current_valid_option_count, mtInternal);
       for (int index = 0; index < _jvm_option_count; index++) {
         if (fgets(line, sizeof(line), _metadata_file) == NULL) {
-          log("Unable to read JVM option.");
+          log_error(quickstart)("Unable to read JVM option.");
+          free_tmp_buffers(prev_options, current_options);
           return false;
         }
-
         if (options_args == NULL) {
           continue;
         }
+        // skip what we don't want
+        if (need_to_ignore(line)) {
+          continue;
+        }
+
+        prev_options->append(strdup(line));
+      }
+      // record current options
+      for (int index = 0; index < current_valid_option_count; index++) {
         const JavaVMOption *option = options_args->options + index;
-        // skip -D java options
-        if (::strncmp(option->optionString, "-D", 2) == 0) {
+        if (need_to_ignore(option->optionString)) {
           continue;
         }
-        // skip -Xquickstart* options
-        const char *quickstart = "-Xquickstart";
-        if (::strncmp(option->optionString, quickstart, ::strlen(quickstart)) == 0) {
-          continue;
-        }
-        size_t len = strlen(option->optionString);
+        current_options->append(option->optionString);
+      }
+      // 1. compare total numbers
+      int prev_valid_option_count = prev_options->length();
+      current_valid_option_count = current_options->length();
+      if (prev_valid_option_count != current_valid_option_count) {
+        log_error(quickstart)("JVM option count isn't the same.");
+        free_tmp_buffers(prev_options, current_options);
+        return false;
+      }
+      if (prev_valid_option_count == 0) {
+        free_tmp_buffers(prev_options, current_options);
+        return true;
+      }
+      // 2. sort all options
+      prev_options->sort(compare_strings);
+      current_options->sort(compare_strings);
+      // 3. check if option counts are equal?
+      for (int index = 0; index < current_valid_option_count; index++) {
+        size_t len = strlen(current_options->at(index));
         if (len > O_BUFLEN) {
-          len = strlen(line) - 1;
+          len = PATH_MAX - 1;
         }
-        if (strncmp(line, option->optionString, len) != 0) {
-          log("JVM option isn't the same.");
+        if (strncmp(prev_options->at(index), current_options->at(index), len) != 0) {
+          log_error(quickstart)("JVM option isn't the same.");
+          free_tmp_buffers(prev_options, current_options);
           return false;
         }
       }
+
+      free_tmp_buffers(prev_options, current_options);
     }
   }
   return true;
@@ -406,7 +481,22 @@ void QuickStart::print_stat(bool isReplayer) {
   vm_exit(0);
 }
 
-void QuickStart::process_argument_for_optimaztion() {
+void QuickStart::setenv_for_roles() {
+  assert(is_enabled(), "sanity");
+  const char *role = NULL;
+  if (_role == Tracer) {
+    role = "TRACER";
+  } else if (_role == Replayer) {
+    role = "REPLAYER";
+  } else if (_role == Normal) {
+    role = "NORMAL";
+  } else {
+    ShouldNotReachHere();
+  }
+  setenv("ALIBABA_QUICKSTART_ROLE", role, 1);
+}
+
+void QuickStart::process_argument_for_optimization() {
   if (_role == Tracer || _role == Replayer) {
     if (_opt_enabled[_eagerappcds]) {
       QuickStart::enable_appcds();
