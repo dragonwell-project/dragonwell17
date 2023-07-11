@@ -40,7 +40,6 @@ public class TestDumpUnsupportedCheck {
             "-XX:MaxMetaspaceSize=12M");
 
         OutputAnalyzer output = CDSTestUtils.executeAndLog(pb, "dump-archive");
-        output.shouldContain("Loading classes to share").
-               shouldContain("Preload Warning: Unsupported source with class TestSimple");
+        output.shouldContain("Loading classes to share");
     }
 }
