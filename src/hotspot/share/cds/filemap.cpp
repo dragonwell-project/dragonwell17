@@ -403,7 +403,7 @@ bool SharedClassPathEntry::validate(bool is_class_path) const {
     FileMapInfo::fail_continue("Required classpath entry does not exist: %s", name);
     ok = false;
   } else if (is_dir()) {
-    if (!os::dir_is_empty(name)) {
+    if (!IgnoreAppCDSDirCheck && !os::dir_is_empty(name)) {
       FileMapInfo::fail_continue("directory is not empty: %s", name);
       ok = false;
     }

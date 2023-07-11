@@ -2093,6 +2093,8 @@ const intx ObjectAlignmentInBytes = 8;
           "dump the classes which is compiled JDK1.5 or below")             \
   product(bool, NotFoundClassOpt, false,                                    \
           "optimization for not found class in EagerAppCDS flow")           \
+  product(bool, IgnoreAppCDSDirCheck, false,                                \
+          "Ignore non-empty dir check in AppCDS")                           \
 // end of RUNTIME_FLAGS
 
 DECLARE_FLAGS(LP64_RUNTIME_FLAGS)
