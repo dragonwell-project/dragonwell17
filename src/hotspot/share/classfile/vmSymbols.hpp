@@ -716,6 +716,7 @@
   template(com_alibaba_util_QuickStart,                "com/alibaba/util/QuickStart")                             \
   template(initialize_name,                           "initialize")                                               \
   template(com_alibaba_util_CDSDumpHook,               "com/alibaba/util/CDSDumpHook")                            \
+  template(notifyDump_name,                            "notifyDump")                                              \
   template(bool_string_void_signature,                "(ZLjava/lang/String;)V")                                   \
   template(string_string_string_string_bool_void_signature,   "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V") \
   /*end*/

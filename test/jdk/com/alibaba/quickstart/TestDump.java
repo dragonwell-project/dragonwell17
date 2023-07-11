@@ -1,5 +1,8 @@
 import com.alibaba.util.QuickStart;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStreamReader;
 import java.lang.management.ClassLoadingMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
@@ -82,22 +85,57 @@ public class TestDump {
         }
     }
 
-    public static boolean checkDumpUsingAPI() {
+    private static void jcmdAttach() throws Exception {
+        String name = ManagementFactory.getRuntimeMXBean().getName();
+        System.out.println(name);
+        String pid = name.split("@")[0];
+
+        String jdkHome = System.getProperty("java.home");
+        ProcessBuilder pb = new ProcessBuilder(
+                jdkHome + File.separator + "bin" + File.separator + "jcmd",
+                pid,
+                "QuickStart.dump"
+        );
+        pb.redirectErrorStream(true);
+        Process p = pb.start();
+
+        StringBuilder sb = new StringBuilder();
+        BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+        String line;
+        while ((line = br.readLine()) != null) {
+            sb.append(line + System.getProperty("line.separator"));
+        }
+        int ret = p.waitFor();
+        System.out.println("RET: " + ret);
+        br.close();
+        String output = sb.toString().trim();
+        System.out.println(output);
+        if (!output.contains("Command executed successfully")) {
+            throw new Error("Test failed because jcmd failed");
+        }
+    }
+
+    private static boolean TestHooks = false;
+    private static boolean TestJcmd = false;
+    public static void traverseOptions() {
         RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
         List<String> arguments = runtimeMxBean.getInputArguments();
         for (String arg : arguments) {
             if (arg.contains("-DtestHooks=true")) {
-                return true;
+                TestHooks = true;
+            }
+            if (arg.contains("-DtestJcmd=true")) {
+                TestJcmd = true;
             }
         }
-        return false;
     }
 
     public static final long SLEEP_MILLIS = 5000;
     public static final String ANCHOR = "notifying dump done";
 
-    public static void main(String[] args) {
-        if (checkDumpUsingAPI()) {
+    public static void main(String[] args) throws Exception {
+        traverseOptions();
+        if (TestHooks) {
             policy = new ClassLoadingPolicy();
             WatcherThread thread = new WatcherThread();
             thread.setDaemon(true);
@@ -106,6 +144,9 @@ public class TestDump {
         QuickStart.addDumpHook(() -> {
             System.out.println(ANCHOR);
         });
+        if (TestJcmd) {
+            jcmdAttach();
+        }
         try {
             Thread.sleep(SLEEP_MILLIS);
         } catch (InterruptedException e) {
