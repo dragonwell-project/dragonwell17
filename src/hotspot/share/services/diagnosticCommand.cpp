@@ -999,7 +999,7 @@ void DumpSharedArchiveDCmd::execute(DCmdSource source, TRAPS) {
   JavaCalls::call_static(&result,
                          cds_klass,
                          vmSymbols::dumpSharedArchive(),
-                         vmSymbols::boolean_String_void_signature(),
+                         vmSymbols::bool_string_void_signature(),
                          &args, CHECK);
 }
 #endif // INCLUDE_CDS

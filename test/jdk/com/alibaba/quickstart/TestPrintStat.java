@@ -2,6 +2,7 @@
  * @test
  * @summary Test -Xquickstart:printStat option
  * @library /test/lib
+ * @requires os.arch=="amd64"
  * @run main/othervm TestPrintStat
  */
 

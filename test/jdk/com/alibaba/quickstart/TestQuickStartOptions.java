@@ -2,6 +2,7 @@
  * @test
  * @summary Test -Xquickstart options
  * @library /test/lib
+ * @requires os.arch=="amd64"
  * @run main/othervm TestQuickStartOptions
  */
 

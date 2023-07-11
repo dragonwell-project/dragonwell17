@@ -4,6 +4,8 @@
  * @summary Test dumping when process exits
  * @library /test/lib
  * @build TestDump
+ * @requires os.arch=="amd64"
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar test.jar TestDump TestDump$Policy TestDump$ClassLoadingPolicy TestDump$WatcherThread
  * @run main/othervm TestNotifyDump
  */
 
@@ -16,6 +18,7 @@ import java.security.AccessController;
 
 public class TestNotifyDump {
 
+    private static final String TESTJAR = "./test.jar";
     private static final String TESTCLASS = "TestDump";
 
     public static void main(String[] args) throws Exception {
@@ -32,6 +35,8 @@ public class TestNotifyDump {
                 // In sleeping condition there is no classloading happens,
                 // we will consider it as the start-up finish
                 "-DcheckIntervalMS=" + (TestDump.SLEEP_MILLIS / 5),
+                "-cp",
+                TESTJAR,
                 TESTCLASS);
         pb.redirectErrorStream(true);
         OutputAnalyzer output = new OutputAnalyzer(pb.start());

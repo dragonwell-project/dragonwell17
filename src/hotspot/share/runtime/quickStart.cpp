@@ -10,6 +10,7 @@
 #include "runtime/quickStart.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/defaultStream.hpp"
+#include "runtime/globals_extension.hpp"
 
 bool QuickStart::_is_starting = true;
 bool QuickStart::_is_enabled = false;
@@ -25,6 +26,12 @@ const char* QuickStart::_vm_version = NULL;
 const char* QuickStart::_lock_path = NULL;
 const char* QuickStart::_temp_metadata_file_path = NULL;
 const char* QuickStart::_metadata_file_path = NULL;
+
+const char* QuickStart::_origin_class_list = "cds_origin_class.lst";
+const char* QuickStart::_final_class_list = "cds_final_class.lst";
+const char* QuickStart::_jsa = "cds.jsa";
+const char* QuickStart::_eagerappcds_agent = NULL;
+const char* QuickStart::_eagerappcds_agentlib = NULL;
 
 int QuickStart::_features = 0;
 int QuickStart::_jvm_option_count = 0;
@@ -170,6 +177,19 @@ void QuickStart::print_command_line_help(outputStream* out) {
 
 // initialize JDK part for QuickStart
 void QuickStart::initialize(TRAPS) {
+  if (is_tracer() && (_opt_enabled[_eagerappcds] || _opt_enabled[_appcds])) {
+    Klass *klass = vmClasses::com_alibaba_util_CDSDumpHook_klass();
+    JavaValue result(T_VOID);
+    JavaCallArguments args(5);
+    args.push_oop(java_lang_String::create_from_str(QuickStart::_origin_class_list, THREAD));
+    args.push_oop(java_lang_String::create_from_str(QuickStart::_final_class_list, THREAD));
+    args.push_oop(java_lang_String::create_from_str(QuickStart::_jsa, THREAD));
+    args.push_oop(java_lang_String::create_from_str(QuickStart::_eagerappcds_agent, THREAD));
+    args.push_int(_opt_enabled[_eagerappcds]);
+    JavaCalls::call_static(&result, klass, vmSymbols::initialize_name(),
+                           vmSymbols::string_string_string_string_bool_void_signature(), &args, CHECK);
+  }
+
   Klass* klass = vmClasses::com_alibaba_util_QuickStart_klass();
   JavaValue result(T_VOID);
   JavaCallArguments args(2);
@@ -177,7 +197,7 @@ void QuickStart::initialize(TRAPS) {
   args.push_oop(java_lang_String::create_from_str(QuickStart::cache_path(), THREAD));
 
   JavaCalls::call_static(&result, klass, vmSymbols::initialize_name(),
-                         vmSymbols::boolean_String_void_signature(), &args, CHECK);
+                         vmSymbols::bool_string_void_signature(), &args, CHECK);
 }
 
 void QuickStart::post_process_arguments(JavaVMInitArgs* options_args) {
@@ -280,7 +300,11 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
           continue;
         }
         const JavaVMOption *option = options_args->options + index;
-        if (strncmp(line, option->optionString, strlen(option->optionString)) != 0) {
+        size_t len = strlen(option->optionString);
+        if (len > O_BUFLEN) {
+          len = strlen(line) - 1;
+        }
+        if (strncmp(line, option->optionString, len) != 0) {
           log("JVM option isn't the same.");
           return false;
         }
@@ -343,13 +367,53 @@ void QuickStart::print_stat(bool isReplayer) {
 }
 
 void QuickStart::process_argument_for_optimaztion() {
-  switch(_role) {
-    case Replayer:
-      break;
-    case Tracer:
-      break;
-    default:
-      break;
+  if (_role == Tracer || _role == Replayer) {
+    if (_opt_enabled[_eagerappcds]) {
+      QuickStart::enable_appcds();
+      QuickStart::enable_eagerappcds();
+    } else if (_opt_enabled[_appcds]) {
+      // only if we set -eagerappcds can we go here
+      QuickStart::enable_appcds();
+    }
+  }
+}
+
+void QuickStart::enable_eagerappcds() {
+  FLAG_SET_CMDLINE(EagerAppCDS, true);
+  FLAG_SET_CMDLINE(EagerAppCDSLegacyVerisonSupport, true);
+
+  if (!_eagerappcds_agent) {
+    char buf[JVM_MAXPATHLEN];
+    sprintf(buf, "EagerAppCDS%sCDSXMLAutoRegisterAgent.jar", os::file_separator());
+    // The real path: <JDK_HOME>/lib/EagerAppCDS/CDSXMLAutoRegisterAgent.jar
+    _eagerappcds_agent = strdup(buf);
+  }
+  if (!_eagerappcds_agentlib) {
+    char buf[JVM_MAXPATHLEN];
+    sprintf(buf, "EagerAppCDS%slibloadclassagent.so", os::file_separator());
+    // The real path: <JDK_HOME>/lib/EagerAppCDS/libloadclassagent.so
+    _eagerappcds_agentlib = strdup(buf);
+  }
+
+  char buf[JVM_MAXPATHLEN];
+  sprintf(buf, "%s%slib%s%s", Arguments::get_java_home(), os::file_separator(), os::file_separator(), _eagerappcds_agent);
+  Arguments::append_sysclasspath(buf);
+  sprintf(buf, "%s%slib%s%s", Arguments::get_java_home(), os::file_separator(), os::file_separator(), _eagerappcds_agentlib);
+  Arguments::add_init_agent(buf, NULL, true);
+}
+
+void QuickStart::enable_appcds() {
+  char buf[JVM_MAXPATHLEN];
+  if (QuickStart::is_tracer()) {
+    FLAG_SET_CMDLINE(UseSharedSpaces, false);
+    FLAG_SET_CMDLINE(RequireSharedSpaces, false);
+    sprintf(buf, "%s%s%s", QuickStart::cache_path(), os::file_separator(), _origin_class_list);
+    DumpLoadedClassList = strdup(buf);
+  } else if (QuickStart::is_replayer()) {
+    FLAG_SET_CMDLINE(UseSharedSpaces, true);
+    FLAG_SET_CMDLINE(RequireSharedSpaces, true);
+    sprintf(buf, "%s%s%s", QuickStart::cache_path(), os::file_separator(), _jsa);
+    SharedArchiveFile = strdup(buf);
   }
 }
 

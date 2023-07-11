@@ -94,7 +94,7 @@ public class TestDump {
     }
 
     public static final long SLEEP_MILLIS = 5000;
-    public static final String ANCHOR = "QuickStart startup finish detected!";
+    public static final String ANCHOR = "notifying dump done";
 
     public static void main(String[] args) {
         if (checkDumpUsingAPI()) {

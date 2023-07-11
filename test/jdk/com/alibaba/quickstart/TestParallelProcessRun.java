@@ -3,6 +3,7 @@
  * @summary Test the file lock to determine tracer or replayer
  * @library /test/lib
  * @library /lib/testlibrary
+ * @requires os.arch=="amd64"
  * @run main/othervm TestParallelProcessRun
  */
 
@@ -11,7 +12,7 @@ import jdk.test.lib.process.ProcessTools;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-import static jdk.testlibrary.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.*;
 
 public class TestParallelProcessRun {
     private static String cachepath = System.getProperty("user.dir");

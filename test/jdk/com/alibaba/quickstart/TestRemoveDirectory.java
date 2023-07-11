@@ -2,16 +2,17 @@
  * @test Remove non-empty directory
  * @library /test/lib
  * @library /lib/testlibrary
+ * @requires os.arch=="amd64"
  * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
+ *                                                     sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI TestRemoveDirectory
  */
 import sun.hotspot.WhiteBox;
 
 import java.io.File;
 
-import static jdk.testlibrary.Asserts.assertFalse;
+import static jdk.test.lib.Asserts.*;
 
 public class TestRemoveDirectory {
     private static String userPath = System.getProperty("user.dir");

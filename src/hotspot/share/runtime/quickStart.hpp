@@ -8,6 +8,8 @@
 #define OPT_TAG_LIST_EXT
 
 #define OPT_TAG_LIST \
+  OPT_TAG(appcds) \
+  OPT_TAG(eagerappcds) \
   OPT_TAG_LIST_EXT
 
 class QuickStart : AllStatic {
@@ -22,7 +24,7 @@ public:
   typedef enum {
     Normal,
     Tracer,
-    Replayer
+    Replayer,
   } QuickStartRole;
 
   static const char* cache_path()       { return _cache_path; }
@@ -33,6 +35,7 @@ public:
   static void initialize(TRAPS);
   static bool is_tracer()               { return _role == Tracer; }
   static bool is_replayer()             { return _role == Replayer; }
+  static bool is_normal()               { return _role == Normal; }
   static bool is_starting()             { return is_enabled() && _is_starting; }
 
   static int remove_dir(const char* dir);
@@ -81,6 +84,18 @@ private:
 
 public:
   static void notify_dump();
+
+  // cds stuff
+private:
+  static const char *_origin_class_list;
+  static const char *_final_class_list;
+  static const char *_jsa;
+  static const char *_eagerappcds_agentlib;
+  static const char *_eagerappcds_agent;
+private:
+  static void enable_eagerappcds();
+  static void enable_appcds();
+
 };
 
 #endif

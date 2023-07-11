@@ -183,6 +183,7 @@
                                                                                                                 \
   /* support for quickstart */                                                                                  \
   do_klass(com_alibaba_util_QuickStart_klass,           com_alibaba_util_QuickStart                           ) \
+  do_klass(com_alibaba_util_CDSDumpHook_klass,          com_alibaba_util_CDSDumpHook                          ) \
   /*end*/
 
 #endif // SHARE_CLASSFILE_VMCLASSMACROS_HPP

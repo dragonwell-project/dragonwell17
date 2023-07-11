@@ -23,14 +23,16 @@ public class QuickStart {
     private final static List<Runnable> dumpHooks = new ArrayList<>();
 
     // JVM will set these fields
-    protected static String resourcePath;
+    protected static String cachePath;
 
     // called by JVM
-    private static void initialize(boolean isTracer, String resourcePath) {
+    private static void initialize(boolean isTracer, String cachePath) {
         role = isTracer ? QuickStartRole.TRACER : QuickStartRole.REPLAYER;
-        QuickStart.resourcePath = resourcePath;
+        QuickStart.cachePath = cachePath;
 
-        Runtime.getRuntime().addShutdownHook(new Thread(QuickStart::notifyDump));
+        if (isTracer) {
+            Runtime.getRuntime().addShutdownHook(new Thread(QuickStart::notifyDump));
+        }
     }
 
     /**
@@ -60,8 +62,8 @@ public class QuickStart {
         return role == QuickStartRole.REPLAYER;
     }
 
-    public static String resourcePath() {
-        return resourcePath;
+    public static String cachePath() {
+        return cachePath;
     }
 
     public static synchronized void addDumpHook(Runnable runnable) {

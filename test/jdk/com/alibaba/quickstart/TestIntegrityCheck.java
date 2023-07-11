@@ -2,6 +2,7 @@
  * @test
  * @summary Test Integrity Check
  * @library /test/lib
+ * @requires os.arch=="amd64"
  * @run main/othervm TestIntegrityCheck
  */
 
@@ -27,6 +28,7 @@ public class TestIntegrityCheck {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:verbose,containerImageEnv=pouchid", "-version");
         pb.environment().put("pouchid", "123456");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        System.out.println(output.getOutput());
         output.shouldContain("Container image isn't the same");
         output.shouldHaveExitValue(0);
     }
@@ -34,6 +36,7 @@ public class TestIntegrityCheck {
     void verifyOptionChange() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:verbose,containerImageEnv=pouchid", "-esa", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        System.out.println(output.getOutput());
         output.shouldContain("JVM option isn't the same");
         output.shouldHaveExitValue(0);
     }
@@ -41,6 +44,7 @@ public class TestIntegrityCheck {
     void runAsTracer() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:verbose,containerImageEnv=pouchid", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        System.out.println(output.getOutput());
         output.shouldContain("Running as tracer");
         output.shouldHaveExitValue(0);
     }
@@ -49,6 +53,7 @@ public class TestIntegrityCheck {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:verbose,containerImageEnv=pouchid", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldContain("Running as replayer");
+        System.out.println(output.getOutput());
         output.shouldHaveExitValue(0);
     }
 }
