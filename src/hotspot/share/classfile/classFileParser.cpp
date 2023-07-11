@@ -5476,7 +5476,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   }
 
 #if INCLUDE_CDS
-  if (EagerAppCDS && DumpLoadedClassList != NULL) {
+  if (DumpAppCDSWithKlassId && DumpLoadedClassList != NULL) {
     log_loaded_klass(ik, _stream, THREAD);
   }
 #endif
@@ -5554,11 +5554,14 @@ void ClassFileParser::log_loaded_klass(InstanceKlass* ik, const ClassFileStream 
         w.stream()->print(" " INTPTR_FORMAT, p2i(intf->at(i)));
       }
     }
-    int hash = java_lang_ClassLoader::signature(loader_data->class_loader());
-    if (hash != 0) {
-      w.stream()->print(" defining_loader_hash: %x", hash);
+    if (EagerAppCDS) {
+      int hash = java_lang_ClassLoader::signature(loader_data->class_loader());
+      if (hash != 0) {
+        w.stream()->print(" defining_loader_hash: %x", hash);
+      }
+      w.stream()->print(" fingerprint: " PTR64_FORMAT, stream->compute_fingerprint());
     }
-    w.stream()->print(" fingerprint: " PTR64_FORMAT, stream->compute_fingerprint());
+
   }
   w.stream()->cr();
   w.stream()->flush();

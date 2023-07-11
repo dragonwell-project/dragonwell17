@@ -103,14 +103,11 @@ int ClassListParser::parse(TRAPS) {
       // and will be processed later.
       continue;
     }
-    // fingerprint check failure causes the dependent class isn't loaded
+    // the dependent class isn't loaded
     if (dependence_not_loaded()) {
       continue;
     }
-    if (EagerAppCDS && is_not_supported_source()) {
-      tty->print_cr("Preload Warning: Unsupported source with class %s", current_class_name());
-      continue;
-    }
+
     TempNewSymbol class_name_symbol = SymbolTable::new_symbol(_class_name);
     if (_indy_items->length() > 0) {
       // The current line is "@lambda-proxy class_name". Load the proxy class.
@@ -229,7 +226,7 @@ bool ClassListParser::parse_one_line() {
     if (parse_uint_option("id:", &_id)) {
       continue;
     } else if (parse_uint_option("super:", &_super)) {
-      // fingerprint check failure causes that the super class isn't loaded.
+      // the super class isn't loaded.
       if (!check_already_loaded("Super class", _super)) {
         return true;
       }
@@ -237,7 +234,7 @@ bool ClassListParser::parse_one_line() {
     } else if (skip_token("interfaces:")) {
       int i;
       while (try_parse_uint(&i)) {
-        // fingerprint check failure causes that the interface isn't loaded.
+        // the interface isn't loaded.
         if (!check_already_loaded("Interface", i)) {
           return true;
         }
@@ -487,24 +484,6 @@ void ClassListParser::error(const char* msg, ...) {
 
   vm_exit_during_initialization("class list format error.", NULL);
   va_end(ap);
-}
-
-bool ClassListParser::is_not_supported_source() {
-  assert(EagerAppCDS, "must be EagerAppCDS");
-  // In EagerAppCDS, if the class is loaded from source and in EagerAppCDS flow,
-  // we need to check whether the source path is supported.
-  if (is_loading_from_source() && _defining_loader_hash != _unspecified) {
-    const char* source_path = _source;
-    size_t len = strlen(source_path);
-    if (source_path[len - 1] == '/') {
-      return false;
-    } else if (len > 4 && (strncmp(source_path + len - 4, SUPPORT_JAR_FORMAT, 4) == 0)) {
-      return false;
-    } else {
-      return true;
-    }
-  }
-  return false;
 }
 
 // This function is used for loading classes for customized class loaders

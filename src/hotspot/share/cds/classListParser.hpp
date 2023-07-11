@@ -169,8 +169,8 @@ public:
 
   bool check_already_loaded(const char* which, int id) {
     if (_id2klass_table.lookup(id) == NULL) {
-      if (EagerAppCDS) {
-        // In EagerAppCDS flow, if the supper class is not loaded, we don't error out.
+      if (DumpAppCDSWithKlassId) {
+        // In Classes4CDS flow, if the supper class is not loaded, we don't error out.
         _dependence_not_loaded = 1;
         tty->print_cr("Preload Warning: %s id %d is not yet loaded", which, id);
       } else {
@@ -180,8 +180,6 @@ public:
     }
     return true;
   }
-
-  bool is_not_supported_source();
 
   const char* current_class_name() {
     return _class_name;

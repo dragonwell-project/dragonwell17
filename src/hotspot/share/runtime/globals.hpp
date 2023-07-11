@@ -2089,12 +2089,15 @@ const intx ObjectAlignmentInBytes = 8;
                 "Trace optimized upcall stub generation")                      \
   product(bool, EagerAppCDS, false,                                         \
           "aggressively skip over loadClass() to speed up boot time")       \
-  product(bool, EagerAppCDSLegacyVerisonSupport, false, EXPERIMENTAL,       \
+  product(bool, AppCDSLegacyVerisonSupport, false, EXPERIMENTAL,       \
           "dump the classes which is compiled JDK1.5 or below")             \
   product(bool, NotFoundClassOpt, false,                                    \
           "optimization for not found class in EagerAppCDS flow")           \
   product(bool, IgnoreAppCDSDirCheck, false,                                \
           "Ignore non-empty dir check in AppCDS")                           \
+  product(bool, DumpAppCDSWithKlassId, false,                               \
+          "default appcds won't dump klasses with klass id - dump it for using Classes4CDS") \
+                                                                            \
 // end of RUNTIME_FLAGS
 
 DECLARE_FLAGS(LP64_RUNTIME_FLAGS)

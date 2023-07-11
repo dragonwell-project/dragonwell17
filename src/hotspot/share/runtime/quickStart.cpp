@@ -454,7 +454,8 @@ void QuickStart::enable_appcds() {
     sprintf(buf, "%s%s%s", QuickStart::cache_path(), os::file_separator(), _jsa);
     SharedArchiveFile = strdup(buf);
   }
-  FLAG_SET_CMDLINE(EagerAppCDSLegacyVerisonSupport, true);
+  FLAG_SET_CMDLINE(AppCDSLegacyVerisonSupport, true);
+  FLAG_SET_CMDLINE(DumpAppCDSWithKlassId, true);
 }
 
 bool QuickStart::determine_tracer_or_replayer(JavaVMInitArgs* options_args) {

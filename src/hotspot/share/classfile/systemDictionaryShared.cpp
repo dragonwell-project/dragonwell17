@@ -1642,7 +1642,7 @@ bool SystemDictionaryShared::check_for_exclusion_impl(InstanceKlass* k) {
     }
   }
 
-  if (DumpSharedSpaces && k->major_version() < 50 /*JAVA_6_VERSION*/ && EagerAppCDSLegacyVerisonSupport) {
+  if (DumpSharedSpaces && k->major_version() < 50 /*JAVA_6_VERSION*/ && AppCDSLegacyVerisonSupport) {
     log_trace(class, eagerappcds)("dump the pre JDK6 class: %s", k->name()->as_C_string());
   }
 

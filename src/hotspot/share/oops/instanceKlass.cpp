@@ -4222,7 +4222,7 @@ void InstanceKlass::log_to_classlist() const {
        DumpLoadedClassList = NULL;
        return;
     }
-    if (is_shareable() && !EagerAppCDS) {
+    if (is_shareable() && !EagerAppCDS && !DumpAppCDSWithKlassId) {
       ClassListWriter w;
       w.stream()->print_cr("%s", name()->as_C_string());
       w.stream()->flush();

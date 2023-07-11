@@ -5,6 +5,7 @@ import jdk.internal.access.SharedSecrets;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -75,8 +76,8 @@ public class Utils {
         return toolOp == null ? null : toolOp.replaceAll("-javaagent\\S*\\s?", " ");
     }
 
-    public static String runProcess(List<String> arguments, boolean verbose, Consumer<ProcessBuilder> op) throws Exception {
-        ProcessBuilder pb = new ProcessBuilder(arguments);
+    public static void runProcess(List<String> arguments, boolean verbose, Consumer<ProcessBuilder> op) throws Exception {
+        ProcessBuilder pb = new ProcessBuilder(arguments).inheritIO();
         if (op != null) {
             op.accept(pb);
         }
@@ -89,28 +90,14 @@ public class Utils {
         }
         Process p = pb.start();
 
-        StringBuilder sb = new StringBuilder();
-        if (verbose) {
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                while (p.isAlive()) {
-                    while (br.ready()) {
-                        String line = br.readLine();
-                        sb.append(line + System.getProperty("line.separator"));
-                    }
-                }
-            }
-        }
         int ret = p.waitFor();
-        String output = sb.toString().strip();
         boolean hasError;
         if ((hasError = (ret != 0)) || verbose) {
             System.out.println("return value: " + ret);
-            System.out.println(output);
             if (hasError) {
                 throw new Exception("Process failed");
             }
         }
-        return output;
     }
 
     public static void runProcess(boolean verbose, String msg, Consumer<ProcessBuilder> op, String... args) {

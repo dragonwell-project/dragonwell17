@@ -3954,8 +3954,12 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
     return JNI_EINVAL;
   }
 
-  if (EagerAppCDS && !FLAG_IS_CMDLINE(NotFoundClassOpt)) {
-    NotFoundClassOpt = true;
+  if (EagerAppCDS) {
+    if (!FLAG_IS_CMDLINE(NotFoundClassOpt)) {
+      NotFoundClassOpt = true;
+    }
+    // Need to use Classes4CDS.java to parse the result.
+    DumpAppCDSWithKlassId = true;
   }
 
   // Set object alignment values.
