@@ -10,6 +10,7 @@
  * @build Classes4CDS
  * @build TestSimple
  * @build TestLoaderInexistentClass
+ * @requires os.arch=="amd64"
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar test.jar TestLoaderInexistentClass
  * @run main/othervm -XX:+UnlockExperimentalVMOptions TestDumpAndLoadNotFound
  */

@@ -6,6 +6,7 @@
 # @modules jdk.compiler
 # @modules java.base/jdk.internal.misc
 # @build jdk.test.lib.compiler.CompilerUtils
+# @requires os.arch=="amd64"
 # @run shell testDelegatingClassLoaderJVMTI.sh
 #
 

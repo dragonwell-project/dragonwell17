@@ -12,6 +12,7 @@
  * @build trivial.TestSimple
  * @build TestSimpleWispUsage
  * @build TestLoadClassWithException
+ * @requires os.arch=="amd64"
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar testSimple.jar trivial.TestSimple TestSimpleWispUsage
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar test.jar TestLoadClassWithException TestLoadClassWithException$1 TestLoadClassWithException$2
  * @run main/othervm -XX:+UnlockExperimentalVMOptions TestDumpAndLoadClassWithException

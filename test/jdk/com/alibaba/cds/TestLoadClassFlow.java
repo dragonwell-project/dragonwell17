@@ -11,6 +11,7 @@
  * @build Classes4CDS
  * @build TestSimple
  * @build TestLoadClass
+ * @requires os.arch=="amd64"
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar test.jar TestLoadClass
  * @run main/othervm -XX:+UnlockExperimentalVMOptions TestLoadClassFlow
  */

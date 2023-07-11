@@ -7,6 +7,7 @@
  * @modules java.base/jdk.internal.access
  * @modules java.base/com.alibaba.util:+open
  * @build jdk.test.lib.compiler.CompilerUtils
+ * @requires os.arch=="amd64"
  * @run main/othervm TestRegisterClassLoader
  */
 

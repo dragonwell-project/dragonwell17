@@ -12,6 +12,7 @@
  * @build Classes4CDS
  * @build TestSimple
  * @build TestClassLoaderWithSignature
+ * @requires os.arch=="amd64"
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar test.jar TestClassLoaderWithSignature
  * @run main/othervm -XX:+UnlockExperimentalVMOptions TestDumpAndLoadClass
  */

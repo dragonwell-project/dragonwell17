@@ -11,6 +11,7 @@
  * @build Classes4CDS
  * @build TestSimple
  * @build TestClassLoaderInParallel
+ * @requires os.arch=="amd64"
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar test.jar TestClassLoaderInParallel TestClassLoaderInParallel$1 TestClassLoaderInParallel$2
  * @run main/othervm -XX:+UnlockExperimentalVMOptions TestDumpListInParallel
  */
