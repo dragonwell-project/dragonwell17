@@ -695,6 +695,7 @@
                                                                                                                   \
   /* CDS */                                                                                                       \
   template(dumpSharedArchive,                               "dumpSharedArchive")                                  \
+  template(dumpSharedArchive_signature,                     "(ZLjava/lang/String;)V")                             \
   template(generateLambdaFormHolderClasses,                 "generateLambdaFormHolderClasses")                    \
   template(generateLambdaFormHolderClasses_signature,       "([Ljava/lang/String;)[Ljava/lang/Object;")           \
   template(java_lang_invoke_Invokers_Holder,                "java/lang/invoke/Invokers$Holder")                   \
@@ -717,7 +718,7 @@
   template(initialize_name,                           "initialize")                                               \
   template(com_alibaba_util_CDSDumpHook,               "com/alibaba/util/CDSDumpHook")                            \
   template(notifyDump_name,                            "notifyDump")                                              \
-  template(bool_string_void_signature,                "(ZLjava/lang/String;)V")                                   \
+  template(bool_string_bool_void_signature,                "(ZLjava/lang/String;Z)V")                             \
   template(string_string_string_string_bool_bool_void_signature,   "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZ)V") \
   template(string_string_string_string_bool_void_signature,   "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V") \
   /*end*/

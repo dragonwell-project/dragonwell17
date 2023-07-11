@@ -22,6 +22,7 @@ public class TestPrintStat {
     void runWithoutCache() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:printStat", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        System.out.println(output.getOutput());
         output.shouldContain("[QuickStart] There is no cache in " + cachepath);
         output.shouldHaveExitValue(0);
     }
@@ -29,6 +30,7 @@ public class TestPrintStat {
     void runAsTracer() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:verbose", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        System.out.println(output.getOutput());
         output.shouldContain("Running as tracer");
         output.shouldHaveExitValue(0);
     }
@@ -36,6 +38,7 @@ public class TestPrintStat {
     void runAsReplayerWithPrintStat() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:printStat", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        System.out.println(output.getOutput());
         output.shouldContain("[QuickStart] Current statistics for cache " + cachepath);
         output.shouldHaveExitValue(0);
     }

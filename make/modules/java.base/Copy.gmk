@@ -207,6 +207,14 @@ endif
 
 ################################################################################
 
+$(eval $(call SetupCopyFiles, COPY_QUICKSTART_PROPERTIES, \
+    FILES := $(TOPDIR)/src/java.base/share/conf/quickstart.properties, \
+    DEST := $(CONF_DST_DIR), \
+))
+
+TARGETS += $(COPY_QUICKSTART_PROPERTIES)
+################################################################################
+
 # JDK license and assembly exception files to be packaged in JMOD
 
 # The license files may not be present if the source has been obtained using a

@@ -95,7 +95,7 @@ private:
 private:
   static void enable_eagerappcds();
   static void enable_appcds();
-
+  static void add_CDSDumpHook(TRAPS);
 };
 
 #endif

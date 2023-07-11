@@ -3,11 +3,17 @@ package com.alibaba.util;
 import jdk.internal.misc.JavaLangClassLoaderAccess;
 import jdk.internal.access.SharedSecrets;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public class Utils {
 
@@ -51,4 +57,80 @@ public class Utils {
     public static WeakReference<ClassLoader> getClassLoader(int signature) {
         return hash2Loader.get(signature);
     }
+
+    public static void printArgs(List<String> arguments, String msg, boolean verbose) {
+        if (!verbose) {
+            return;
+        }
+        System.out.print(msg);
+        for (String s : arguments) {
+            System.out.print(s + " ");
+        }
+        System.out.println();
+    }
+
+    public static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
+    public static String removeAgentOp() {
+        String toolOp = System.getenv(JAVA_TOOL_OPTIONS);
+        return toolOp == null ? null : toolOp.replaceAll("-javaagent\\S*\\s?", " ");
+    }
+
+    public static String runProcess(List<String> arguments, boolean verbose, Consumer<ProcessBuilder> op) throws Exception {
+        ProcessBuilder pb = new ProcessBuilder(arguments);
+        if (op != null) {
+            op.accept(pb);
+        }
+        if (verbose) {
+            pb.redirectErrorStream(true);
+        } else {
+            // ignore output to prevent child stucking at outputstream
+            pb.redirectOutput(ProcessBuilder.Redirect.DISCARD).
+                    redirectError(ProcessBuilder.Redirect.DISCARD);
+        }
+        Process p = pb.start();
+
+        StringBuilder sb = new StringBuilder();
+        if (verbose) {
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                while (p.isAlive()) {
+                    while (br.ready()) {
+                        String line = br.readLine();
+                        sb.append(line + System.getProperty("line.separator"));
+                    }
+                }
+            }
+        }
+        int ret = p.waitFor();
+        String output = sb.toString().strip();
+        boolean hasError;
+        if ((hasError = (ret != 0)) || verbose) {
+            System.out.println("return value: " + ret);
+            System.out.println(output);
+            if (hasError) {
+                throw new Exception("Process failed");
+            }
+        }
+        return output;
+    }
+
+    public static void runProcess(boolean verbose, String msg, Consumer<ProcessBuilder> op, String... args) {
+        List<String> command = List.of(args);
+        Utils.printArgs(command, msg, verbose);
+        try {
+            Utils.runProcess(command, verbose, op);
+        } catch (Exception e) {
+            throw new Error(e);
+        }
+    }
+
+    public static String getJDKHome() {
+        String jdkHome = System.getProperty("java.home");
+        if (!new File(jdkHome).exists()) {
+            throw new Error("Fatal error, cannot find jdk path: [" + jdkHome + "] doesn't exist!");
+        }
+        return jdkHome;
+    }
+
+    public static native String[] getModuleNames();
+    public static native String getJDKBootClassPathAppend();
 }

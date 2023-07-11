@@ -1,25 +1,34 @@
 package com.alibaba.util;
 
-import com.alibaba.cds.CDSDumper;
+import com.alibaba.cds.CDSDumperHelper;
 
 public class CDSDumpHook {
 
-    // JVM will set these fields
-    private static String cdsOriginClassList;
-    private static String cdsFinalClassList;
-    private static String cdsJsa;
-    private static String eagerAppCDSAgent;
-    private static boolean useEagerAppCDS;
-    private static boolean verbose;
+    public static class Info {
+        public String originClassListName;
+        public String finalClassListName;
+        public String jsaName;
+        public final String agent;
+        public final boolean eager;
+        public Info(String cdsOriginClassList,
+                    String cdsFinalClassList,
+                    String cdsJsa,
+                    boolean useEagerAppCDS,
+                    String eagerAppCDSAgent) {
+
+            this.originClassListName = cdsOriginClassList;
+            this.finalClassListName = cdsFinalClassList;
+            this.jsaName = cdsJsa;
+            this.eager = useEagerAppCDS;
+            this.agent = eagerAppCDSAgent;
+        }
+    }
+    private static Info info;
+    public static Info getInfo() { return info; }
 
     // called by JVM
-    private static void initialize(String cdsOriginClassList, String cdsFinalClassList, String cdsJSA, String agent, boolean useEagerAppCDS, boolean verbose) {
-        CDSDumpHook.cdsOriginClassList = cdsOriginClassList;
-        CDSDumpHook.cdsFinalClassList = cdsFinalClassList;
-        CDSDumpHook.cdsJsa = cdsJSA;
-        CDSDumpHook.useEagerAppCDS = useEagerAppCDS;
-        CDSDumpHook.eagerAppCDSAgent = agent;
-        CDSDumpHook.verbose = verbose;
+    private static void initialize(String cdsOriginClassList, String cdsFinalClassList, String cdsJSA, String agent, boolean useEagerAppCDS) {
+        info = new Info(cdsOriginClassList, cdsFinalClassList, cdsJSA, useEagerAppCDS, agent);
 
         CDSDumpHook.setup();
     }
@@ -27,14 +36,7 @@ public class CDSDumpHook {
     private static void setup() {
         QuickStart.addDumpHook(() -> {
             try {
-                CDSDumper.dumpJSA(
-                        useEagerAppCDS,
-                        QuickStart.cachePath(),
-                        cdsOriginClassList,
-                        cdsFinalClassList,
-                        cdsJsa,
-                        eagerAppCDSAgent,
-                        verbose);
+                CDSDumperHelper.invokeCDSDumper();
             } catch (Exception e) {
                 e.printStackTrace();
             }

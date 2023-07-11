@@ -1,16 +1,58 @@
 package com.alibaba.util;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.alibaba.cds.CDSDumperHelper;
+
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.Path;
+import java.security.PrivilegedAction;
+import java.util.*;
 
 public class QuickStart {
 
     private QuickStart(){}
+    private static final String CONFIG_NAME               = "quickstart.properties";
+    private static final String SERVERLESS_ADAPTER_NAME   = "ServerlessAdapter";
+    private static final String CDSDUMPER_NAME            = "CDSDumper";
+
+    // serverless adapter stuff
+    private static String serverlessAdapter;
+    public static void setServerlessAdapter(String serverlessAdapter) {
+        QuickStart.serverlessAdapter = serverlessAdapter;
+    }
+    public static String getServerlessAdapter() {
+        return serverlessAdapter;
+    }
 
     private static native void registerNatives();
 
     static {
         registerNatives();
+
+        loadQuickStartConfig();
+    }
+
+    private static void loadQuickStartConfig() {
+        System.out.println("loadQuickStartConfig begin");
+        // read the quickstart.properties config file
+        @SuppressWarnings("removal")
+        Properties p = java.security.AccessController.doPrivileged(
+                (PrivilegedAction<Properties>) System::getProperties
+        );
+        Path path = Path.of(Utils.getJDKHome(), "conf", CONFIG_NAME);
+        System.out.println("path:" + path.getFileName());
+        try (InputStream is = new BufferedInputStream(new FileInputStream(path.toFile()))) {
+            p.load(is);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new Error(e);
+        }
+        CDSDumperHelper.setCdsDumper(p.getProperty(CDSDUMPER_NAME));
+        System.out.println("CDSDUMPER_NAME: " + p.getProperty(CDSDUMPER_NAME));
+        QuickStart.setServerlessAdapter(p.getProperty(SERVERLESS_ADAPTER_NAME));
+        System.out.println("SERVERLESS_ADAPTER_NAME: " + p.getProperty(SERVERLESS_ADAPTER_NAME));
+        
     }
 
     /**
@@ -22,13 +64,18 @@ public class QuickStart {
 
     private final static List<Runnable> dumpHooks = new ArrayList<>();
 
+    private static boolean verbose = false;
+
+    public static boolean isVerbose() { return verbose; }
+
     // JVM will set these fields
     protected static String cachePath;
 
     // called by JVM
-    private static void initialize(boolean isTracer, String cachePath) {
+    private static void initialize(boolean isTracer, String cachePath, boolean verbose) {
         role = isTracer ? QuickStartRole.TRACER : QuickStartRole.REPLAYER;
         QuickStart.cachePath = cachePath;
+        QuickStart.verbose = verbose;
 
         if (isTracer) {
             Runtime.getRuntime().addShutdownHook(new Thread(QuickStart::notifyDump));
