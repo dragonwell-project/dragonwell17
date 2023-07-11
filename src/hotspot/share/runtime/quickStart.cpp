@@ -180,14 +180,15 @@ void QuickStart::initialize(TRAPS) {
   if (is_tracer() && (_opt_enabled[_eagerappcds] || _opt_enabled[_appcds])) {
     Klass *klass = vmClasses::com_alibaba_util_CDSDumpHook_klass();
     JavaValue result(T_VOID);
-    JavaCallArguments args(5);
+    JavaCallArguments args(6);
     args.push_oop(java_lang_String::create_from_str(QuickStart::_origin_class_list, THREAD));
     args.push_oop(java_lang_String::create_from_str(QuickStart::_final_class_list, THREAD));
     args.push_oop(java_lang_String::create_from_str(QuickStart::_jsa, THREAD));
     args.push_oop(java_lang_String::create_from_str(QuickStart::_eagerappcds_agent, THREAD));
     args.push_int(_opt_enabled[_eagerappcds]);
+    args.push_int(QuickStart::_verbose);
     JavaCalls::call_static(&result, klass, vmSymbols::initialize_name(),
-                           vmSymbols::string_string_string_string_bool_void_signature(), &args, CHECK);
+                           vmSymbols::string_string_string_string_bool_bool_void_signature(), &args, CHECK);
   }
 
   Klass* klass = vmClasses::com_alibaba_util_QuickStart_klass();
@@ -300,6 +301,15 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
           continue;
         }
         const JavaVMOption *option = options_args->options + index;
+        // skip -D java options
+        if (::strncmp(option->optionString, "-D", 2) == 0) {
+          continue;
+        }
+        // skip -Xquickstart* options
+        const char *quickstart = "-Xquickstart";
+        if (::strncmp(option->optionString, quickstart, ::strlen(quickstart)) == 0) {
+          continue;
+        }
         size_t len = strlen(option->optionString);
         if (len > O_BUFLEN) {
           len = strlen(line) - 1;

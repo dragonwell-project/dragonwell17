@@ -14,9 +14,14 @@ import java.util.List;
 
 public class CDSDumper {
 
+    private static boolean verbose = false;
+
     /// auto dump
 
     private static void printArgs(List<String> arguments, String msg) {
+        if (!verbose) {
+            return;
+        }
         System.out.print(msg);
         for (String s : arguments) {
             System.out.print(s + " ");
@@ -24,8 +29,19 @@ public class CDSDumper {
         System.out.println();
     }
 
+
+    private static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
+    private static String removeAgentOp() {
+        String toolOp = System.getenv(JAVA_TOOL_OPTIONS);
+        return toolOp == null ? null : toolOp.replaceAll("-javaagent\\S*\\s?", " ");
+    }
+
     private static void runProcess(List<String> arguments) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(arguments);
+        String toolOp = removeAgentOp();
+        if (toolOp != null) {
+            pb.environment().put(JAVA_TOOL_OPTIONS, toolOp); // clear up agent options because cds dump phase cannot live with java agent in peace
+        }
         pb.redirectErrorStream(true);
         Process p = pb.start();
 
@@ -36,9 +52,11 @@ public class CDSDumper {
             sb.append(line + System.getProperty("line.separator"));
         }
         int ret = p.waitFor();
-        System.out.println("RET: " + ret);
         br.close();
-        System.out.println(sb.toString().trim());
+        if (ret != 0 || verbose) {
+            System.out.println("return value: " + ret);
+            System.out.println(sb.toString().trim());
+        }
     }
 
     public static void runClasses4CDS(boolean eager, String jdkHome, String originClassListName, String finalClassListName) throws Exception {
@@ -83,10 +101,11 @@ public class CDSDumper {
         runProcess(command);
     }
 
-    public static void dumpJSA(boolean eager, String dirPath, String originClassListName, String finalClassListName, String jsaName, String agent) throws Exception {
+    public static void dumpJSA(boolean eager, String dirPath, String originClassListName, String finalClassListName, String jsaName, String agent, boolean verbose) throws Exception {
         if (dirPath == null || originClassListName == null || finalClassListName == null || jsaName == null) {
             throw new RuntimeException("path is null? " + dirPath + " " + originClassListName + " " + finalClassListName + " " + jsaName);
         }
+        CDSDumper.verbose = verbose;
         if (!dirPath.endsWith(File.separator))  dirPath += File.separator;
         File dir = new File(dirPath);
         if (!dir.exists() || !dir.isDirectory()) {
@@ -119,7 +138,8 @@ public class CDSDumper {
         arguments.removeIf(arg -> arg.startsWith("-Xshare:off") ||
                 arg.startsWith("-XX:SharedClassListFile") ||
                 arg.startsWith("-XX:DumpLoadedClassList") ||
-                arg.startsWith("-Xquickstart"));
+                arg.startsWith("-Xquickstart") ||
+                arg.startsWith("-javaagent"));  /* disable javaagent on the dump step */
 
         printArgs(arguments, "[Current JVM commands] ");
 

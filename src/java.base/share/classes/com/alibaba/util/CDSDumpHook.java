@@ -10,14 +10,16 @@ public class CDSDumpHook {
     private static String cdsJsa;
     private static String eagerAppCDSAgent;
     private static boolean useEagerAppCDS;
+    private static boolean verbose;
 
     // called by JVM
-    private static void initialize(String cdsOriginClassList, String cdsFinalClassList, String cdsJSA, String agent, boolean useEagerAppCDS) {
+    private static void initialize(String cdsOriginClassList, String cdsFinalClassList, String cdsJSA, String agent, boolean useEagerAppCDS, boolean verbose) {
         CDSDumpHook.cdsOriginClassList = cdsOriginClassList;
         CDSDumpHook.cdsFinalClassList = cdsFinalClassList;
         CDSDumpHook.cdsJsa = cdsJSA;
         CDSDumpHook.useEagerAppCDS = useEagerAppCDS;
         CDSDumpHook.eagerAppCDSAgent = agent;
+        CDSDumpHook.verbose = verbose;
 
         CDSDumpHook.setup();
     }
@@ -31,7 +33,8 @@ public class CDSDumpHook {
                         cdsOriginClassList,
                         cdsFinalClassList,
                         cdsJsa,
-                        eagerAppCDSAgent);
+                        eagerAppCDSAgent,
+                        verbose);
             } catch (Exception e) {
                 e.printStackTrace();
             }
