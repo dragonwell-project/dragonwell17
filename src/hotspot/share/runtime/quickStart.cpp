@@ -33,7 +33,6 @@ const char* QuickStart::_jsa = "cds.jsa";
 const char* QuickStart::_eagerappcds_agent = NULL;
 const char* QuickStart::_eagerappcds_agentlib = NULL;
 
-int QuickStart::_features = 0;
 int QuickStart::_jvm_option_count = 0;
 
 const char* QuickStart::_opt_name[] = {
@@ -232,6 +231,37 @@ bool QuickStart::check_integrity(JavaVMInitArgs* options_args) {
   return result;
 }
 
+void QuickStart::check_features(const char* &str) {
+  // read features
+  bool tracer_features[QuickStart::Count] = {};
+  for (int begin = 0, end = 0; ; ) {
+    bool exit = false;
+    if (str[end] == ',' || (exit = (str[end] == '\n'))) {
+      // handle feature
+      for (int i = 0; i < QuickStart::Count; i++) {
+        int len = MIN2(::strlen(&str[begin]), ::strlen(_opt_name[i]));
+        if (::strncmp(&str[begin], _opt_name[i], len) == 0) {
+          // find a feature which is enabled at tracer phase.
+          tracer_features[i] = true;
+        }
+      }
+      if (exit) {
+        const_cast<char*>(str)[end] = '\n';
+        break;
+      }
+      // the next feature: align pointers
+      begin = ++end;
+    } else {
+      end++;
+    }
+  }
+  for (int i = 0; i < QuickStart::Count; i++) {
+    if (!tracer_features[i] && _opt_enabled[i]) {
+      _opt_enabled[i] = false;
+    }
+  }
+}
+
 bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
   char line[PATH_MAX];
   const char* tail          = NULL;
@@ -245,11 +275,7 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
   while (fgets(line, sizeof(line), _metadata_file) != NULL) {
 
     if (!feature_checked && match_option(line, _identifier_name[Features], &tail)) {
-      // read features
-      if (sscanf(tail, "%d", &_features) != 1) {
-        log("Unable to read the features.");
-        return false;
-      }
+      check_features(tail);
       feature_checked = true;
     } else if (!version_checked && match_option(line, _identifier_name[VMVersion], &tail)) {
       // read jvm info
@@ -588,14 +614,24 @@ bool QuickStart::dump_cached_info(JavaVMInitArgs* options_args) {
     return false;
   }
   _vm_version = VM_Version::internal_vm_info_string();
-  _features = 0;
 
   // calculate argument, ignore the last two option:
   // -Dsun.java.launcher=SUN_STANDARD
   // -Dsun.java.launcher.pid=<pid>
   _jvm_option_count = options_args->nOptions > 2 ? options_args->nOptions - 2 : 0;
 
-  _temp_metadata_file->print_cr("%s%d", _identifier_name[Features], _features);
+  _temp_metadata_file->print("%s", _identifier_name[Features]);
+  // write features
+  for (int i = 0, cnt = 0; i < QuickStart::Count; i++) {
+    if (_opt_enabled[i]) {
+      if (cnt++ == 0) {
+        _temp_metadata_file->print("%s", _opt_name[i]);
+      } else {
+        _temp_metadata_file->print(",%s", _opt_name[i]);
+      }
+    }
+  }
+  _temp_metadata_file->cr();
   // write jvm info
   _temp_metadata_file->print_cr("%s%s", _identifier_name[VMVersion], _vm_version);
 

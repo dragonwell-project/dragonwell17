@@ -65,7 +65,6 @@ private:
   static const char* _opt_name[];
   static const char* _identifier_name[];
   static bool _opt_enabled[];
-  static int _features;
   static int _jvm_option_count;
 
   static bool set_optimization(const char* option, bool enabled);
@@ -79,6 +78,7 @@ private:
   static void print_command_line_help(outputStream* out);
   static bool dump_cached_info(JavaVMInitArgs* options_args);
   static bool load_and_validate(JavaVMInitArgs* options_args);
+  static void check_features(const char* &str);
   static void print_stat(bool isReplayer);
   static void log(const char* msg, ...) ATTRIBUTE_PRINTF(1, 2);
 
