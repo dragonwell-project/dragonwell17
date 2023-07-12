@@ -84,9 +84,8 @@ public class Utils {
         if (verbose) {
             pb.redirectErrorStream(true);
         } else {
-            // ignore output to prevent child stucking at outputstream
-            pb.redirectOutput(ProcessBuilder.Redirect.DISCARD).
-                    redirectError(ProcessBuilder.Redirect.DISCARD);
+            // discard output steam but remain the error one
+            pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
         }
         Process p = pb.start();
 
