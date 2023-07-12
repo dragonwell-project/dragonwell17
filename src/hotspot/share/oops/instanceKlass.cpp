@@ -2506,6 +2506,7 @@ void InstanceKlass::remove_unshareable_info() {
   _methods_jmethod_ids = NULL;
   _jni_ids = NULL;
   _oop_map_cache = NULL;
+  _package_entry = NULL;
   // clear _nest_host to ensure re-load at runtime
   _nest_host = NULL;
   init_shared_package_entry();
