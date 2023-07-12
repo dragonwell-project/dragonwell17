@@ -3,7 +3,7 @@
  * @summary Test -Xquickstart options
  * @library /test/lib
  * @requires os.arch=="amd64"
- * @run main/othervm TestQuickStartOptions
+ * @run main/othervm/timeout=600 TestQuickStartOptions
  */
 
 import jdk.test.lib.process.OutputAnalyzer;

@@ -6,7 +6,7 @@
  * @build TestDump
  * @requires os.arch=="amd64"
  * @run driver jdk.test.lib.helpers.ClassFileInstaller  -jar test.jar TestDump TestDump$Policy TestDump$ClassLoadingPolicy TestDump$WatcherThread
- * @run main/othervm TestNotifyDumpByJcmd
+ * @run main/othervm/timeout=600 TestNotifyDumpByJcmd
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
@@ -18,11 +18,12 @@ import java.security.AccessController;
 
 public class TestNotifyDumpByJcmd {
 
-    private static final String TESTJAR = "./test.jar";
+    private static final String TESTJAR = "./test-notifyDumpByJcmd.jar";
     private static final String TESTCLASS = "TestDump";
 
     public static void main(String[] args) throws Exception {
         String dir = AccessController.doPrivileged(new GetPropertyAction("test.classes"));
+        destroyCache(dir);
         TestNotifyDumpByJcmd.verifyPathSetting(dir);
         new File(dir).delete();
     }
@@ -42,6 +43,16 @@ public class TestNotifyDumpByJcmd {
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         System.out.println("[Child Output] " + output.getOutput());
         output.shouldContain(TestDump.ANCHOR);
+        output.shouldHaveExitValue(0);
+    }
+
+    static void destroyCache(String parentDir) throws Exception {
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                "-Xquickstart:destroy",
+                "-Xquickstart:path=" + parentDir + "/quickstartcache",
+                "-Xquickstart:verbose", "-version");
+        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        output.shouldContain("destroy the cache folder");
         output.shouldHaveExitValue(0);
     }
 

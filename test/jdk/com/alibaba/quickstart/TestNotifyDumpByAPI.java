@@ -6,7 +6,7 @@
  * @build TestDump
  * @requires os.arch=="amd64"
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar test.jar TestDump TestDump$Policy TestDump$ClassLoadingPolicy TestDump$WatcherThread
- * @run main/othervm TestNotifyDumpByAPI
+ * @run main/othervm/timeout=600 TestNotifyDumpByAPI
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
@@ -18,7 +18,7 @@ import java.security.AccessController;
 
 public class TestNotifyDumpByAPI {
 
-    private static final String TESTJAR = "./test.jar";
+    private static final String TESTJAR = "./test-notifyDumpByAPI.jar";
     private static final String TESTCLASS = "TestDump";
 
     public static void main(String[] args) throws Exception {

@@ -3,7 +3,7 @@
  * @summary Test the flow to determine tracer or replayer
  * @library /test/lib
  * @requires os.arch=="amd64"
- * @run main/othervm TestDeterminingTracerOrReplayer
+ * @run main/othervm/timeout=600 TestDeterminingTracerOrReplayer
  */
 
 import jdk.test.lib.process.OutputAnalyzer;

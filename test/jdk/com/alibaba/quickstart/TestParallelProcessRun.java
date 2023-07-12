@@ -4,7 +4,7 @@
  * @library /test/lib
  * @library /lib/testlibrary
  * @requires os.arch=="amd64"
- * @run main/othervm TestParallelProcessRun
+ * @run main/othervm/timeout=600 TestParallelProcessRun
  */
 
 import jdk.test.lib.process.OutputAnalyzer;

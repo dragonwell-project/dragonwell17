@@ -3,7 +3,7 @@
  * @summary Test Integrity Check
  * @library /test/lib
  * @requires os.arch=="amd64"
- * @run main/othervm TestIntegrityCheck
+ * @run main/othervm/timeout=600 TestIntegrityCheck
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
@@ -37,7 +37,7 @@ public class TestIntegrityCheck {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:verbose,containerImageEnv=pouchid", "-esa", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         System.out.println(output.getOutput());
-        output.shouldContain("JVM option isn't the same");
+        output.shouldContain("JVM option count isn't the same");
         output.shouldHaveExitValue(0);
     }
 
