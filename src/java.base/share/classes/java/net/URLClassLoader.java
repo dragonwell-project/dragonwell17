@@ -468,7 +468,7 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
     }
 
 
-    private Manifest getManifest(String path, String sourcePath) throws IOException {
+    private Optional<Manifest> getManifest(String path, String sourcePath) throws IOException {
         Optional<Manifest> mf;
         synchronized (this) {
             if (manifestCache == null) {
@@ -476,25 +476,26 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
             }
             SoftReference<Optional<Manifest>> ref = manifestCache.get(sourcePath);
             if (ref == null || (mf = ref.get()) == null) {
-                Resource res = ucp.getResource(path, false);
-                Manifest mf0 = null;
-                if (res != null) {
-                    mf0 = res.getManifest();
-                    //if the path locate at a fat jar,get manifest will return null.
-                    if (mf0 == null) {
-                        URLConnection connection = res.getURL().openConnection();
-                        if (connection instanceof JarURLConnection) {
-                            JarFile jarFile = ((JarURLConnection) connection).getJarFile();
-                            mf0 = jarFile.getManifest();
-                        }
+                Manifest mf0;
+                URL url = findResource(path);
+                if (url != null) {
+                    URLConnection connection = url.openConnection();
+                    if (connection instanceof JarURLConnection) {
+                        mf0 = ((JarURLConnection) connection).getManifest();
+                    } else {
+                        //Don't know how to process it.return null to enter slow path
+                        return null;
                     }
+                } else {
+                    //not find the resource.return null to enter slow path
+                    return null;
                 }
                 //If the jar have no manifest, avoid cache miss by adding an optional value instead of a null object.
                 mf = Optional.ofNullable(mf0);
                 manifestCache.put(sourcePath, new SoftReference<>(mf));
             }
         }
-        return mf.get();
+        return mf;
     }
 
     /*
@@ -580,7 +581,12 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
                 isJar = sourcepath.endsWith(".jar");
                 assert isJar || sourcepath.endsWith("/");
                 if (isJar) {
-                    man = getManifest(path, sourcepath);
+                    Optional<Manifest> optional = getManifest(path, sourcepath);
+                    if (optional == null) {
+                        return null;
+                    } else {
+                        man = optional.orElse(null);
+                    }
                 }
             } else {
                 man = res.getManifest();
