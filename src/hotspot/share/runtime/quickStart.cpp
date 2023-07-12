@@ -56,9 +56,13 @@ const char* QuickStart::_identifier_name[] = {
 };
 
 bool QuickStart::_opt_enabled[] = {
-#define OPT_TAG(name) true,
-  OPT_TAG_LIST
-#undef OPT_TAG
+  true,  // appcds
+  true,  // eagerappcds
+};
+
+bool QuickStart::_opt_passed[] = {
+  false,
+  false,
 };
 
 FILE* QuickStart::_metadata_file = NULL;
@@ -212,10 +216,11 @@ void QuickStart::post_process_arguments(JavaVMInitArgs* options_args) {
   // Determine the role
   if (!determine_tracer_or_replayer(options_args)) {
     _role = Normal;
+    _is_enabled = false;
+    setenv_for_roles();
     return;
   }
-  // Set environment for roles of this process
-  setenv_for_roles();
+  settle_opt_pass_table();
   // Process argument for each optimization
   process_argument_for_optimization();
 }
@@ -268,48 +273,6 @@ void QuickStart::check_features(const char* &str) {
   }
 }
 
-static bool need_to_ignore(const char *option) {
-  // options need to be ignored
-  static const char *skip_list[] = { // use strncmp to compare
-    "-D",               // skip -D java options
-    "-Xquickstart",     // skip -Xquickstart* options
-
-    "-Xmx",             // skip -Xmx related options
-    "-XX:InitialHeapSize",
-    "-XX:MaxHeapSize",
-    "-XX:InitialCodeCacheSize",
-    "-XX:ReservedCodeCacheSize",
-    "-XX:MaxMetaspaceSize",
-    "-XX:MetaspaceSize",
-    "-XX:MaxNewSize",
-    "-XX:NewSize",
-    "-Xms",
-    "-Xlog",
-  };
-
-  static const int size = sizeof(skip_list) / sizeof(const char*);
-  // traverse
-  for (int i = 0; i < size; i++) {
-    const char *skip = skip_list[i];
-    if (strncmp(option, skip, strlen(skip)) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-static int compare_strings(const char** s1, const char** s2) {
-  return ::strcmp(*s1, *s2);
-}
-
-static void free_tmp_buffers(GrowableArray<const char *> *&prev_options, GrowableArray<const char *> *&current_options) {
-  delete current_options; current_options = NULL;
-  for (int i = 0; i < prev_options->length(); i++) {
-    free((void*)prev_options->at(i));
-  }
-  delete prev_options; prev_options = NULL;
-}
-
 bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
   char line[PATH_MAX];
   const char* tail          = NULL;
@@ -358,72 +321,15 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
         return false;
       }
       option_checked = true;
-      // current jvm option count
-      int current_valid_option_count = 0;
-      if (options_args != NULL) {
-        int option_count = options_args->nOptions > 2 ? options_args->nOptions - 2 : 0;
-        if (_jvm_option_count != option_count) {
-          log("JVM option isn't the same.");
-          return false;
-        }
-      }
-      // record prev options with skipping ones ignored
+      // We delegate argument checking logic to CDS and AOT themselves.
+      // Just sanity check reading the file and ignore the results.
       // Note: at this time of argument parsing, we cannot use Thread local and ResourceMark
-      GrowableArray<const char *> *prev_options = new (ResourceObj::C_HEAP, mtArguments) GrowableArray<const char *>(_jvm_option_count, mtInternal);
-      GrowableArray<const char *> *current_options = new (ResourceObj::C_HEAP, mtArguments) GrowableArray<const char *>(current_valid_option_count, mtInternal);
       for (int index = 0; index < _jvm_option_count; index++) {
         if (fgets(line, sizeof(line), _metadata_file) == NULL) {
           log_error(quickstart)("Unable to read JVM option.");
-          free_tmp_buffers(prev_options, current_options);
-          return false;
-        }
-        if (options_args == NULL) {
-          continue;
-        }
-        // skip what we don't want
-        if (need_to_ignore(line)) {
-          continue;
-        }
-
-        prev_options->append(strdup(line));
-      }
-      // record current options
-      for (int index = 0; index < current_valid_option_count; index++) {
-        const JavaVMOption *option = options_args->options + index;
-        if (need_to_ignore(option->optionString)) {
-          continue;
-        }
-        current_options->append(option->optionString);
-      }
-      // 1. compare total numbers
-      int prev_valid_option_count = prev_options->length();
-      current_valid_option_count = current_options->length();
-      if (prev_valid_option_count != current_valid_option_count) {
-        log_error(quickstart)("JVM option count isn't the same.");
-        free_tmp_buffers(prev_options, current_options);
-        return false;
-      }
-      if (prev_valid_option_count == 0) {
-        free_tmp_buffers(prev_options, current_options);
-        return true;
-      }
-      // 2. sort all options
-      prev_options->sort(compare_strings);
-      current_options->sort(compare_strings);
-      // 3. check if option counts are equal?
-      for (int index = 0; index < current_valid_option_count; index++) {
-        size_t len = strlen(current_options->at(index));
-        if (len > O_BUFLEN) {
-          len = PATH_MAX - 1;
-        }
-        if (strncmp(prev_options->at(index), current_options->at(index), len) != 0) {
-          log_error(quickstart)("JVM option isn't the same.");
-          free_tmp_buffers(prev_options, current_options);
           return false;
         }
       }
-
-      free_tmp_buffers(prev_options, current_options);
     }
   }
   return true;
@@ -490,7 +396,6 @@ void QuickStart::print_stat(bool isReplayer) {
 }
 
 void QuickStart::setenv_for_roles() {
-  assert(is_enabled(), "sanity");
   const char *role = NULL;
   if (_role == Tracer) {
     role = "TRACER";
@@ -620,6 +525,31 @@ bool QuickStart::determine_tracer_or_replayer(JavaVMInitArgs* options_args) {
     return true;
   }
   return false;
+}
+
+void QuickStart::settle_opt_pass_table() {
+  // If a feature is disabled by quickstart, we have no need to check it
+  // So it is directly passed - so set it to true (already passed).
+  // If a feature is settled to be enabled by quickstart, then we need to
+  // check if it is successfully passed - so set it to false (not passed yet).
+  _opt_passed[_eagerappcds] = !_opt_enabled[_eagerappcds];
+  _opt_passed[_appcds]      = !_opt_enabled[_appcds];
+}
+
+void QuickStart::set_opt_passed(opt feature) {
+  // set a feature passed
+  _opt_passed[feature] = true;
+  log_info(quickstart)("feature %s is enabled and passed", _opt_name[feature]);
+
+  // If all features are passed, we set the environment for roles of this process
+  bool opt_all_passed = true;
+  for (int i = 0; i < Count; i++) {
+    opt_all_passed &= _opt_passed[i];
+  }
+  if (opt_all_passed) {
+    log_info(quickstart)("all enabled features are passed");
+    setenv_for_roles();
+  }
 }
 
 void QuickStart::generate_metadata_file() {

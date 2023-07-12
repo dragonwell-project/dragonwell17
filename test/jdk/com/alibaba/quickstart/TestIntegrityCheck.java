@@ -16,7 +16,6 @@ public class TestIntegrityCheck {
         cachepath = cachepath + "/integrityCheck";
         test.verifyIntegrity();
         test.verifyImageEnvChange();
-        test.verifyOptionChange();
     }
 
     void verifyIntegrity() throws Exception {
@@ -33,14 +32,6 @@ public class TestIntegrityCheck {
         output.shouldHaveExitValue(0);
     }
 
-    void verifyOptionChange() throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:verbose,containerImageEnv=pouchid", "-esa", "-version");
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        System.out.println(output.getOutput());
-        output.shouldContain("JVM option count isn't the same");
-        output.shouldHaveExitValue(0);
-    }
-
     void runAsTracer() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:verbose,containerImageEnv=pouchid", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
@@ -54,6 +45,14 @@ public class TestIntegrityCheck {
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldContain("Running as replayer");
         System.out.println(output.getOutput());
+        output.shouldHaveExitValue(0);
+    }
+
+    void verifyOptionChange() throws Exception {
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:verbose,containerImageEnv=pouchid" + Config.QUICKSTART_FEATURE_COMMA, "-esa", "-version");
+        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        System.out.println(output.getOutput());
+        output.shouldContain("JVM option count isn't the same");
         output.shouldHaveExitValue(0);
     }
 }

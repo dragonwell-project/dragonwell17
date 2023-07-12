@@ -65,6 +65,7 @@ private:
   static const char* _opt_name[];
   static const char* _identifier_name[];
   static bool _opt_enabled[];
+  static bool _opt_passed[];
   static int _jvm_option_count;
 
   static bool set_optimization(const char* option, bool enabled);
@@ -82,8 +83,10 @@ private:
   static void check_features(const char* &str);
   static void print_stat(bool isReplayer);
   static void log(const char* msg, ...) ATTRIBUTE_PRINTF(1, 2);
+  static void settle_opt_pass_table();
 
 public:
+  static void set_opt_passed(opt feature);
   static void notify_dump();
 
   // cds stuff
