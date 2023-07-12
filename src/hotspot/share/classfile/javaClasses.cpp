@@ -4735,21 +4735,21 @@ void java_nio_Buffer::compute_offsets() {
 
 /* stack manipulation */
 
-int java_dyn_CoroutineBase::_data_offset = 0;
+int java_dyn_CoroutineBase::_native_coroutine_offset = 0;
 
 void java_dyn_CoroutineBase::compute_offsets() {
   InstanceKlass* ik = vmClasses::java_dyn_CoroutineBase_klass();
   if (ik != NULL) {
-    compute_offset(_data_offset, ik, vmSymbols::nativeCoroutine_name(), vmSymbols::long_signature());
+    compute_offset(_native_coroutine_offset, ik, vmSymbols::nativeCoroutine_name(), vmSymbols::long_signature());
   }
 }
 
-jlong java_dyn_CoroutineBase::data(oop obj) {
-  return obj->long_field(_data_offset);
+jlong java_dyn_CoroutineBase::native_coroutine(oop obj) {
+  return obj->long_field(_native_coroutine_offset);
 }
 
-void java_dyn_CoroutineBase::set_data(oop obj, jlong value) {
-  obj->long_field_put(_data_offset, value);
+void java_dyn_CoroutineBase::set_native_coroutine(oop obj, jlong value) {
+  obj->long_field_put(_native_coroutine_offset, value);
 }
 
 int com_alibaba_wisp_engine_WispEngine::_isInCritical_offset = 0;

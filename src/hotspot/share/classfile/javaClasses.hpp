@@ -1794,16 +1794,16 @@ class InjectedField {
 class java_dyn_CoroutineBase: AllStatic {
 private:
   // Note that to reduce dependencies on the JDK we compute these offsets at run-time.
-  static int _data_offset;
+  static int _native_coroutine_offset;
 
   static void compute_offsets();
 
 public:
   // Accessors
-  static jlong data(oop obj);
-  static void set_data(oop obj, jlong value);
+  static jlong native_coroutine(oop obj);
+  static void set_native_coroutine(oop obj, jlong value);
 
-  static int get_data_offset()    { return _data_offset; }
+  static int get_native_coroutine_offset()    { return _native_coroutine_offset; }
 
   // Debugging
   friend class JavaClasses;

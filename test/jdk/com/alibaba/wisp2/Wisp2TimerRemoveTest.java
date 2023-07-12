@@ -1,18 +1,18 @@
 /*
  * @test
- * @library /lib/testlibrary
- * @modules java.base/jdk.internal.misc
+ * @library /test/lib
+ * @modules java.base/jdk.internal.access
  * @modules java.base/com.alibaba.wisp.engine:+open
  * @summary verify canceled timers are removed ASAP
  * @run main/othervm -XX:+UseWisp2 Wisp2TimerRemoveTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 import java.lang.reflect.Field;
 import java.util.concurrent.*;
 
-import static jdk.testlibrary.Asserts.*;
+import static jdk.test.lib.Asserts.*;
 
 public class Wisp2TimerRemoveTest {
 

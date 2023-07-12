@@ -50,6 +50,7 @@ public class CoroutineTest {
 
 	@Test
 	public void symSequence() {
+		Coroutine threadCoro = Thread.currentThread().getCoroutineSupport().threadCoroutine();
 		Coroutine coro = new Coroutine() {
 			protected void run() {
 				seq.append("c");
@@ -72,6 +73,7 @@ public class CoroutineTest {
 		seq.append("g");
 		assertEquals("abcdededefg", seq.toString());
 	}
+
 
 	@Test
 	public void gcTest1() {
@@ -204,4 +206,9 @@ public class CoroutineTest {
 		};
 		Coroutine.yieldTo(threadCoro);
 	}
+
+  @Test
+	public void destroyNonInitedTest() {
+    new Coroutine();
+  }
 }

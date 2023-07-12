@@ -892,10 +892,10 @@ JVM_ENTRY(void, CoroutineSupport_switchToAndTerminate(JNIEnv* env, jclass klass,
   assert(target_coroutine == NULL, "expecting NULL");
 
   oop old_oop = JNIHandles::resolve(old_coroutine);
-  Coroutine* coro = (Coroutine*)java_dyn_CoroutineBase::data(old_oop);
+  Coroutine* coro = (Coroutine*)java_dyn_CoroutineBase::native_coroutine(old_oop);
   assert(coro != NULL, "NULL old coroutine in switchToAndTerminate");
 
-  java_dyn_CoroutineBase::set_data(old_oop, 0);
+  java_dyn_CoroutineBase::set_native_coroutine(old_oop, 0);
 
   CoroutineStack* stack = coro->stack();
   stack->remove_from_list(thread->coroutine_stack_list());
