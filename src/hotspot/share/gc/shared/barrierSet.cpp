@@ -47,9 +47,10 @@ void BarrierSet::set_barrier_set(BarrierSet* barrier_set) {
          "Expected main thread to be a JavaThread");
   assert(!JavaThread::current()->on_thread_list(),
          "Main thread already on thread list.");
-  _barrier_set->on_thread_create(Thread::current());
+  Thread* thread = Thread::current();
+  _barrier_set->on_thread_create(thread);
   if (UseWispMonitor) {
-    _barrier_set->on_thread_create(WispThread::current(Thread::current()));
+    _barrier_set->on_thread_create(WispThread::current(thread));
   }
 }
 
