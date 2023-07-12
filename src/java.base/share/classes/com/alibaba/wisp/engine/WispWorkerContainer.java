@@ -30,7 +30,7 @@ public enum WispWorkerContainer {
     }
 
     WispWorkerContainer() {
-        if (WispConfiguration.WISP_VERSION == 2 || !WispEngine.transparentWispSwitch()) {
+        if (WispConfiguration.WISP_VERSION == 2) {
             return;
         }
         // pre-start threads.
@@ -45,7 +45,6 @@ public enum WispWorkerContainer {
                     // wait task submit
                 }
             }, WISP_THREAD_NAME_PREFIX + i);
-            t.setDaemon(WispConfiguration.WISP_DAEMON_WORKER);
             t.start();
             return t;
         }).collect(Collectors.toList());
@@ -65,9 +64,8 @@ public enum WispWorkerContainer {
      * @param r     target code
      * @param t     as return value for Thread.currentThread()
      */
-    public void dispatch(String group, String name, Runnable r, Thread t) {
+    public Future<WispTask> dispatch(String group, String name, Runnable r, Thread t) {
         WispEngine wispEngine;
-        assert WispEngine.transparentWispSwitch();
         if (WispConfiguration.WISP_VERSION == 2) {
             wispEngine = WispEngine.current();
         } else {
@@ -78,7 +76,7 @@ public enum WispWorkerContainer {
             }
             wispEngine = dispatcher.nextEngine();
         }
-        wispEngine.dispatchTask(r, name, t);
+        return wispEngine.summitTask(r, name, t);
     }
 
     private class Dispatcher {

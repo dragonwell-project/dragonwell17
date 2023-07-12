@@ -297,7 +297,7 @@ JNIEXPORT void JNICALL
 JVM_SetNativeThreadName(JNIEnv *env, jobject jthread, jstring name);
 
 JNIEXPORT jboolean JNICALL
-JVM_IsInSameNative(JNIEnv *env, jobject jthread);
+JVM_IsInNative(JNIEnv *env, jobject jthread);
 
 /* getStackTrace() and getAllStackTraces() method */
 JNIEXPORT jobjectArray JNICALL
@@ -1056,7 +1056,7 @@ JNIEXPORT jint JNICALL
 JVM_GetProxyUnpark(JNIEnv* env, jclass clz, jintArray res);
 
 JNIEXPORT void JNICALL
-JVM_MarkPreempted(JNIEnv* env, jclass clz, jobject thread, jboolean force);
+JVM_MarkPreempt(JNIEnv* env, jclass clz, jobject thread);
 
 /*************************************************************************
  PART 3: I/O and Network Support

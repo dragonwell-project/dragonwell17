@@ -2157,11 +2157,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   if (!is_critical_native) {
     __ lea(c_rarg0, Address(r15_thread, in_bytes(JavaThread::jni_environment_offset())));
 
-    if (EnableCoroutine) {
-      __ movptr(r11, Address(r15_thread, JavaThread::coroutine_list_offset()));
-      __ incrementl(Address(r11, Coroutine::native_call_counter_offset()));
-    }
-
     // Now set thread in native
     __ movl(Address(r15_thread, JavaThread::thread_state_offset()), _thread_in_native);
   }

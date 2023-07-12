@@ -1103,7 +1103,7 @@ JavaThread::JavaThread() :
   _coroutine_stack_list(nullptr),
   _coroutine_list(nullptr),
   _current_coroutine(nullptr),
-  _wisp_preempted(false),
+  _wisp_preempt(false),
   _coroutine_temp(0),
 
   _handshake(this),
@@ -2161,14 +2161,6 @@ void JavaThread::nmethods_do(CodeBlobClosure* cf) {
 
   if (jvmti_thread_state() != NULL) {
     jvmti_thread_state()->nmethods_do(cf);
-  }
-
-  if (EnableCoroutine) {
-    Coroutine* current = _coroutine_list;
-    do {
-      current->compiledMethods_do(cf);
-      current = current->next();
-    } while (current != _coroutine_list);
   }
 }
 

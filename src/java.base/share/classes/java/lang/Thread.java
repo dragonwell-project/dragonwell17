@@ -2019,9 +2019,9 @@ public class Thread implements Runnable {
     }
 
     /**
-     * @return if this thread is still executing the same JNI code
+     * @return if this thread is executing JNI code
      */
-    native boolean isInSameNative();
+    native boolean isInNative();
 
     // Added in JSR-166
 

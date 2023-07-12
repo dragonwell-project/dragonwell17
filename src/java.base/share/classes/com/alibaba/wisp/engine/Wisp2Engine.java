@@ -225,11 +225,11 @@ final class Wisp2Engine extends WispEngine {
 
     @Override
     public void execute(Runnable target) {
-        dispatchTask(target, "executor task", null);
+        dispatchTask(target, "executor task");
     }
 
     @Override
-    protected void dispatchTask(Runnable target, String name, Thread thread) {
+    protected void dispatchTask(Runnable target, String name) {
         // wisp2 DO NOT ALLOW running task in non-scheduler thread
         ClassLoader ctxClassLoader = current.ctxClassLoader;
         long enqueueTime = getNanoTimeForProfile();
@@ -239,7 +239,7 @@ final class Wisp2Engine extends WispEngine {
             public void run() {
                 WispEngine current = WispEngine.current();
                 current.countEnqueueTime(enqueueTime);
-                current.runTaskInternal(target, name, thread, ctxClassLoader);
+                current.runTaskInternal(target, name, null, ctxClassLoader);
             }
         });
     }

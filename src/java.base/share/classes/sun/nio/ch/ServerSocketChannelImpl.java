@@ -391,8 +391,7 @@ class ServerSocketChannelImpl
         acceptLock.lock();
         try {
             boolean blocking = isBlocking();
-            final boolean wispAndBlocking = WispEngine.transparentWispSwitch() && blocking &&
-                                            WEA.usingWispEpoll(null);
+            final boolean wispAndBlocking = WispEngine.transparentWispSwitch() && blocking;
             try {
                 begin(blocking);
                 if (wispAndBlocking) {

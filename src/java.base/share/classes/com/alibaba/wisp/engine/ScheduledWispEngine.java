@@ -80,13 +80,8 @@ final class ScheduledWispEngine extends WispEngine {
 
     @Override
     public void execute(Runnable target) {
-        dispatchTask(target, "executor task", null);
-    }
-
-    @Override
-    protected void dispatchTask(Runnable target, String name, Thread t) {
         if (JLA.currentThread0() == thread) {
-            runTaskInternal(target, name, t, current.ctxClassLoader);
+            runTaskInternal(target, "executor task", null, current.ctxClassLoader);
         } else {
 
 
@@ -107,12 +102,17 @@ final class ScheduledWispEngine extends WispEngine {
                     return false;
                 } else {
                     WispEngine.current().countEnqueueTime(enqueueTime);
-                    runTaskInternal(target, name, t, ctxClassLoader);
+                    runTaskInternal(target, "executor task", null, ctxClassLoader);
                     return true; // means real switch happened
                 }
             };
             wakeupTask(pseudo);
         }
+    }
+
+    @Override
+    protected void dispatchTask(Runnable target, String name) {
+        runTaskInternal(target, name, null, current.ctxClassLoader);
     }
 
     @Override

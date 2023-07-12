@@ -26,7 +26,6 @@ enum WispSysmon {
 
     void startDaemon() {
         if (WispConfiguration.ENABLE_HANDOFF) {
-            assert WispConfiguration.HANDOFF_POLICY != null;
             Thread thread = new Thread(WispEngine.daemonThreadGroup,
                     WispSysmon::sysmonLoop, "Wisp-Sysmon");
             thread.setDaemon(true);
@@ -55,64 +54,34 @@ enum WispSysmon {
 
     /**
      * Handle a WispTask occupied a carrier thread for long time.
+     *
+     * the strategy is depends on carrier thread status:
+     *
+     * running java code: insert a yield() for next method return
+     * running native code : handOff the carrier (Only supported in wisp2)
+     *
      */
     private static void handleLongOccupation() {
         for (WispEngine engine : engines) {
             if (engine.terminated) {
                 // remove in iteration is OK for ConcurrentSkipListSet
                 engines.remove(engine);
-                continue;
             }
             if (engine.isRunning() && engine.schedTick == engine.lastSchedTick) {
-                WispConfiguration.HANDOFF_POLICY.handle(engine);
+                if (JLA.isInNative(engine.thread)) {
+                    engine.handOff();
+                } else {
+                    markPreempt(engine.thread);
+                }
             }
+
             engine.lastSchedTick = engine.schedTick;
         }
     }
 
-    enum Policy {
-        HAND_OFF { // handOff the carrier (Only supported in wisp2)
-            @Override
-            void handle(WispEngine engine) {
-                if (JLA.isInSameNative(engine.thread)) {
-                    engine.handOff();
-                    engines.remove(engine);
-                }
-            }
-        },
-        PREEMPT { // insert a yield() after next safepoint
-            @Override
-            void handle(WispEngine engine) {
-                markPreempted(engine.thread, true);
-            }
-        },
-        ADAPTIVE { // depends on thread status
-            @Override
-            void handle(WispEngine engine) {
-                if (JLA.isInSameNative(engine.thread)) {
-                    engine.handOff();
-                    engines.remove(engine);
-                } else {
-                    markPreempted(engine.thread, true);
-                }
-            }
-        };
-
-        abstract void handle(WispEngine engine);
-
-    }
-
     private static native void registerNatives();
 
-
-    /**
-     * Mark the thread as running single wispTask in java too much time.
-     * And the Thread.yield() invocation will be emitted after next safepoint.
-     *
-     * @param thread the thread to mark
-     * @param force  fire a force_safepoint immediately
-     */
-    private static native void markPreempted(Thread thread, boolean force);
+    private static native void markPreempt(Thread thread);
 
     private static final UnsafeAccess UA = SharedSecrets.getUnsafeAccess();
     private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();

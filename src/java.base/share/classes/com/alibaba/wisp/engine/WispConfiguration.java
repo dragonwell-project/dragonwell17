@@ -27,7 +27,6 @@ class WispConfiguration {
     static final int WISP_VERSION;
     static final int WORKER_COUNT;
     static final boolean ENABLE_HANDOFF;
-    static final WispSysmon.Policy HANDOFF_POLICY;
     static final int SYSMON_TICK_US;
     // monitor
     static final boolean WISP_PROFILE_DETAIL;
@@ -44,8 +43,6 @@ class WispConfiguration {
     static final int WISP_SCHEDULE_PUSH_RETRY;
     static final int WISP_SCHEDULE_HELP_STEAL_RETRY;
 
-    // io
-    static final boolean WISP_ENABLE_SOCKET_LOCK;
 
     private static List<String> PROXY_SELECTOR_STACK_LIST;
     private static List<String> SLEEP_SELECTOR_STACK_LIST;
@@ -78,12 +75,8 @@ class WispConfiguration {
         WISP_VERSION = parsePositiveIntegerParameter(p, "com.alibaba.wisp.version", 1);
         WORKER_COUNT = parsePositiveIntegerParameter(p, "com.alibaba.wisp.carrierEngines", CORES);
         ENABLE_HANDOFF = parseBooleanParameter(p, "com.alibaba.wisp.enableHandOff", false);
-        // handoff carrier thread implementation is not stable enough,
-        // use preempt by default, and we'll move to ADAPTIVE in the future
-        HANDOFF_POLICY = WispSysmon.Policy.valueOf(
-                p.getProperty("com.alibaba.wisp.handoffPolicy", WispSysmon.Policy.PREEMPT.name()));
         SYSMON_TICK_US = parsePositiveIntegerParameter(p, "com.alibaba.wisp.sysmonTickUs",
-                (int) TimeUnit.MILLISECONDS.toMicros(100));
+                (int) TimeUnit.SECONDS.toMicros(1));
         PERF_LOG_ENABLED = parseBooleanParameter(p, "com.alibaba.wisp.enablePerfLog", false);
         PERF_LOG_INTERVAL_MS = parsePositiveIntegerParameter(p, "com.alibaba.wisp.logTimeInternalMillis", 15000);
         if (PERF_LOG_ENABLED) {
@@ -96,13 +89,12 @@ class WispConfiguration {
 
         WISP_HIGH_PRECISION_TIMER = parseBooleanParameter(p, "com.alibaba.wisp.highPrecisionTimer", false);
         WISP_DAEMON_WORKER = parseBooleanParameter(p, "com.alibaba.wisp.daemonWorker", true);
-        WISP_USE_STEAL_LOCK = parseBooleanParameter(p, "com.alibaba.wisp.useStealLock", WISP_VERSION == 2 ? true : false);
+        WISP_USE_STEAL_LOCK = parseBooleanParameter(p, "com.alibaba.wisp.useStealLock", true);
         WISP_ENGINE_TASK_CACHE_SIZE = parsePositiveIntegerParameter(p, "com.alibaba.wisp.engineTaskCache", 20);
         WISP_SCHEDULE_STEAL_RETRY = parsePositiveIntegerParameter(p, "com.alibaba.wisp.schedule.stealRetry", CORES);
         WISP_SCHEDULE_PUSH_RETRY = parsePositiveIntegerParameter(p, "com.alibaba.wisp.schedule.pushRetry", CORES);
         WISP_SCHEDULE_HELP_STEAL_RETRY = parsePositiveIntegerParameter(p, "com.alibaba.wisp.schedule.helpStealRetry",
                 Math.max(1, CORES / 2));
-        WISP_ENABLE_SOCKET_LOCK = parseBooleanParameter(p, "com.alibaba.wisp.useSocketLock", true);
         checkCompatibility();
     }
 

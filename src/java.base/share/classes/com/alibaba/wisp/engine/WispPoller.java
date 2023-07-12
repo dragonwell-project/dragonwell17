@@ -1,6 +1,7 @@
 package com.alibaba.wisp.engine;
 
 import jdk.internal.access.SharedSecrets;
+
 import sun.nio.ch.EpollAccess;
 import sun.nio.ch.Net;
 import sun.nio.ch.SelChImpl;
@@ -9,6 +10,7 @@ import java.io.IOException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.util.concurrent.ConcurrentHashMap;
+
 
 public enum WispPoller {
 
@@ -39,83 +41,35 @@ public enum WispPoller {
         }
     }
 
-    /**
-     * fd2ReadTask handles all incoming io events like reading and accepting
-     */
-    private WispTask[] fd2ReadTaskLow = new WispTask[LOW_FD_BOUND];
-    private ConcurrentHashMap<Integer, WispTask> fd2ReadTaskHigh = new ConcurrentHashMap<>();
+    private WispTask[] fd2TaskLow = new WispTask[LOW_FD_BOUND];
+    private ConcurrentHashMap<Integer, WispTask> fd2TaskHigh = new ConcurrentHashMap<>();
 
-    /**
-     * fd2WriteTask handles all outing io events like connecting and writing
-     */
-    private WispTask[] fd2WriteTaskLow = new WispTask[LOW_FD_BOUND];
-    private ConcurrentHashMap<Integer, WispTask> fd2WriteTaskHigh = new ConcurrentHashMap<>();
-
-    /**
-     * whether event is a reading event or an accepting event
-     */
-    private boolean isReadEvent(int events) throws IllegalArgumentException {
-        int event = (events & (Net.POLLCONN | Net.POLLIN | Net.POLLOUT));
-        assert Integer.bitCount(event) == 1;
-        return (events & Net.POLLIN) != 0;
-    }
-
-    private WispTask[] getFd2TaskLow(int events) {
-        return isReadEvent(events) ? fd2ReadTaskLow : fd2WriteTaskLow;
-    }
-
-    private ConcurrentHashMap<Integer, WispTask> getFd2TaskHigh(int events) {
-        return isReadEvent(events) ? fd2ReadTaskHigh : fd2WriteTaskHigh;
-    }
-
-    private boolean sanityCheck(int fd, WispTask newTask, int events) {
-        WispTask oldTask = fd < LOW_FD_BOUND ? getFd2TaskLow(events)[fd] : getFd2TaskHigh(events).get(fd);
+    private boolean sanityCheck(int fd, WispTask oldTask, WispTask newTask) {
         // If timeout happened, when oldTask finished,
         // the oldTask.ch would be nullified(we didn't get chance to remove it)
         return (oldTask == null || oldTask == newTask || oldTask.ch == null
                 || ((SelChImpl) oldTask.ch).getFDVal() != fd);
     }
 
-    /**
-     * All events are guaranteed to be interested in only one direction since
-     * all registrations are from WispSocket
-     */
-    private void recordTaskByFD(int fd, WispTask task, int events) {
-        assert sanityCheck(fd, task, events);
+    private void recordTaskByFD(int fd, WispTask task) {
         if (fd < LOW_FD_BOUND) {
-            getFd2TaskLow(events)[fd] = task;
+            assert sanityCheck(fd, fd2TaskLow[fd], task);
+            fd2TaskLow[fd] = task;
         } else {
-            getFd2TaskHigh(events).put(fd, task);
+            assert sanityCheck(fd, fd2TaskHigh.get(fd), task);
+            fd2TaskHigh.put(fd, task);
         }
     }
 
-    private WispTask removeTaskByFD(int fd, int events) {
+    private WispTask removeTaskByFD(int fd) {
         WispTask task;
         if (fd < LOW_FD_BOUND) {
-            WispTask[] fd2TaskLow = getFd2TaskLow(events);
             task = fd2TaskLow[fd];
             fd2TaskLow[fd] = null;
         } else {
-            task = getFd2TaskHigh(events).remove(fd);
+            task = fd2TaskHigh.remove(fd);
         }
         return task;
-    }
-
-    private void wakeupTaskByFD(int fd, int events) {
-        if ((events & Net.POLLIN) != 0) {
-            wakeupTask(removeTaskByFD(fd, Net.POLLIN));
-        }
-        if ((events & Net.POLLCONN) != 0 || (events & Net.POLLOUT) != 0) {
-            wakeupTask(removeTaskByFD(fd, Net.POLLOUT));
-        }
-    }
-
-    private void wakeupTask(WispTask task) {
-        if (task == null) {
-            return;
-        }
-        task.countWaitSocketIOTime();
-        task.jdkUnpark();
     }
 
     void registerEvent(WispTask task, SelectableChannel ch, int event) throws IOException {
@@ -138,14 +92,14 @@ public enum WispPoller {
         // file descriptor after the receipt of an event with epoll_wait
         ev |= EpollAccess.EPOLLONESHOT;
 
-        recordTaskByFD(fd, task, ev);
+        recordTaskByFD(fd, task);
         task.setRegisterEventTime();
         // we can do it multi-thread, because epoll is protected by spin lock in kernel
         // When the EPOLLONESHOT flag is specified, it is the caller's responsibility to 
         // rearm the file descriptor using epoll_ctl with EPOLL_CTL_MOD
         int res = EA.epollCtl(epfd, EpollAccess.EPOLL_CTL_MOD, fd, ev); // rearm
         if (res != 0 && !(res == EpollAccess.ENOENT && (res = EA.epollCtl(epfd, EpollAccess.EPOLL_CTL_ADD, fd, ev)) == 0)) {
-            removeTaskByFD(fd, ev);
+            removeTaskByFD(fd);
             task.resetRegisterEventTime();
             throw new IOException("epoll_ctl " + res);
         }
@@ -159,13 +113,15 @@ public enum WispPoller {
                 while (n-- > 0) {
                     long eventAddress = EA.getEvent(epollArray, n);
                     int fd = EA.getDescriptor(eventAddress);
-                    int event = EA.getEvents(eventAddress);
-                    wakeupTaskByFD(fd, event);
+                    WispTask task = removeTaskByFD(fd);
+                    if (task != null) {
+                        task.countWaitSocketIOTime();
+                        task.jdkUnpark();
+                    }
                 }
             } catch (Throwable t) {
                 t.printStackTrace();
             }
         }
     }
-
 }

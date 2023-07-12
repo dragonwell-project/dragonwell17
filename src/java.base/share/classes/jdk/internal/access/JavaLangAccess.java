@@ -430,7 +430,7 @@ public interface JavaLangAccess {
 
     void setWispAlive(Thread thread, boolean b);
 
-    boolean isInSameNative(Thread thread);
+    boolean isInNative(Thread thread);
 
     void threadExit(Thread thread);
 

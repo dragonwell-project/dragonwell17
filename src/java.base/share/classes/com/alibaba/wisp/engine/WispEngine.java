@@ -45,10 +45,6 @@ public abstract class WispEngine extends AbstractExecutorService {
         return shiftThreadModel;
     }
 
-    public static boolean enableSocketLock() {
-        return WispConfiguration.WISP_ENABLE_SOCKET_LOCK;
-    }
-
     @Deprecated
     public static boolean isTransparentAsync() {
         return transparentWispSwitch();
@@ -131,7 +127,7 @@ public abstract class WispEngine extends AbstractExecutorService {
             @Override
             public void dispatch(Runnable runnable, String name) {
                 WispEngine engine = current();
-                engine.dispatchTask(runnable, name, null);
+                engine.dispatchTask(runnable, name);
             }
 
             @Override
@@ -481,7 +477,23 @@ public abstract class WispEngine extends AbstractExecutorService {
      */
     public static void dispatch(Runnable target) {
         WispEngine engine = current();
-        engine.dispatchTask(target, "dispatch task", null);
+        engine.dispatchTask(target, "dispatch task");
+    }
+
+    /**
+     * Submit a WispTask in this engine from outside thread(engine).
+     * <p>
+     * In this way, we created 2 WispTasks inefficiently.
+     * Use this method only if you need the reference of created task,
+     * else {@link #execute(Runnable)}'s semantic is enough.
+     *
+     * @param target the code
+     * @param name   coroutine's name
+     * @param thread the value returned by {@link Thread#currentThread()}
+     *               could be null
+     */
+    Future<WispTask> summitTask(Runnable target, String name, Thread thread) {
+        return submit(() -> WispEngine.current().runTaskInternal(target, name, thread, current.ctxClassLoader));
     }
 
     final WispTask runTaskInternal(Runnable target, String name, Thread thread, ClassLoader ctxLoader) {
@@ -632,7 +644,6 @@ public abstract class WispEngine extends AbstractExecutorService {
         runningTasks.remove(current);
 
         current.countExecutionTime(switchTimestamp);
-        current.resetThreadWrapper();
         switchTimestamp = 0;
 
         unregisterEvent();
@@ -716,6 +727,8 @@ public abstract class WispEngine extends AbstractExecutorService {
      * Called by {@link Thread#yield()}
      */
     protected abstract void yield();
+
+
     // -----------------------------------------------  event related
 
     /**
@@ -740,12 +753,19 @@ public abstract class WispEngine extends AbstractExecutorService {
     // -----------------------------------------------  task related
 
     /**
+     * Inheritance from {@link AbstractExecutorService}
+     *
+     * @param target the runnable task
+     */
+    public abstract void execute(Runnable target);
+
+    /**
      * Create a wisp task and run.
      *
      * @param target the task to execute
      * @param name   task name
      */
-    protected abstract void dispatchTask(Runnable target, String name, Thread thread);
+    protected abstract void dispatchTask(Runnable target, String name);
 
     /**
      * Wake up a {@link WispTask} that belongs to Wisp Implement,

@@ -3102,25 +3102,14 @@ JVM_ENTRY(void, JVM_Interrupt(JNIEnv* env, jobject jthread))
   }
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsInSameNative(JNIEnv* env, jobject jthread))
-  assert(EnableCoroutine, "coroutine not enabled");
+JVM_ENTRY(jboolean, JVM_IsInNative(JNIEnv* env, jobject jthread))
+  assert(EnableCoroutine, "Coroutine is disabled");
   oop java_thread = JNIHandles::resolve_non_null(jthread);
   MutexLocker ml(thread->threadObj() == java_thread ? NULL : Threads_lock);
   // We need to re-resolve the java_thread, since a GC might have happened during the
   // acquire of the lock
   JavaThread* thr = java_lang_Thread::thread(JNIHandles::resolve_non_null(jthread));
-  // the thread is in native status and the native call counter isn't changed during two calls
-  // then return true
-  if (thr != NULL && thr->thread_state() == _thread_in_native) {
-    Coroutine* coro = thr->coroutine_list();
-    assert(coro != NULL, "coroutine list");
-    if (coro->last_native_call_counter() == coro->native_call_counter()) {
-      return JNI_TRUE;
-    } else {
-      coro->set_last_native_call_counter(coro->native_call_counter());
-    }
-  }
-  return JNI_FALSE;
+  return thr != NULL && thr->thread_state() == _thread_in_native;
 JVM_END
 
 JVM_ENTRY(jboolean, JVM_CheckAndClearNativeInterruptForWisp(JNIEnv* env, jobject task, jobject jthread))
@@ -3883,24 +3872,14 @@ JVM_ENTRY(jint, JVM_GetProxyUnpark(JNIEnv* env, jclass klass, jintArray res))
   return WispThread::get_proxy_unpark(res);
 JVM_END
 
-JVM_ENTRY(void, JVM_MarkPreempted(JNIEnv* env, jclass klass, jobject threadObj, jboolean force))
+JVM_ENTRY(void, JVM_MarkPreempt(JNIEnv* env, jclass klass, jobject threadObj))
   assert(EnableCoroutine, "Coroutine is disabled");
-  JavaThread* thr = NULL;
-  {
-    //Use lock to prevent deleting thr when we do the update on it.
-    MutexLocker mu(Threads_lock);
-    thr = java_lang_Thread::thread(JNIHandles::resolve_non_null(threadObj));
+  //Use lock to prevent deleting thr when we do the update on it.
+  MutexLocker mu(Threads_lock);
+  JavaThread* thr = java_lang_Thread::thread(JNIHandles::resolve_non_null(threadObj));
 
-    if (thr == NULL || thr->is_terminated() ||
-          thr->wisp_preempted()) { // already mark preempted, do not fire safepoint again
-      return;
-    }
-    thr->set_wisp_preempted(true);
-  }
-  // fire an empty safepoint to let the thread go check flag
-  if (force) {
-    VM_ForceSafepoint force_safepoint_op;
-    VMThread::execute(&force_safepoint_op);
+  if (thr != NULL && !thr->is_terminated()) {
+    thr->set_wisp_preempt(true);
   }
 JVM_END
 

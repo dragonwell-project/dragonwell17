@@ -5,7 +5,7 @@
 #define ARRAY_LENGTH(a) (sizeof(a)/sizeof(a[0]))
 
 static JNINativeMethod methods[] = {
-  {"markPreempted","(Ljava/lang/Thread;Z)V", (void *)&JVM_MarkPreempted},
+  {"markPreempt","(Ljava/lang/Thread;)V", (void *)&JVM_MarkPreempt},
 };
 
 JNIEXPORT void JNICALL

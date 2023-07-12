@@ -805,6 +805,7 @@ class GraphKit : public Phase {
                           Node* parm4 = NULL, Node* parm5 = NULL,
                           Node* parm6 = NULL, Node* parm7 = NULL);
 
+  void make_wisp_yield(ciMethod* method);
   Node* sign_extend_byte(Node* in);
   Node* sign_extend_short(Node* in);
 
