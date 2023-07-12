@@ -291,6 +291,11 @@ Handle Exceptions::new_exception(JavaThread* thread, Symbol* name,
                                 signature,
                                 args,
                                 thread);
+
+    {
+      guarantee(!EnableCoroutine || thread == Thread::current(), "fatal: stealed");
+    }
+
   }
 
   // Check if another exception was thrown in the process, if so rethrow that one
@@ -325,7 +330,7 @@ Handle Exceptions::new_exception(JavaThread* thread, Symbol* name,
                                       thread);
 
     {
-      guarantee(!EnableSteal || thread == Thread::current(), "fatal: stealed");
+      guarantee(!EnableCoroutine || thread == Thread::current(), "fatal: stealed");
     }
 
   }

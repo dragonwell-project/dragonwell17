@@ -3,7 +3,7 @@
  * @library /test/lib
  * @summary verification of work stealing really happened
  * @modules java.base/jdk.internal.access
- * @run main/othervm -XX:+UseWisp2 Wisp2WorkStealTest
+ * @run main/othervm -XX:+UseWisp2 -Dcom.alibaba.wisp.schedule.stealRetry=100 Wisp2WorkStealTest
  */
 
 import com.alibaba.wisp.engine.WispEngine;

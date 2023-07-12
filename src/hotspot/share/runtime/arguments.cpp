@@ -3987,9 +3987,6 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
       UseBiasedLocking = false;
     }
   }
-  if (!EnableCoroutine) {
-    EnableSteal = false;
-  }
 
   // Set object alignment values.
   set_object_alignment();

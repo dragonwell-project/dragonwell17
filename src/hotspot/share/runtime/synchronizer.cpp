@@ -683,7 +683,7 @@ ObjectLocker::ObjectLocker(Handle obj, JavaThread* thread) {
 
   if (_obj() != NULL) {
     ObjectSynchronizer::enter(_obj, &_lock, _thread);
-    assert(!EnableSteal || thread == Thread::current(), "must not be stealed");
+    assert(!EnableCoroutine || thread == Thread::current(), "must not be stealed");
   }
 }
 
