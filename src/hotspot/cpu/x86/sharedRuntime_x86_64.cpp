@@ -4040,7 +4040,7 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
   Register target_coroutine = rdx;
   // check that we're dealing with sane objects...
   DEBUG_ONLY(stop_if_null(masm, target_coroutine, "null new_coroutine"));
-  __ movptr(target_coroutine, Address(target_coroutine, java_dyn_CoroutineBase::get_data_offset()));
+  __ movptr(target_coroutine, Address(target_coroutine, java_dyn_CoroutineBase::get_native_coroutine_offset()));
   DEBUG_ONLY(stop_if_null(masm, target_coroutine, "new_coroutine without data"));
 
 /*
@@ -4062,7 +4062,7 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
 
     // check that we're dealing with sane objects...
     DEBUG_ONLY(stop_if_null(masm, old_coroutine_obj, "null old_coroutine"));
-    __ movptr(old_coroutine, Address(old_coroutine_obj, java_dyn_CoroutineBase::get_data_offset()));
+    __ movptr(old_coroutine, Address(old_coroutine_obj, java_dyn_CoroutineBase::get_native_coroutine_offset()));
     DEBUG_ONLY(stop_if_null(masm, old_coroutine, "old_coroutine without data"));
 
 #if defined(_WINDOWS)

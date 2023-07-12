@@ -52,7 +52,7 @@ public abstract class CoroutineBase {
      * Creates the initial coroutine for a new thread
      *
      * @param threadSupport CoroutineSupport
-     * @param data          value
+     * @param nativeCoroutine pointer of native Coroutine
      */
     CoroutineBase(CoroutineSupport threadSupport, long nativeCoroutine) {
         this.threadSupport = threadSupport;

@@ -116,7 +116,7 @@ public class ConcurrentStealTest {
             for (int i = 0; i < CORO_PER_TH; i++) {
                 CoroutineAdaptor coroutineAdaptor =  new CoroutineAdaptor(() ->{
                     while (true) {
-                        yield();
+                        this.yield();
                     }
                 });
                 Coroutine.yieldTo(coroutineAdaptor);
@@ -140,7 +140,7 @@ public class ConcurrentStealTest {
             while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(TIMEOUT)) {
                 for (int i = 0; i < 2; i ++) {
                     if(i != 1) {
-                        yield();
+                        this.yield();
                         cnt[cth].yieldCnt++;
                     } else {
                         CoroutineAdaptor target = workers[nxt].stealables.pollFirst();

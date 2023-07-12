@@ -833,7 +833,7 @@ public abstract class WispEngine extends AbstractExecutorService {
 
     /**
      * Send exception to coroutines one by one.
-     * This function should noly be called in WispEngine.doShutdown.
+     * This function should only be called in WispEngine.doShutdown.
      */
     protected abstract void iterateTasksForShutdown();
 
