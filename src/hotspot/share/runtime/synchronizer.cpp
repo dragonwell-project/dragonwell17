@@ -268,10 +268,10 @@ static uintx _no_progress_cnt = 0;
 // into a single notifyAndExit() runtime primitive.
 
 bool ObjectSynchronizer::quick_notify(oopDesc* obj, JavaThread* current, bool all) {
+  assert(current->thread_state() == _thread_in_Java, "invariant");
   if (UseWispMonitor) {
     current = WispThread::current(current);
   }
-  assert(current->thread_state() == _thread_in_Java, "invariant");
   NoSafepointVerifier nsv;
   if (obj == NULL) return false;  // slow-path for invalid obj
   const markWord mark = obj->mark();
@@ -319,10 +319,10 @@ bool ObjectSynchronizer::quick_notify(oopDesc* obj, JavaThread* current, bool al
 
 bool ObjectSynchronizer::quick_enter(oop obj, JavaThread* current,
                                      BasicLock * lock) {
+  assert(UseWispMonitor || current->thread_state() == _thread_in_Java, "invariant");
   if (UseWispMonitor) {
     current = WispThread::current(current);
   }
-  assert(UseWispMonitor || current->thread_state() == _thread_in_Java, "invariant");
   NoSafepointVerifier nsv;
   if (obj == NULL) return false;       // Need to throw NPE
 
