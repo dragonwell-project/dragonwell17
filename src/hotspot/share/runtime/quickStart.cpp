@@ -441,6 +441,14 @@ void QuickStart::calculate_cache_path() {
     return;
   }
   const char* home = ::getenv("HOME");
+  char buf_pwd[O_BUFLEN];
+  if (home == NULL) {
+    home = os::get_current_directory(buf_pwd, sizeof(buf_pwd));
+    if (home == NULL) {
+      log_error(quickstart)("neither HOME env nor current_dir is available");
+      vm_exit(1);
+    }
+  }
   char buf[PATH_MAX];
   jio_snprintf(buf, PATH_MAX, "%s%s%s", home, os::file_separator(), DEFAULT_SHARED_DIRECTORY);
   _cache_path = os::strdup_check_oom(buf);
