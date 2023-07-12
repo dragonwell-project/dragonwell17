@@ -1222,6 +1222,12 @@ bool SystemDictionary::should_not_dump_class(InstanceKlass* k) {
     // ignore the class which is dynamically generated.
     return true;
   }
+
+  //ignore class contain code signer.
+  if (java_lang_Class::signers(k->java_mirror()) != NULL) {
+    return true;
+  }
+
   return false;
 }
 

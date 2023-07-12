@@ -44,13 +44,13 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.jar.Attributes;
 import java.util.jar.Attributes.Name;
-import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
@@ -91,7 +91,7 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
     @SuppressWarnings("removal")
     private final AccessControlContext acc;
 
-    private Map<String, SoftReference<JarFile>> jarInfo;
+    private Map<String, SoftReference<Optional<Manifest>>> manifestCache;
 
     /**
      * Constructs a new URLClassLoader for the given URLs. The URLs will be
@@ -468,19 +468,33 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
     }
 
 
-    private JarFile getJarFile(String sourcePath) throws IOException {
-        JarFile jar = null;
+    private Manifest getManifest(String path, String sourcePath) throws IOException {
+        Optional<Manifest> mf;
         synchronized (this) {
-            if (jarInfo == null) {
-                jarInfo = new HashMap<>();
+            if (manifestCache == null) {
+                manifestCache = new HashMap<>();
             }
-            SoftReference<JarFile> jarFileRef = jarInfo.get(sourcePath);
-            if (jarFileRef == null || (jar = jarFileRef.get()) == null) {
-                jar = new JarFile(sourcePath);
-                jarInfo.put(sourcePath, new SoftReference<>(jar));
+            SoftReference<Optional<Manifest>> ref = manifestCache.get(sourcePath);
+            if (ref == null || (mf = ref.get()) == null) {
+                Resource res = ucp.getResource(path, false);
+                Manifest mf0 = null;
+                if (res != null) {
+                    mf0 = res.getManifest();
+                    //if the path locate at a fat jar,get manifest will return null.
+                    if (mf0 == null) {
+                        URLConnection connection = res.getURL().openConnection();
+                        if (connection instanceof JarURLConnection) {
+                            JarFile jarFile = ((JarURLConnection) connection).getJarFile();
+                            mf0 = jarFile.getManifest();
+                        }
+                    }
+                }
+                //If the jar have no manifest, avoid cache miss by adding an optional value instead of a null object.
+                mf = Optional.ofNullable(mf0);
+                manifestCache.put(sourcePath, new SoftReference<>(mf));
             }
         }
-        return jar;
+        return mf.get();
     }
 
     /*
@@ -552,8 +566,7 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
         long t0 = System.nanoTime();
         int i = name.lastIndexOf('.');
         URL url;
-        boolean isJar   = false;
-        JarFile jar     = null;
+        boolean isJar;
         if (eagerAppCDSFastPath) {
             url = new URL("file:" + sourcepath);
         } else {
@@ -567,8 +580,7 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
                 isJar = sourcepath.endsWith(".jar");
                 assert isJar || sourcepath.endsWith("/");
                 if (isJar) {
-                    jar = getJarFile(sourcepath);
-                    man = jar.getManifest();
+                    man = getManifest(path, sourcepath);
                 }
             } else {
                 man = res.getManifest();
@@ -593,14 +605,8 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
         }
 
         if (eagerAppCDSFastPath) {
+            //class with code signer not dump to archive file
             CodeSigner[] signers = null;
-            if (i != -1 && isJar) {
-                JarEntry entry = jar.getJarEntry(path);
-                if (entry == null) {
-                    throw new IOException("[CDS Exception] Not Found: " + path + " in " + sourcepath);
-                }
-                signers = entry.getCodeSigners();
-            }
             CodeSource cs = new CodeSource(url, signers);
             PerfCounter.getReadClassBytesTime().addElapsedTimeFrom(t0);
             return defineClassFromCDS(name, ik, cs);
