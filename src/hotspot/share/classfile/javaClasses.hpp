@@ -1827,6 +1827,7 @@ private:
   static int _activeCount_offset;
   static int _stealCount_offset;
   static int _stealFailureCount_offset;
+  static int _preemptCount_offset;
 public:
   static void set_jvmParkStatus(oop obj, jint status);
   static int  get_id(oop obj);
@@ -1836,6 +1837,8 @@ public:
   static int  get_activeCount(oop obj);
   static int  get_stealCount(oop obj);
   static int  get_stealFailureCount(oop obj);
+  static int  get_preemptCount(oop obj);
+  static void set_preemptCount(oop obj, jint count);
 
   static void compute_offsets();
 };

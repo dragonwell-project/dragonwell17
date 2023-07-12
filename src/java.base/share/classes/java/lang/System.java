@@ -2490,8 +2490,8 @@ public final class System {
             }
 
             @Override
-            public boolean isInNative(Thread thread) {
-                return thread.isInNative();
+            public boolean isInSameNative(Thread thread) {
+                return thread.isInSameNative();
             }
 
             @Override

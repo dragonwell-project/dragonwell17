@@ -1112,6 +1112,12 @@ void frame::verify(const RegisterMap* map) const {
   }
 }
 
+void frame::compiledMethods_do(CodeBlobClosure* cf) const {
+  if (_cb != NULL && _cb->is_compiled()) {
+    cf->do_code_blob(_cb);
+  }
+}
+
 
 #ifdef ASSERT
 bool frame::verify_return_pc(address x) {
