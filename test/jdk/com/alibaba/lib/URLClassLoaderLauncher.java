@@ -12,6 +12,7 @@ public class URLClassLoaderLauncher {
             urls[i - 1] = new File(args[i]).toURI().toURL();
         }
         URLClassLoader urlClassLoader = new URLClassLoader("URLClassLoaderLauncher", urls, URLClassLoaderLauncher.class.getClassLoader());
+        com.alibaba.util.Utils.registerClassLoader(urlClassLoader, "URLClassLoaderLauncher");
         urlClassLoader.loadClass(mainClass).getDeclaredMethod("main", String[].class).invoke(null, new Object[]{args});
     }
 }

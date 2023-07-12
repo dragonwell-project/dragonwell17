@@ -464,6 +464,9 @@ class Arguments : AllStatic {
   static char*  SharedArchivePath;
   static char*  SharedDynamicArchivePath;
   static size_t _default_SharedBaseAddress; // The default value specified in globals.hpp
+
+  static char*  _invalid_class_path;
+
   static int num_archives(const char* archive_path) NOT_CDS_RETURN_(0);
   static void extract_shared_archive_paths(const char* archive_path,
                                          char** base_archive_path,
@@ -551,6 +554,10 @@ class Arguments : AllStatic {
   static const char* GetSharedArchivePath() { return SharedArchivePath; }
   static const char* GetSharedDynamicArchivePath() { return SharedDynamicArchivePath; }
   static size_t default_SharedBaseAddress() { return _default_SharedBaseAddress; }
+
+  static const char* invalid_class_path()   { return _invalid_class_path;  }
+  static void set_invalid_class_path(char* path) { _invalid_class_path = path; }
+
   // Java launcher properties
   static void process_sun_java_launcher_properties(JavaVMInitArgs* args);
 

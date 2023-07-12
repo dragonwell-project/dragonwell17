@@ -95,6 +95,8 @@ bool   Arguments::_enable_preview               = false;
 char*  Arguments::SharedArchivePath             = NULL;
 char*  Arguments::SharedDynamicArchivePath      = NULL;
 
+char*  Arguments::_invalid_class_path           = NULL;
+
 AgentLibraryList Arguments::_libraryList;
 AgentLibraryList Arguments::_agentList;
 

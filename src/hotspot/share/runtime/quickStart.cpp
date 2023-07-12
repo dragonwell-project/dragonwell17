@@ -77,6 +77,7 @@ int QuickStart::_lock_file_fd = 0;
 // After the startup is complete, rename metadata.tmp to metadata.
 #define TEMP_METADATA_FILE            "metadata.tmp"
 #define LOCK_FILE                     "LOCK"
+#define CDS_DIFF_CLASSES              "cds_diff_classes.lst"
 
 bool QuickStart::parse_command_line_arguments(const char* options) {
   _is_enabled = true;
@@ -132,6 +133,12 @@ bool QuickStart::parse_command_line_arguments(const char* options) {
     }
   }
 
+  
+  
+  if (EagerAppCDSStaticClassDiffCheck && !_opt_enabled[_eagerappcds]) {
+    success = false;
+    log_error(quickstart)("Delta mode only enable for eagerappcds");
+  }
   os::free(copy);
   return success;
 }
@@ -239,6 +246,18 @@ bool QuickStart::check_integrity(JavaVMInitArgs* options_args) {
   bool result = load_and_validate(options_args);
 
   ::fclose(_metadata_file);
+  if (result && _opt_enabled[_eagerappcds] && EagerAppCDSStaticClassDiffCheck) {
+    char buf[PATH_MAX];
+    struct stat st;
+    jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), CDS_DIFF_CLASSES);
+    int ret = os::stat(buf,&st);
+    if (ret != 0) {
+      result = false;
+      log_error(quickstart)("Turn on EagerAppCDSStaticClassDiffCheck,but not found class diff file: %s",buf);
+    } else {
+      Arguments::set_invalid_class_path(os::strdup_check_oom(buf, mtArguments));
+    }
+  }
   return result;
 }
 

@@ -29,7 +29,8 @@ public class JarLauncher {
         List<URL> urlList = new ArrayList<>();
         String startClassName = JarUtil.readFarJar(new FatJar(root), urlList);
 
-        URLClassLoader classLoader = new URLClassLoader(urlList.toArray(new URL[urlList.size()]), JarLauncher.class.getClassLoader());
+        URLClassLoader classLoader = new URLClassLoader(urlList.toArray(new URL[urlList.size()]), null);
+        com.alibaba.util.Utils.registerClassLoader(classLoader, "JarLauncher");
         Class startClass = classLoader.loadClass(startClassName);
         Method main = startClass.getDeclaredMethod("main", new Class[]{String[].class});
         main.setAccessible(true);

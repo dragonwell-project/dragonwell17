@@ -2098,6 +2098,9 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, DumpAppCDSWithKlassId, false,                               \
           "default appcds won't dump klasses with klass id - dump it for using Classes4CDS") \
                                                                             \
+  product(bool, EagerAppCDSStaticClassDiffCheck, false,                     \
+          "Enable checking diff classes for eagerappcds."                   \
+          "Diff take place before running quickstart as replay role.")      \
 // end of RUNTIME_FLAGS
 
 DECLARE_FLAGS(LP64_RUNTIME_FLAGS)

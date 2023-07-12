@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "cds/heapShared.hpp"
+#include "cds/classListParser.hpp"
 #include "cds/classListWriter.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
@@ -110,6 +111,9 @@ static PlaceholderTable*   placeholders() { return _placeholders; }
 const int _loader_constraint_size = 107;                     // number of entries in constraint table
 static LoaderConstraintTable*  _loader_constraints;
 static LoaderConstraintTable* constraints() { return _loader_constraints; }
+
+InvalidSharedClassTable* SystemDictionary::_invalid_shared_class_table = NULL;
+InvalidSharedClassTable* SystemDictionary::_invalid_class_not_found_table = NULL;
 
 // ----------------------------------------------------------------------------
 // Java-level SystemLoader and PlatformLoader
@@ -1270,6 +1274,12 @@ bool SystemDictionary::invalid_class_name_for_EagerAppCDS(const char* name) {
   return strstr(name, DOUBLE_DOLLAR_STR) != NULL;
 }
 
+bool SystemDictionary::invalid_class_name(const char* name) {
+  // ignore the class name with LF or spaces.
+  // CDS list parser could not tolerate LF: it would see it as an EOF.
+  return strstr(name, "\n") != NULL || strstr(name, " ") != NULL;
+}
+
 InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Handle class_loader, TRAPS) {
 
   if (class_loader.is_null()) {
@@ -1370,16 +1380,20 @@ InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Ha
 #if INCLUDE_CDS
     // when coming here, class_loader() can not be null.
     if (EagerAppCDS && UseSharedSpaces && java_lang_ClassLoader::signature(class_loader()) != 0) {
-      char* name = class_name->as_C_string();
-      // Only boot and platform class loaders can define classes in "java/" packages
-      // in EagerAppCDS, ignore the classes in "java/" packages
-      if (!(strncmp(name, JAVAPKG, JAVAPKG_LEN) == 0 && name[JAVAPKG_LEN] == '/') && !invalid_class_name_for_EagerAppCDS(name)) {
-        bool not_found = false;
-        InstanceKlass *k = SystemDictionaryShared::lookup_shared(class_name, class_loader, not_found, true, CHECK_NULL);
-        if (k) {
-          return k;
-        } else if (not_found) {
-          return NULL;
+      if (EagerAppCDSStaticClassDiffCheck && SystemDictionary::in_invalid_shared_class_table(class_name)) {
+        log_trace(class, eagerappcds)("[CDS load class] %s found in invalid classes list(load_instance_class)", class_name->as_C_string());
+      } else {
+        char* name = class_name->as_C_string();
+        // Only boot and platform class loaders can define classes in "java/" packages
+        // in EagerAppCDS, ignore the classes in "java/" packages
+        if (!(strncmp(name, JAVAPKG, JAVAPKG_LEN) == 0 && name[JAVAPKG_LEN] == '/') && !invalid_class_name_for_EagerAppCDS(name)) {
+          bool not_found = false;
+          InstanceKlass *k = SystemDictionaryShared::lookup_shared(class_name, class_loader, not_found, true, CHECK_NULL);
+          if (k) {
+            return k;
+          } else if (not_found) {
+            return NULL;
+          }
         }
       }
     }
@@ -2572,4 +2586,12 @@ void SystemDictionaryDCmd::execute(DCmdSource source, TRAPS) {
   VM_DumpHashtable dumper(output(), VM_DumpHashtable::DumpSysDict,
                          _verbose.value());
   VMThread::execute(&dumper);
+}
+
+bool SystemDictionary::in_invalid_shared_class_table(const Symbol *sym) {
+  return _invalid_shared_class_table != NULL && _invalid_shared_class_table->contains(sym);
+}
+
+bool SystemDictionary::in_invalid_class_not_found_table(const Symbol *sym) {
+  return _invalid_class_not_found_table != NULL && _invalid_class_not_found_table->contains(sym);
 }

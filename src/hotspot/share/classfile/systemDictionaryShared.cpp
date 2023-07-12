@@ -1002,6 +1002,11 @@ InstanceKlass* SystemDictionaryShared::find_or_load_shared_class(
       return NULL;
     }
 
+    if (EagerAppCDSStaticClassDiffCheck && SystemDictionary::in_invalid_shared_class_table(name)) {
+      log_trace(class, eagerappcds)("[CDS load class] %s found in invalid classes list(find_or_load_shared_class)", name->as_C_string());
+      return NULL;
+    }
+
     if (SystemDictionary::is_system_class_loader(class_loader()) ||
         SystemDictionary::is_platform_class_loader(class_loader())) {
       // Fix for 4474172; see evaluation for more details
@@ -1127,6 +1132,10 @@ InstanceKlass* SystemDictionaryShared::lookup_from_stream(Symbol* class_name,
   if (class_name == NULL) {  // don't do this for hidden classes
     return NULL;
   }
+  if (EagerAppCDSStaticClassDiffCheck && SystemDictionary::in_invalid_shared_class_table(class_name)) {
+    log_trace(class, eagerappcds)("[CDS load class] %s found in invalid classes list(lookup_from_stream)", class_name->as_C_string());
+    return NULL;
+  }
   if (class_loader.is_null() ||
       SystemDictionary::is_system_class_loader(class_loader()) ||
       SystemDictionary::is_platform_class_loader(class_loader())) {
@@ -1153,6 +1162,9 @@ InstanceKlass* SystemDictionaryShared::lookup_from_stream(Symbol* class_name,
 }
 
 bool SystemDictionaryShared::check_class_not_found(const Symbol *class_name, int hash_value, TRAPS) {
+  if (EagerAppCDSStaticClassDiffCheck && in_invalid_class_not_found_table(class_name)) {
+    return false;
+  }
   Klass *klass = SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_cds_NotFoundClassSet(), true, CHECK_false);
 
   JavaValue result(T_BOOLEAN);
@@ -1473,7 +1485,9 @@ void SystemDictionaryShared::log_not_found_klass(Symbol* class_name, Handle clas
   if (invalid_class_name_for_EagerAppCDS(name)) {
     return;
   }
-
+  if (invalid_class_name(name)) {
+    return;
+  }
   MutexLocker mu(THREAD, DumpLoadedClassList_lock);
   ClassListWriter w;
   w.stream()->print("%s source: %s", name, NOT_FOUND_CLASS);

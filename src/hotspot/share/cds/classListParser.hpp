@@ -197,4 +197,62 @@ public:
 
   static void populate_cds_indy_info(const constantPoolHandle &pool, int cp_index, CDSIndyInfo* cii, TRAPS);
 };
+
+class InvalidSharedClassTable : public Hashtable<Symbol*, mtSymbol> {
+  typedef HashtableEntry<Symbol*, mtSymbol> Entry;
+private:
+  static unsigned int compute_hash(const Symbol* name) { return ((name == NULL) ? 0 : (unsigned int)(name->identity_hash())); }
+
+  int index_for(const Symbol* name) { return hash_to_index(compute_hash(name)); }
+
+  Entry* new_entry(unsigned int hash, Symbol* symbol);
+
+public:
+  InvalidSharedClassTable(int size) : Hashtable<Symbol*, mtSymbol>(size, sizeof(Entry)) { }
+
+  inline Entry* bucket(int index){
+    return (Entry*)Hashtable<Symbol*, mtSymbol>::bucket(index);
+  }
+
+  void free_entry(Entry* entry) {
+    // no need to free
+    ShouldNotReachHere();
+  }
+
+  Entry* add_entry(Symbol* sym);
+  Entry* find_entry(const Symbol* sym);
+  bool  contains(const Symbol* sym) {
+    return find_entry(sym) != NULL;
+  }
+};
+
+class InvalidSharedClassListFileParser : public StackObj {
+  friend class InvalidSharedClass;
+  enum {
+    version_index = 1,
+    invalid_class_size_index = 3,
+    reading_invalid_class = 4,
+    reading_class_not_found = 5,
+    buffer_size = 1024
+  };
+  int _size;
+  int _not_found_size;
+  char _line[buffer_size];
+  const char*  _class_name;
+  FILE* _file;
+  int _line_len;
+  int _type;
+
+  void read_header_line(bool skip_only);
+public:
+  InvalidSharedClassListFileParser(const char* file);
+  ~InvalidSharedClassListFileParser();
+  bool parse_one_line();
+  bool parse_header();
+};
+
+class InvalidSharedClass {
+public:
+  static void init(const char* file);
+};
 #endif // SHARE_CDS_CLASSLISTPARSER_HPP

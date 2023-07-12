@@ -52,6 +52,7 @@
 #include "utilities/macros.hpp"
 
 #define SUPPORT_JAR_FORMAT ".jar"
+#define SUPPORT_INVALID_CLASS_VERSION "1.0.0"
 
 volatile Thread* ClassListParser::_parsing_thread = NULL;
 ClassListParser* ClassListParser::_instance = NULL;
@@ -767,4 +768,159 @@ InstanceKlass* ClassListParser::lookup_interface_for_current_class(Symbol* inter
         interface_name->as_klass_external_name(), _class_name);
   ShouldNotReachHere();
   return NULL;
+}
+
+InvalidSharedClassTable::Entry* InvalidSharedClassTable::new_entry(unsigned int hash, Symbol* symbol) {
+  InvalidSharedClassTable::Entry* entry = (InvalidSharedClassTable::Entry*) Hashtable<Symbol*, mtSymbol>::new_entry(hash, symbol);
+  // Hashtable with Symbol* literal must increment and decrement refcount.
+  symbol->increment_refcount();
+  return entry;
+}
+
+InvalidSharedClassTable::Entry* InvalidSharedClassTable::add_entry(Symbol* sym) {
+  unsigned int hash = compute_hash(sym);
+  int index = index_for(sym);
+  InvalidSharedClassTable::Entry* p = new_entry(hash, sym);
+  Hashtable<Symbol*, mtSymbol>::add_entry(index, p);
+  return p;
+}
+
+InvalidSharedClassTable::Entry* InvalidSharedClassTable::find_entry(const Symbol* sym) {
+  unsigned int hash = compute_hash(sym);
+  int index = index_for(sym);
+  for (Entry* p = bucket(index); p != NULL; p = p->next()) {
+    if (p->hash() == hash && p->literal() == sym) {
+      return p;
+    }
+  }
+  return NULL;
+}
+
+InvalidSharedClassListFileParser::InvalidSharedClassListFileParser(const char *file) {
+  _file = NULL;
+  // Use os::open() because neither fopen() nor os::fopen()
+  // can handle long path name on Windows.
+  int fd = os::open(file, O_RDONLY, S_IREAD);
+  if (fd != -1) {
+    // Obtain a File* from the file descriptor so that fgets()
+    // can be used in parse_one_line()
+    _file = os::open(fd, "r");
+  }
+
+  if (_file == NULL) {
+    char errmsg[JVM_MAXPATHLEN];
+    os::lasterror(errmsg, JVM_MAXPATHLEN);
+    vm_exit_during_initialization("Loading invalid class list failed", errmsg);
+  }
+}
+
+InvalidSharedClassListFileParser::~InvalidSharedClassListFileParser() {
+  if (_file) {
+    fclose(_file);
+  }
+}
+
+bool InvalidSharedClassListFileParser::parse_header() {
+  //skip the first line
+  read_header_line(true);
+  //read version
+  read_header_line(false);
+  if (strncmp(_line,SUPPORT_INVALID_CLASS_VERSION,_line_len) != 0) {
+    vm_exit_during_initialization("Invalid class list expect version!Support version is ", SUPPORT_INVALID_CLASS_VERSION);
+  }
+  //skip total class number
+  read_header_line(true);
+
+  //read difference class number
+  read_header_line(false);
+  int value;
+  if (sscanf(_line, "%i", &value) == 1) {
+    if (value < 0) {
+      vm_exit_during_initialization("Error: negative integers not allowed for difference classes");
+    }
+  } else {
+    vm_exit_during_initialization("Error: difference classes should be an integer");
+  }
+  _size  = value;
+
+  //read invalid not found class number
+  read_header_line(false);
+  if (sscanf(_line, "%i", &value) == 1) {
+    if (value < 0) {
+      vm_exit_during_initialization("Error: negative integers not allowed for not found classes");
+    }
+  } else {
+    vm_exit_during_initialization("Error: not classes should be an integer");
+  }
+  _not_found_size = value;
+  return true;
+}
+
+void InvalidSharedClassListFileParser::read_header_line(bool skip_only) {
+  if (fgets(_line, sizeof(_line), _file) == NULL) {
+    vm_exit_during_initialization("Invalid class list file header!");
+  }
+  if (skip_only) {
+    return;
+  }
+
+  int len = (int)strlen(_line);
+  _line[len-1] = '\0';
+  _line_len = len-1;
+}
+
+bool InvalidSharedClassListFileParser::parse_one_line() {
+  for (;;) {
+    if (fgets(_line, sizeof(_line), _file) == NULL) {
+      return false;
+    }
+    if (*_line == '#') { // comment
+      if (strncmp("#NOT_REAL_NOT_FOUND", _line, 19) == 0) {
+        _type = reading_class_not_found;
+      } else {
+        _type = reading_invalid_class;
+      }
+      continue;
+    }
+    break;
+  }
+  int len = (int)strlen(_line);
+  _line[len-1] = '\0';
+  _line_len = len-1;
+  _class_name = _line;
+  return true;
+}
+
+void InvalidSharedClass::init(const char* file) {
+  InvalidSharedClassListFileParser parser(file);
+  parser.parse_header();
+  if (parser._size == 0  && parser._not_found_size == 0) {
+    return;
+  } else {
+    InvalidSharedClassTable *class_table = NULL;
+    InvalidSharedClassTable *cnf_table = NULL;
+    if (parser._size > 0) {
+      class_table = new InvalidSharedClassTable(MAX2(parser._size, 11));
+    }
+    if (parser._not_found_size > 0) {
+      cnf_table = new InvalidSharedClassTable(MAX2(parser._not_found_size, 11));
+    }
+
+    while (parser.parse_one_line()) {
+      Symbol *sym = SymbolTable::new_symbol(parser._class_name);
+      if (parser._type == InvalidSharedClassListFileParser::reading_invalid_class) {
+        if (class_table == NULL) {
+          vm_exit_during_initialization("Corrupt diff class file for invalid class");
+        }
+        class_table->add_entry(sym);
+      } else if (parser._type == InvalidSharedClassListFileParser::reading_class_not_found) {
+        if (cnf_table == NULL) {
+          vm_exit_during_initialization("Corrupt diff class file for not found class");
+        }
+        cnf_table->add_entry(sym);
+      }
+    }
+    SystemDictionary::set_invalid_shared_class_table(class_table);
+    SystemDictionary::set_invalid_class_not_found_table(cnf_table);
+  }
 }

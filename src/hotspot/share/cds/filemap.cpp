@@ -90,6 +90,14 @@ static void fail_exit(const char *msg, va_list ap) {
   vm_exit_during_initialization("Unable to use shared archive.", NULL);
 }
 
+static void warning(const char *msg, va_list ap) {
+  // This occurs very early during initialization: tty is not initialized.
+  jio_fprintf(defaultStream::error_stream(),
+              "An error has occurred while processing the"
+              " shared archive file.Disable CDS and continue.\n");
+  jio_vfprintf(defaultStream::error_stream(), msg, ap);
+  jio_fprintf(defaultStream::error_stream(), "\n");
+}
 
 void FileMapInfo::fail_stop(const char *msg, ...) {
         va_list ap;
@@ -116,7 +124,11 @@ void FileMapInfo::fail_continue(const char *msg, ...) {
     tty->print_cr("]");
   } else {
     if (RequireSharedSpaces) {
-      fail_exit(msg, ap);
+      if (EagerAppCDSStaticClassDiffCheck) {
+        warning(msg, ap);
+      } else {
+        fail_exit(msg, ap);
+      }
     } else {
       if (log_is_enabled(Info, cds)) {
         ResourceMark rm;
@@ -409,14 +421,16 @@ bool SharedClassPathEntry::validate(bool is_class_path) const {
     }
   } else if ((has_timestamp() && _timestamp != st.st_mtime) ||
              _filesize != st.st_size) {
-    ok = false;
-    if (PrintSharedArchiveAndExit) {
-      FileMapInfo::fail_continue(_timestamp != st.st_mtime ?
-                                 "Timestamp mismatch" :
-                                 "File size mismatch");
-    } else {
-      FileMapInfo::fail_continue("A jar file is not the one used while building"
-                                 " the shared archive file: %s", name);
+    if (!EagerAppCDSStaticClassDiffCheck) {
+      ok = false;
+      if (PrintSharedArchiveAndExit) {
+        FileMapInfo::fail_continue(_timestamp != st.st_mtime ?
+                                  "Timestamp mismatch" :
+                                  "File size mismatch");
+      } else {
+        FileMapInfo::fail_continue("A jar file is not the one used while building"
+                                  " the shared archive file: %s", name);
+      }
     }
   }
 

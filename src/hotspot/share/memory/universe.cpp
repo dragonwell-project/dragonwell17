@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/classListParser.hpp"
 #include "cds/heapShared.hpp"
 #include "cds/metaspaceShared.hpp"
 #include "classfile/classLoader.hpp"
@@ -769,6 +770,9 @@ jint universe_init() {
     // currently mapped regions.
     MetaspaceShared::initialize_shared_spaces();
     StringTable::create_table();
+    if (Arguments::invalid_class_path() != NULL) {
+        InvalidSharedClass::init(Arguments::invalid_class_path());
+    }
   } else
 #endif
   {

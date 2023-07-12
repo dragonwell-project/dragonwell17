@@ -5532,6 +5532,20 @@ void ClassFileParser::log_loaded_klass(InstanceKlass* ik, const ClassFileStream 
   if (is_builtin) {
     if (!should_skip_class(loader_data, stream)) {
       w.stream()->print("%s klass: " INTPTR_FORMAT, name, p2i(ik));
+      if (EagerAppCDS) {
+        w.stream()->print(" super: " INTPTR_FORMAT, p2i(ik->superklass()));
+        w.stream()->print(" origin: %s", stream->source());
+        w.stream()->print(" fingerprint: " PTR64_FORMAT, stream->compute_fingerprint());
+        Array<InstanceKlass*>* intf = ik->local_interfaces();
+        if (intf->length() > 0) {
+          w.stream()->print(" interfaces:");
+          int length = intf->length();
+          for (int i=0; i < length; i++) {
+            w.stream()->print(" " INTPTR_FORMAT,
+                    p2i(intf->at(i)));
+          }
+        }
+      }
     } else {
       return;
     }
@@ -5559,6 +5573,7 @@ void ClassFileParser::log_loaded_klass(InstanceKlass* ik, const ClassFileStream 
       if (hash != 0) {
         w.stream()->print(" defining_loader_hash: %x", hash);
       }
+      w.stream()->print(" origin: %s", stream->source());
       w.stream()->print(" fingerprint: " PTR64_FORMAT, stream->compute_fingerprint());
     }
 

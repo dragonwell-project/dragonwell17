@@ -59,6 +59,9 @@ public class JavaSource {
         return className;
     }
 
+    public String internalName() {
+        return className.replace('.', '/');
+    }
     public String getName() {
         return name;
     }

@@ -50,6 +50,9 @@ public class Artifact {
         return new Artifact(id, PackageType.CLASSES, deployDir, null, dependency, javaSources, null, null, null);
     }
 
+    public static Artifact createClasses(String id, String deployDir, String[] dependency, JavaSource[] javaSources,ArtifactOption[] options) {
+        return new Artifact(id, PackageType.CLASSES, deployDir, null, dependency, javaSources, null, options, null);
+    }
     public Artifact clone(JavaSource[] newSources) {
         return new Artifact(id, packageType, deployDir, finalName, dependency, newSources, innerArtifacts, options, jarSigner);
     }

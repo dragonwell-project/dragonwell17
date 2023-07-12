@@ -80,6 +80,7 @@ class GCTimer;
 class EventClassLoad;
 class Symbol;
 class TableStatistics;
+class InvalidSharedClassTable;
 
 class SystemDictionary : AllStatic {
   friend class BootstrapInfo;
@@ -191,6 +192,11 @@ class SystemDictionary : AllStatic {
   // Protection Domain Table
   static ProtectionDomainCacheTable* pd_cache_table() { return _pd_cache_table; }
 
+  static void set_invalid_shared_class_table(InvalidSharedClassTable* t) { _invalid_shared_class_table = t;}
+  static void set_invalid_class_not_found_table(InvalidSharedClassTable* t) { _invalid_class_not_found_table = t; }
+  static bool in_invalid_shared_class_table(const Symbol* sym);
+  static bool in_invalid_class_not_found_table(const Symbol* sym);
+  
   // Printing
   static void print();
   static void print_on(outputStream* st);
@@ -304,6 +310,9 @@ public:
   // ProtectionDomain cache
   static ProtectionDomainCacheTable*   _pd_cache_table;
 
+  // CDS static diff support.
+  static InvalidSharedClassTable* _invalid_shared_class_table;
+  static InvalidSharedClassTable* _invalid_class_not_found_table;
 protected:
   static InstanceKlass* _well_known_klasses[];
 
@@ -421,6 +430,7 @@ protected:
 
 public:
   static bool invalid_class_name_for_EagerAppCDS(const char* name);
+  static bool invalid_class_name(const char* name);
 
   static TableStatistics placeholders_statistics();
   static TableStatistics loader_constraints_statistics();
