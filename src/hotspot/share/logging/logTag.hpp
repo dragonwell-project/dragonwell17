@@ -69,7 +69,6 @@
   LOG_TAG(dump) \
   LOG_TAG(dynamic) \
   LOG_TAG(eagerappcds) \
-  LOG_TAG(quickstart) \
   LOG_TAG(ergo) \
   LOG_TAG(event) \
   LOG_TAG(exceptions) \
@@ -148,6 +147,7 @@
   LOG_TAG(protectiondomain) /* "Trace protection domain verification" */ \
   LOG_TAG(ptrqueue) \
   LOG_TAG(purge) \
+  LOG_TAG(quickstart) \
   LOG_TAG(record) \
   LOG_TAG(redefine) \
   LOG_TAG(ref) \
