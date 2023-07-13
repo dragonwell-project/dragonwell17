@@ -89,6 +89,7 @@
 #include "jfr/jfr.hpp"
 #endif
 
+Jar2Crc32Table*        SystemDictionary::_jar2crc32_table     = NULL;
 ResolutionErrorTable*  SystemDictionary::_resolution_errors   = NULL;
 SymbolPropertyTable*   SystemDictionary::_invoke_method_table = NULL;
 ProtectionDomainCacheTable*   SystemDictionary::_pd_cache_table = NULL;
@@ -1079,6 +1080,13 @@ bool SystemDictionary::check_shared_class_super_type(InstanceKlass* klass, Insta
   } else {
     // The dynamically resolved super type is not the same as the one we used during dump time,
     // so we cannot use the class.
+    if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck) {
+      ResourceMark rm;
+      log_trace(class, eagerappcds) ("[CDS load class] Super verification failed: [%s %p]'s super [%s] in runtime is %p, but in dumptime is %p: in class loader %p (%x)",
+                                      klass->name()->as_C_string(), klass,
+                                      super_type->name()->as_C_string(), super_type, klass->super(),
+                                      class_loader()->klass()->name()->as_C_string(), java_lang_ClassLoader::signature(class_loader()));
+    }
     return false;
   }
 }
@@ -1121,6 +1129,10 @@ InstanceKlass* SystemDictionary::load_shared_lambda_proxy_class(InstanceKlass* i
   if (s != shared_nest_host) {
     // The dynamically resolved nest_host is not the same as the one we used during dump time,
     // so we cannot use ik.
+    if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck) {
+      ResourceMark rm;
+      log_trace(class, eagerappcds) ("[CDS load class] Interface verification failed for lambda_proxy_class %s", ik->name()->as_C_string());
+    }
     return NULL;
   } else {
     assert(s->is_shared(), "must be");

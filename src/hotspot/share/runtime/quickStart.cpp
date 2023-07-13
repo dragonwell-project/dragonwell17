@@ -30,6 +30,7 @@ const char* QuickStart::_metadata_file_path = NULL;
 const char* QuickStart::_origin_class_list = "cds_origin_class.lst";
 const char* QuickStart::_final_class_list = "cds_final_class.lst";
 const char* QuickStart::_jsa = "cds.jsa";
+const char* QuickStart::_jar_file_list = "jarfile.lst";
 const char* QuickStart::_eagerappcds_agent = NULL;
 const char* QuickStart::_eagerappcds_agentlib = NULL;
 
@@ -209,10 +210,11 @@ void QuickStart::add_CDSDumpHook(TRAPS) {
   args.push_oop(java_lang_String::create_from_str(QuickStart::_origin_class_list, THREAD));
   args.push_oop(java_lang_String::create_from_str(QuickStart::_final_class_list, THREAD));
   args.push_oop(java_lang_String::create_from_str(QuickStart::_jsa, THREAD));
-  args.push_oop(java_lang_String::create_from_str(QuickStart::_eagerappcds_agent, THREAD));
+  args.push_oop(java_lang_String::create_from_str(QuickStart::_jar_file_list, THREAD));
   args.push_int(_opt_enabled[_eagerappcds]);
+  args.push_int(EagerAppCDSDynamicClassDiffCheck);
   JavaCalls::call_static(&result, klass, vmSymbols::initialize_name(),
-                         vmSymbols::string_string_string_string_bool_void_signature(), &args, CHECK);
+                         vmSymbols::string_string_string_string_bool_bool_void_signature(), &args, CHECK);
 }
 
 void QuickStart::post_process_arguments(JavaVMInitArgs* options_args) {
@@ -461,6 +463,12 @@ void QuickStart::enable_eagerappcds() {
   Arguments::append_sysclasspath(buf);
   sprintf(buf, "%s%slib%s%s", Arguments::get_java_home(), os::file_separator(), os::file_separator(), _eagerappcds_agentlib);
   Arguments::add_init_agent(buf, NULL, true);
+
+  if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck) {
+    // We also record jarfile <-> crc32 metadata in this mode.
+    sprintf(buf, "%s%s%s", QuickStart::cache_path(), os::file_separator(), _jar_file_list);
+    JarRecordList = strdup(buf);
+  }
 }
 
 void QuickStart::enable_appcds() {

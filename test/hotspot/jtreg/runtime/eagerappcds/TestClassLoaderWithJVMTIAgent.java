@@ -12,7 +12,7 @@
  * @build generatePackageInfo.Simple
  * @build LoadWithCustomClassLoader
  * @requires os.arch=="amd64"
- * @run driver ClassFileInstaller -jar test.jar LoadWithCustomClassLoader
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar test.jar LoadWithCustomClassLoader
  * @run main/othervm/native -XX:+UnlockExperimentalVMOptions TestClassLoaderWithJVMTIAgent
  */
 

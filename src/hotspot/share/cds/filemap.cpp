@@ -421,7 +421,7 @@ bool SharedClassPathEntry::validate(bool is_class_path) const {
     }
   } else if ((has_timestamp() && _timestamp != st.st_mtime) ||
              _filesize != st.st_size) {
-    if (!EagerAppCDSStaticClassDiffCheck) {
+    if (!EagerAppCDSStaticClassDiffCheck || EagerAppCDSDynamicClassDiffCheck) {
       ok = false;
       if (PrintSharedArchiveAndExit) {
         FileMapInfo::fail_continue(_timestamp != st.st_mtime ?

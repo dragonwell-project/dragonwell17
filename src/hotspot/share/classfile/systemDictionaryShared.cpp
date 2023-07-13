@@ -64,9 +64,11 @@
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/dynamicCDSCheck.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/quickStart.hpp"
 #include "utilities/hashtable.inline.hpp"
 #include "utilities/resourceHash.hpp"
 #include "utilities/stringUtils.hpp"
@@ -1080,6 +1082,13 @@ InstanceKlass* SystemDictionaryShared::load_shared_class_for_builtin_loader(
   if (ik != NULL && !ik->shared_loading_failed()) {
     if ((SystemDictionary::is_system_class_loader(class_loader()) && ik->is_shared_app_class())  ||
         (SystemDictionary::is_platform_class_loader(class_loader()) && ik->is_shared_platform_class())) {
+      if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck && ik != NULL) {
+        if (!DynamicCDSCheck::check_klass_validation(ik, THREAD)) {
+          log_trace(class, eagerappcds) ("[CDS load class] Failed DynamicCDSCheck (builtin) %s with class loader %s (0)", class_name->as_C_string(),
+                                         class_loader()->klass()->name()->as_C_string());
+          return NULL;
+        }
+      }
       SharedClassLoadingMark slm(THREAD, ik);
       PackageEntry* pkg_entry = get_package_entry_from_class(ik, class_loader);
       Handle protection_domain =
@@ -1214,7 +1223,19 @@ InstanceKlass* SystemDictionaryShared::load_class_from_cds(const Symbol* class_n
                           vmSymbols::loadClassFromCDS_name(),
                           vmSymbols::loadClassFromCDS_signature(),
                           &args,
-                          CHECK_AND_CLEAR_NULL);
+                          THREAD);
+
+  if (HAS_PENDING_EXCEPTION) {
+    // print exception
+    if (PrintEagerAppCDSExceptions) {
+      Handle ex(THREAD, PENDING_EXCEPTION);
+      CLEAR_PENDING_EXCEPTION;
+      java_lang_Throwable::print_stack_trace(ex, tty);
+    } else {
+      CLEAR_PENDING_EXCEPTION;
+    }
+    return NULL;
+  }
 
   oop klass = (oop)result.get_oop();
   if (klass != NULL) {
@@ -1275,6 +1296,13 @@ InstanceKlass* SystemDictionaryShared::lookup_shared(Symbol* class_name, Handle 
   const RunTimeSharedClassInfo* record = find_unregistered_record_by_initiating_loader_hash(&_unregistered_dictionary, class_name, loader_hash);
   if (record) {
     InstanceKlass* ik = record->_klass;
+    if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck) {
+      if (!DynamicCDSCheck::check_klass_validation(ik, THREAD)) {
+        log_trace(class, eagerappcds) ("[CDS load class] Failed DynamicCDSCheck (lookup_shared) %s with class loader %s (%x)", class_name->as_C_string(),
+                                       class_loader()->klass()->name()->as_C_string(), loader_hash);
+        return NULL;
+      }
+    }
     InstanceKlass *loaded = load_class_from_cds(class_name, class_loader, ik, record->crc()->_defining_loader_hash, THREAD);
     if (loaded != NULL) {
       log_trace(class, eagerappcds) ("[CDS load class] Successful loading of class %s with class loader %s (%x)", class_name->as_C_string(),
@@ -1367,6 +1395,11 @@ InstanceKlass* SystemDictionaryShared::acquire_class_for_current_thread(
                                                   cfs, pkg_entry, THREAD);
   if (shared_klass == NULL || HAS_PENDING_EXCEPTION) {
     // TODO: clean up <ik> so it can be used again
+    if (EagerAppCDS) {
+      ResourceMark rm;
+      log_trace(class, eagerappcds) ("[CDS load class] Failed: load_shared_class check super/interface failed: class %s; in class loader %p (%x)", ik->name()->as_C_string(),
+                                     class_loader()->klass()->name()->as_C_string(), java_lang_ClassLoader::signature(class_loader()));
+    }
     return NULL;
   }
 
@@ -2516,6 +2549,12 @@ SystemDictionaryShared::find_record(RunTimeSharedDictionary* static_dict, RunTim
   return record;
 }
 
+int SystemDictionaryShared::get_entry_count() {
+  int total = _builtin_dictionary.entry_count() + _unregistered_dictionary.entry_count();
+  log_info(eagerappcds)("entrys (in _builtin_dictionary or in _unregistered_dictionary) total size: %d", total);
+  return total;
+}
+
 GrowableArray<const RunTimeSharedClassInfo*>*
 SystemDictionaryShared::find_unregistered_record(RunTimeSharedDictionary* static_dict,
                                                                            Symbol* name) {
@@ -2544,6 +2583,9 @@ SystemDictionaryShared::find_unregistered_record_by_initiating_loader_hash(RunTi
     for(const RunTimeSharedClassInfo* info: *records) {
       if(info->crc()->_initiating_loader_hash == initiating_loader_hash) {
         return info;
+      } else {
+        ResourceMark rm;
+        log_trace(class, cds) ("CDS CRC32 check failed! [%s] entry->crc32:[" PTR64_FORMAT "]", name->as_C_string(), (uint64_t)info->crc()->_clsfile_crc32);
       }
     }
   }

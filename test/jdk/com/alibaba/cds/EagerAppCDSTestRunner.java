@@ -14,8 +14,8 @@ public final class EagerAppCDSTestRunner extends QuickStartTestRunner {
         projectWorkDir = new ProjectWorkDir(workDir + File.separator + "a");
         Project project = projectProvider.getProject();
         project.build(projectWorkDir);
-        runAsTracer(project, projectWorkDir);
-        runAsReplayer(project, projectWorkDir);
+        runAsTracer(project, projectWorkDir, true);
+        runAsReplayer(project, projectWorkDir, true);
     }
 
     @Override
@@ -24,7 +24,7 @@ public final class EagerAppCDSTestRunner extends QuickStartTestRunner {
     }
 
     @Override
-    public String[] getQuickStartOptions(File cacheDir) {
+    public String[] getQuickStartOptions(File cacheDir, boolean dummy) {
         return new String[]{"-Xquickstart:path=" + cacheDir.getAbsolutePath(), "-XX:+IgnoreAppCDSDirCheck", "-Xquickstart:verbose", "-Xlog:class+eagerappcds=trace"};
     }
 

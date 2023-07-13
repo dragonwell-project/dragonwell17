@@ -419,6 +419,7 @@ stringStream::~stringStream() {
 
 xmlStream*   xtty;
 outputStream* tty;
+CDS_ONLY(fileStream* jar_record_file;)
 extern Mutex* tty_lock;
 
 #define EXTRACHARLEN   32
@@ -943,7 +944,16 @@ void ostream_init_log() {
   // Note : this must be called AFTER ostream_init()
 
   ClassListWriter::init();
-
+#if INCLUDE_CDS
+  if (JarRecordList != NULL) {
+    if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck && DumpSharedSpaces) {  // -Xshare:dump
+      const char* list_name = make_log_name(JarRecordList, NULL);
+      jar_record_file = new(ResourceObj::C_HEAP, mtInternal)
+                            fileStream(list_name, "w");
+      FREE_C_HEAP_ARRAY(char, list_name);
+    }
+  }
+#endif
   // If we haven't lazily initialized the logfile yet, do it now,
   // to avoid the possibility of lazy initialization during a VM
   // crash, which can affect the stability of the fatal error handler.

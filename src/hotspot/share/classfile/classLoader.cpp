@@ -91,6 +91,7 @@ typedef void     (*ZipClose_t)(jzfile *zip);
 typedef jzentry* (*FindEntry_t)(jzfile *zip, const char *name, jint *sizeP, jint *nameLen);
 typedef jboolean (*ReadEntry_t)(jzfile *zip, jzentry *entry, unsigned char *buf, char *namebuf);
 typedef jzentry* (*GetNextEntry_t)(jzfile *zip, jint n);
+typedef jlong    (*ZIP_JZfile_CRC32_t)(jzfile *zip);
 typedef jint     (*Crc32_t)(jint crc, const jbyte *buf, jint len);
 
 static ZipOpen_t         ZipOpen            = NULL;
@@ -98,6 +99,7 @@ static ZipClose_t        ZipClose           = NULL;
 static FindEntry_t       FindEntry          = NULL;
 static ReadEntry_t       ReadEntry          = NULL;
 static GetNextEntry_t    GetNextEntry       = NULL;
+static ZIP_JZfile_CRC32_t JZfile_CRC32      = NULL;
 static Crc32_t           Crc32              = NULL;
 int ClassLoader::_libzip_loaded = 0;
 
@@ -279,6 +281,10 @@ ClassPathZipEntry::ClassPathZipEntry(jzfile* zip, const char* zip_name,
   _zip = zip;
   _zip_name = copy_path(zip_name);
   _from_class_path_attr = from_class_path_attr;
+  _crc32 = 0;
+  if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck) {
+    _crc32 = JZfile_CRC32(zip);
+  }
 }
 
 ClassPathZipEntry::~ClassPathZipEntry() {
@@ -965,7 +971,12 @@ void ClassLoader::load_zip_library() {
   FindEntry = CAST_TO_FN_PTR(FindEntry_t, dll_lookup(handle, "ZIP_FindEntry", path));
   ReadEntry = CAST_TO_FN_PTR(ReadEntry_t, dll_lookup(handle, "ZIP_ReadEntry", path));
   GetNextEntry = CAST_TO_FN_PTR(GetNextEntry_t, dll_lookup(handle, "ZIP_GetNextEntry", path));
+  JZfile_CRC32 = CAST_TO_FN_PTR(ZIP_JZfile_CRC32_t, os::dll_lookup(handle, "ZIP_JZfile_CRC32"));
   Crc32 = CAST_TO_FN_PTR(Crc32_t, dll_lookup(handle, "ZIP_CRC32", path));
+
+  if(JZfile_CRC32 == NULL) {
+    vm_exit_during_initialization("Corrupted ZIP library", path);
+  }
 }
 
 void ClassLoader::load_jimage_library() {

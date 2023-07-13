@@ -102,10 +102,12 @@ class ClassPathZipEntry: public ClassPathEntry {
   jzfile* _zip;              // The zip archive
   const char*   _zip_name;   // Name of zip archive
   bool _from_class_path_attr; // From the "Class-path" attribute of a jar file
+  long _crc32;
  public:
   bool is_jar_file() const { return true;  }
   bool from_class_path_attr() const { return _from_class_path_attr; }
   const char* name() const { return _zip_name; }
+  const long crc32() const { return _crc32; }
   ClassPathZipEntry(jzfile* zip, const char* zip_name, bool is_boot_append, bool from_class_path_attr);
   virtual ~ClassPathZipEntry();
   u1* open_entry(JavaThread* current, const char* name, jint* filesize, bool nul_terminate);

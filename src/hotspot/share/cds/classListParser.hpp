@@ -64,7 +64,10 @@ public:
     return _items;
   }
 };
-
+class Jar2Crc32Table : public KVHashtable<Symbol*, long, mtInternal> {
+public:
+  Jar2Crc32Table() : KVHashtable<Symbol*, long, mtInternal>(100) {}
+};
 class ClassListParser : public StackObj {
   typedef KVHashtable<int, InstanceKlass*, mtInternal> ID2KlassTable;
 
@@ -103,6 +106,7 @@ class ClassListParser : public StackObj {
   int                 _defining_loader_hash;
   int                 _initiating_loader_hash;
   const char*         _source;
+  const char*         _original_source;
   bool                _lambda_form_line;
   uint64_t            _fingerprint;
   int                 _dependence_not_loaded;

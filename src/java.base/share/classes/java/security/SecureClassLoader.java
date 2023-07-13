@@ -191,7 +191,10 @@ public class SecureClassLoader extends ClassLoader {
      *
      * @param       ik   instance class
      *
-     * @return the {@code Class} object created from the data,
+     * @return the {@code Class} object created from the data
+     *
+     * @throws NoClassDefFoundError
+     *         If the ik's super/interfaces are transformed.
      */
     protected final Class<?> defineClassFromCDS(String name, long ik, CodeSource cs) {
         return defineClassFromCDS(name, ik, getProtectionDomain(cs));

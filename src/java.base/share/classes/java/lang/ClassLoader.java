@@ -1215,15 +1215,24 @@ public abstract class ClassLoader {
      *
      * @throws  ClassFormatError
      *          If the data did not contain a valid class.
+     * @throws  NoClassDefFoundError
+     *          If the ik's super/interfaces are transformed.
      *
      */
     protected final Class<?> defineClassFromCDS(String name, long ik, ProtectionDomain protectionDomain)
-        throws ClassFormatError
+        throws ClassFormatError, NoClassDefFoundError
     {
         protectionDomain = preDefineClass(name, protectionDomain);
         // ignore the code to get source in CDS flow
         // String source = defineClassSourceLocation(protectionDomain);
         Class<?> c = defineClassFromCDS0(this, protectionDomain, ik);
+        if (c == null) {
+            // This is because:
+            // [1] some agent transformed the ik's super/interfaces, so the ik in the jsa cannot be successfully loaded, so a null is returned.
+            // [2] under Incremental CDS: same as [1]: ik's super/interfaces are invalidated. so a null is returned for the child ik.
+            // Note: this Exception will be eaten in Hotspot.
+            throw new NoClassDefFoundError("CDS Super/Interfaces overwritten");
+        }
         postDefineClass(c, protectionDomain);
         return c;
     }

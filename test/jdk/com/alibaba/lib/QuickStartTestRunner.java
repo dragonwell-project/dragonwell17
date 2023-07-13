@@ -44,7 +44,7 @@ public abstract class QuickStartTestRunner {
     }
 
 
-    abstract String[] getQuickStartOptions(File cacheDir);
+    abstract String[] getQuickStartOptions(File cacheDir, boolean doClassDiff);
 
     private String[] merge(String[][] arrays) {
         int total = 0;
@@ -60,22 +60,25 @@ public abstract class QuickStartTestRunner {
         return fullCommands;
     }
 
-    protected void runAsTracer(Project p, ProjectWorkDir workDir) throws Exception {
+    protected void runAsTracer(Project p, ProjectWorkDir workDir, boolean doClassDiff) throws Exception {
         String[] commands = p.getRunConf().buildJavaRunCommands(workDir.getBuild(), p.getArtifacts());
         List<String> cp = p.getRunConf().classpath(workDir.getBuild(), p.getArtifacts());
         ProcessBuilder pb = createJavaProcessBuilder(cp, merge(new String[][]{
-                getQuickStartOptions(workDir.getCacheDir()), commands}));
+                getQuickStartOptions(workDir.getCacheDir(), doClassDiff), commands}));
         jdk.test.lib.process.OutputAnalyzer output = new jdk.test.lib.process.OutputAnalyzer(pb.start());
         output.shouldContain("Running as tracer");
         output.shouldHaveExitValue(0);
     }
 
-    protected void runAsReplayer(Project p, ProjectWorkDir workDir) throws IOException {
+    protected void runAsReplayer(Project p, ProjectWorkDir workDir, boolean doClassDiff) throws IOException {
         String[] commands = p.getRunConf().buildJavaRunCommands(workDir.getBuild(), p.getArtifacts());
         List<String> cp = p.getRunConf().classpath(workDir.getBuild(), p.getArtifacts());
         ProcessBuilder pb = createJavaProcessBuilder(cp, merge(new String[][]{
-                getQuickStartOptions(workDir.getCacheDir()), commands}));
+                getQuickStartOptions(workDir.getCacheDir(), doClassDiff), commands}));
         jdk.test.lib.process.OutputAnalyzer output = new jdk.test.lib.process.OutputAnalyzer(pb.start());
+        System.out.println("==========   QuickStart Output   ==========");
+        System.out.println(output.getOutput());
+        System.out.println("========== QuickStart Output End ==========");
         output.shouldContain("Running as replayer");
         output.shouldHaveExitValue(0);
         if (p.getExpectOutput() != null) {

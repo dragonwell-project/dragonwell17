@@ -25,6 +25,7 @@
 #ifndef SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP
 #define SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP
 
+#include "cds/classListParser.hpp"
 #include "oops/oopHandle.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/signature.hpp"
@@ -196,7 +197,10 @@ class SystemDictionary : AllStatic {
   static void set_invalid_class_not_found_table(InvalidSharedClassTable* t) { _invalid_class_not_found_table = t; }
   static bool in_invalid_shared_class_table(const Symbol* sym);
   static bool in_invalid_class_not_found_table(const Symbol* sym);
-  
+
+  static Jar2Crc32Table*     jar2crc32_table()       { return _jar2crc32_table; }
+  static void                set_jar2crc32_table(Jar2Crc32Table *table) { _jar2crc32_table = table; }
+
   // Printing
   static void print();
   static void print_on(outputStream* st);
@@ -300,7 +304,7 @@ public:
 
  private:
   // Static tables owned by the SystemDictionary
-
+  static Jar2Crc32Table*         _jar2crc32_table;
   // Resolution errors
   static ResolutionErrorTable*   _resolution_errors;
 

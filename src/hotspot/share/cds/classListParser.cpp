@@ -44,6 +44,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/constantPool.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/dynamicCDSCheck.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -201,6 +202,7 @@ bool ClassListParser::parse_one_line() {
   _super = _unspecified;
   _interfaces->clear();
   _source = NULL;
+  _original_source = NULL;
   _interfaces_specified = false;
   _indy_items->clear();
   _lambda_form_line = false;
@@ -245,6 +247,16 @@ bool ClassListParser::parse_one_line() {
       skip_whitespaces();
       _source = _token;
       char* s = strchr(_token, ' ');
+      if (s == NULL) {
+        break; // end of input line
+      } else {
+        *s = '\0'; // mark the end of _source
+        _token = s+1;
+      }
+    } else if (skip_token("origin:")) {
+      skip_whitespaces();
+      _original_source = _token;
+      char *s = strchr(_token, ' ');
       if (s == NULL) {
         break; // end of input line
       } else {
@@ -510,17 +522,29 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
     THROW_NULL(vmSymbols::java_lang_ClassNotFoundException());
   }
 
+  if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck) {
+    DynamicCDSCheck::record_fat_jar(_original_source, THREAD);
+  }
+
   InstanceKlass* k = ClassLoaderExt::load_class(class_name, _source,
+                                                _original_source,
                                                 _defining_loader_hash == _unspecified ? 0 : _defining_loader_hash,
                                                 _initiating_loader_hash == _unspecified ? 0 : _initiating_loader_hash,
                                                 _fingerprint,
                                                 CHECK_NULL);
-  if (k->local_interfaces()->length() != _interfaces->length()) {
-    print_specified_interfaces();
-    print_actual_interfaces(k);
-    error("The number of interfaces (%d) specified in class list does not match the class file (%d)",
-          _interfaces->length(), k->local_interfaces()->length());
+  
+  if (k != NULL) {
+    if (EagerAppCDS) {
+      k->set_source_file_path(SymbolTable::new_symbol(_original_source));
+    }
+    if (k->local_interfaces()->length() != _interfaces->length()) {
+      print_specified_interfaces();
+      print_actual_interfaces(k);
+      error("The number of interfaces (%d) specified in class list does not match the class file (%d)",
+            _interfaces->length(), k->local_interfaces()->length());
+    }
   }
+
 
   bool added = SystemDictionaryShared::add_unregistered_class(THREAD, k);
   if (!added && !EagerAppCDS) {
@@ -666,6 +690,12 @@ Klass* ClassListParser::load_current_class(Symbol* class_name_symbol, TRAPS) {
     }
 
     JavaValue result(T_OBJECT);
+
+    // AppClassLoader load klasses from thin jar: there is no source but only thin jar original_source here.
+    if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck) {
+      DynamicCDSCheck::record_dir_or_plain_jar(_original_source, THREAD);
+    }
+
     // Call java_system_loader().loadClass() directly, which will
     // delegate to the correct loader (boot, platform or app) depending on
     // the package name.

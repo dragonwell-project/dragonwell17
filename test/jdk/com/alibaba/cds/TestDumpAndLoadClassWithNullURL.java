@@ -85,10 +85,7 @@ public class TestDumpAndLoadClassWithNullURL {
     }
 
     static void convertClassList() throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-            "Classes4CDS",
-            CLASSLIST_FILE,
-            CLASSLIST_FILE_2);
+        ProcessBuilder pb = Classes4CDS.invokeClasses4CDS(CLASSLIST_FILE, CLASSLIST_FILE_2);
 
         OutputAnalyzer output = CDSTestUtils.executeAndLog(pb, "convert-class-list")
             .shouldHaveExitValue(0);

@@ -54,6 +54,7 @@ import java.util.jar.Attributes.Name;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
+import com.alibaba.cds.dynamic.DynamicCDSCheck;
 import jdk.internal.loader.Resource;
 import jdk.internal.loader.URLClassPath;
 import jdk.internal.access.SharedSecrets;
@@ -567,9 +568,14 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
         long t0 = System.nanoTime();
         int i = name.lastIndexOf('.');
         URL url;
-        boolean isJar;
         if (eagerAppCDSFastPath) {
-            url = new URL("file:" + sourcepath);
+            if (DynamicCDSCheck.isEnabled() && DynamicCDSCheck.HEURISTIC) {
+                String newSourcePath = DynamicCDSCheck.getSourceJarRemapping(sourcepath);
+                if (newSourcePath != null) {
+                    sourcepath = newSourcePath;
+                }
+            }
+            url = new URL(sourcepath);
         } else {
             url = res.getCodeSourceURL();
         }
@@ -578,8 +584,9 @@ public class URLClassLoader extends SecureClassLoader implements Closeable {
             // Check if package already loaded.
             Manifest man = null;
             if (eagerAppCDSFastPath) {
-                isJar = sourcepath.endsWith(".jar");
-                assert isJar || sourcepath.endsWith("/");
+                final boolean isJar =
+                    (sourcepath.startsWith("file:") && sourcepath.endsWith(".jar")) ||
+                    sourcepath.startsWith("jar:file:");
                 if (isJar) {
                     Optional<Manifest> optional = getManifest(path, sourcepath);
                     if (optional == null) {

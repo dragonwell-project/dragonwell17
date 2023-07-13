@@ -693,6 +693,12 @@ void MetaspaceShared::preload_classes(TRAPS) {
 
   log_info(cds)("Loading classes to share ...");
   _has_error_classes = false;
+
+  if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck) {
+    SystemDictionary::set_jar2crc32_table(new Jar2Crc32Table);
+    assert(jar_record_file->is_open(), "must be");
+  }
+
   int class_count = parse_classlist(classlist_path, CHECK);
   if (ExtraSharedClassListFile) {
     class_count += parse_classlist(ExtraSharedClassListFile, CHECK);
@@ -1093,8 +1099,12 @@ MapArchiveResult MetaspaceShared::map_archives(FileMapInfo* static_mapinfo, File
           static_mapinfo->map_heap_regions();
         }
         if (QuickStart::is_enabled()) {
-          QuickStart::set_opt_passed(QuickStart::_appcds);
-          QuickStart::set_opt_passed(QuickStart::_eagerappcds);
+          if (QuickStart::is_appcds_enabled()) {
+            QuickStart::set_opt_passed(QuickStart::_appcds);
+          }
+          if (QuickStart::is_eagerappcds_enabled()) {
+            QuickStart::set_opt_passed(QuickStart::_eagerappcds);
+          }
         }
       });
     log_info(cds)("optimized module handling: %s", MetaspaceShared::use_optimized_module_handling() ? "enabled" : "disabled");

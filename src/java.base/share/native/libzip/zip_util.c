@@ -785,6 +785,31 @@ ZIP_Open_Generic(const char *name, char **pmsg, int mode, jlong lastModified)
     return zip;
 }
 
+long ZIP_JZfile_CRC32(jzfile *zip) {
+  // must be called after ZIP_Open()
+  const int bufsz = 1024;
+  char buf[bufsz];
+  long offset = 0;
+
+  long crc = 0;
+  while (offset < zip->len) {
+    long remaining = zip->len - offset;
+    jint count = (remaining < bufsz) ?
+                 (jint) remaining :
+                 (jint) bufsz;
+    jint n = readFullyAt(zip->zfd, buf, count, offset);
+    if (n == -1) {
+      return -1;
+    }
+
+    crc = crc32(crc, (const unsigned char*)buf, count);
+
+    offset += count;
+  }
+
+  return crc;
+}
+
 /*
  * Returns the jzfile corresponding to the given file name from the cache of
  * zip files, or NULL if the file is not in the cache.  If the name is longer

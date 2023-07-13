@@ -6,8 +6,6 @@ import com.alibaba.util.Utils;
 import jdk.internal.misc.VM;
 
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.stream.Collectors;
 
 public class CDSDumperHelper {
 
@@ -18,6 +16,18 @@ public class CDSDumperHelper {
 
     private static String nonNullString(String str) {
         return str == null ? "" : str;
+    }
+
+    private static String[] restoreCommandLineOptions(String[] arguments) {
+        // if user specifies '-Dcom.alibaba.wisp.threadAsWisp.black=name:process\ reaper\;name:epollEventLoopGroup\*' as the command line:
+        // VM will change it to '-Dcom.alibaba.wisp.threadAsWisp.black=name:process reaper;name:epollEventLoopGroup*',
+        // in which the escape character is removed. We will concat all of them with a ' ' (space character) because
+        // users could use any character inside the command line. So we need to restore the ' ' inside the option back
+        // to '\ ': '-Dcom.alibaba.wisp.threadAsWisp.black=name:process\ reaper;name:epollEventLoopGroup*'
+        for (int i = 0; i < arguments.length; i++) {
+            arguments[i] = arguments[i].replace(" ", "\\ ");
+        }
+        return arguments;
     }
 
     public static void invokeCDSDumper() {
@@ -40,13 +50,14 @@ public class CDSDumperHelper {
                 QuickStart.cachePath(),                                 // arg[0]: String dirPath
                 info.originClassListName,                               // arg[1]: String originClassListName
                 info.finalClassListName,                                // arg[2]: String finalClassListName
-                Boolean.toString(info.eager),                           // arg[3]: boolean eager
-                info.jsaName,                                           // arg[4]: String jsaName
-                nonNullString(info.agent),                              // arg[5]: String agent
-                Boolean.toString(verbose),                              // arg[6]: boolean verbose
-                Arrays.stream(VM.getRuntimeArguments()).
-                                collect(Collectors.joining(" ")),       // arg[7]: String runtimeCommandLine
-                System.getProperty("java.class.path")                   // arg[8]: String cp
+                info.jarFileLst,                                        // arg[3]: String finalClassListName
+                Boolean.toString(info.eager),                           // arg[4]: boolean eager
+                Boolean.toString(info.EagerAppCDSDynamicClassDiffCheck), // arg[5]: boolean EagerAppCDSDynamicClassDiffCheck
+                info.jsaName,                                           // arg[6]: String jsaName
+                Boolean.toString(verbose),                              // arg[7]: boolean verbose
+                String.join(" ", restoreCommandLineOptions(VM.getRuntimeArguments())),
+                                                                        // arg[8]: String runtimeCommandLine
+                System.getProperty("java.class.path")                   // arg[9]: String cp
         );
     }
 }

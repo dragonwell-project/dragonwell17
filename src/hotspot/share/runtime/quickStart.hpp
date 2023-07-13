@@ -37,6 +37,13 @@ public:
   static bool is_replayer()             { return _role == Replayer; }
   static bool is_normal()               { return _role == Normal; }
   static bool is_starting()             { return is_enabled() && _is_starting; }
+  
+  static bool is_appcds_enabled()       { return _opt_enabled[_appcds]; }
+  static bool is_eagerappcds_enabled()  { return _opt_enabled[_eagerappcds]; }
+
+  static const char* cds_original_lst() { return _origin_class_list; }
+  static const char* cds_final_lst()    { return _final_class_list; }
+  static const char* jar_file_lst()     { return _jar_file_list; }
 
   static int remove_dir(const char* dir);
   static const char* image_id()         { return _image_id; }
@@ -94,6 +101,7 @@ private:
   static const char *_origin_class_list;
   static const char *_final_class_list;
   static const char *_jsa;
+  static const char* _jar_file_list;
   static const char *_eagerappcds_agentlib;
   static const char *_eagerappcds_agent;
 private:

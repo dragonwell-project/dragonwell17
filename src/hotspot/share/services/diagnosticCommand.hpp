@@ -916,4 +916,27 @@ public:
   virtual void execute(DCmdSource source, TRAPS);
 };
 
+class DynamicCDSCheckInfoDCMD : public DCmdWithParser {
+protected:
+  DCmdArgument<bool> _verbose;
+  DCmdArgument<char*> _filename;
+public:
+  DynamicCDSCheckInfoDCMD(outputStream* output, bool heap);
+  static const char* name() { return "DynamicCDSCheck.info"; }
+  static const char* description() {
+    return "Use `jcmd <pid> DynamicCDSCheck.info` to dump the black list of Incremental CDS";
+  }
+  static int num_arguments() {
+    ResourceMark rm;
+    DynamicCDSCheckInfoDCMD* dcmd = new DynamicCDSCheckInfoDCMD(NULL, false);
+    if (dcmd != NULL) {
+      DCmdMark mark(dcmd);
+      return dcmd->_dcmdparser.num_arguments();
+    } else {
+      return 0;
+    }
+  }
+  virtual void execute(DCmdSource source, TRAPS);
+};
+
 #endif // SHARE_SERVICES_DIAGNOSTICCOMMAND_HPP

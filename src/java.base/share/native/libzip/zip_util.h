@@ -253,6 +253,9 @@ ZIP_GetNextEntry(jzfile *zip, jint n);
 JNIEXPORT jzfile *
 ZIP_Open(const char *name, char **pmsg);
 
+JNIEXPORT long
+ZIP_JZfile_CRC32(jzfile *zip);
+
 jzfile *
 ZIP_Open_Generic(const char *name, char **pmsg, int mode, jlong lastModified);
 

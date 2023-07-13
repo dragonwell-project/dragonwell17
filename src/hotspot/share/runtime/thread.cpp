@@ -84,6 +84,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/handshake.hpp"
 #include "runtime/init.hpp"
+#include "runtime/dynamicCDSCheck.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -2649,6 +2650,10 @@ static void call_initPhase3(TRAPS) {
     QuickStart::initialize(THREAD);
     if (HAS_PENDING_EXCEPTION) {
       vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));
+    }
+
+    if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck && QuickStart::is_replayer()) {
+      DynamicCDSCheck::initialize(THREAD);
     }
   }
 }

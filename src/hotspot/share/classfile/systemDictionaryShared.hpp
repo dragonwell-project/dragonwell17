@@ -261,6 +261,7 @@ public:
   static const RunTimeSharedClassInfo* find_record(RunTimeSharedDictionary* static_dict,
                                                    RunTimeSharedDictionary* dynamic_dict,
                                                    Symbol* name);
+  static int get_entry_count();
 
   static bool has_platform_or_app_classes();
 

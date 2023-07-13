@@ -8,27 +8,30 @@ public class CDSDumpHook {
         public String originClassListName;
         public String finalClassListName;
         public String jsaName;
-        public final String agent;
+        public String jarFileLst;
         public final boolean eager;
+        public final boolean EagerAppCDSDynamicClassDiffCheck;
         public Info(String cdsOriginClassList,
                     String cdsFinalClassList,
                     String cdsJsa,
+                    String jarFileLst,  // Used for EagerAppCDSDynamicClassDiffCheck
                     boolean useEagerAppCDS,
-                    String eagerAppCDSAgent) {
+                    boolean EagerAppCDSDynamicClassDiffCheck) {
 
             this.originClassListName = cdsOriginClassList;
             this.finalClassListName = cdsFinalClassList;
             this.jsaName = cdsJsa;
+            this.jarFileLst = jarFileLst;
             this.eager = useEagerAppCDS;
-            this.agent = eagerAppCDSAgent;
+            this.EagerAppCDSDynamicClassDiffCheck = EagerAppCDSDynamicClassDiffCheck;
         }
     }
     private static Info info;
     public static Info getInfo() { return info; }
 
     // called by JVM
-    private static void initialize(String cdsOriginClassList, String cdsFinalClassList, String cdsJSA, String agent, boolean useEagerAppCDS) {
-        info = new Info(cdsOriginClassList, cdsFinalClassList, cdsJSA, useEagerAppCDS, agent);
+    private static void initialize(String cdsOriginClassList, String cdsFinalClassList, String cdsJSA, String jarFileLst, boolean useEagerAppCDS, boolean EagerAppCDSDynamicClassDiffCheck) {
+        info = new Info(cdsOriginClassList, cdsFinalClassList, cdsJSA, jarFileLst, useEagerAppCDS, EagerAppCDSDynamicClassDiffCheck);
 
         CDSDumpHook.setup();
     }

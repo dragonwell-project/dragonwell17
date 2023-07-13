@@ -45,6 +45,7 @@
 #include "oops/symbol.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/dynamicCDSCheck.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/os.hpp"
@@ -253,7 +254,7 @@ void ClassLoaderExt::record_result(const s2 classpath_index, InstanceKlass* resu
 // Load the class of the given name from the location given by path. The path is specified by
 // the "source:" in the class list file (see classListParser.cpp), and can be a directory or
 // a JAR file.
-InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, int defining_loader_hash,
+InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, const char *original_source, int defining_loader_hash,
                                           int initiating_loader_hash, uint64_t fingerprint, TRAPS) {
   assert(name != NULL, "invariant");
   assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
@@ -275,6 +276,10 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, int de
                                THREAD->get_thread_stat()->perf_timers_addr(),
                                PerfClassTraceTime::CLASS_LOAD);
     stream = e->open_stream(THREAD, file_name);
+  }
+
+  if (EagerAppCDS && EagerAppCDSDynamicClassDiffCheck) {
+    DynamicCDSCheck::record_dir_or_plain_jar(e, original_source, THREAD);
   }
 
   if (stream == NULL) {

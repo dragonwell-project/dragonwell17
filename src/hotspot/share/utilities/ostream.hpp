@@ -241,6 +241,8 @@ class fileStream : public outputStream {
   void flush();
 };
 
+CDS_ONLY(extern fileStream*   jar_record_file;)
+
 // unlike fileStream, fdStream does unbuffered I/O by calling
 // open() and write() directly. It is async-safe, but output
 // from multiple thread may be mixed together. Used by fatal

@@ -3964,6 +3964,19 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
     DumpAppCDSWithKlassId = true;
   }
 
+  if (EagerAppCDSDynamicClassDiffCheck) {
+    if (EagerAppCDSStaticClassDiffCheck) {
+      warning("EagerAppCDSDynamicClassDiffCheck is incompatible with EagerAppCDSStaticClassDiffCheck. Disabling EagerAppCDSDynamicClassDiffCheck");
+      EagerAppCDSDynamicClassDiffCheck = false;
+    } else if (!EagerAppCDS) {
+      warning("EagerAppCDSDynamicClassDiffCheck Should be turned on with EagerAppCDS. Disabling EagerAppCDSDynamicClassDiffCheck");
+      EagerAppCDSDynamicClassDiffCheck = false;
+    } else {
+      // FIXME: We turn off this feature when EagerAppCDSDynamicClassDiffCheck is turned on, temporarily.
+      NotFoundClassOpt = false;
+    }
+  }
+
   // Set object alignment values.
   set_object_alignment();
 

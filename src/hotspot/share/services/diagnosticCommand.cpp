@@ -26,8 +26,10 @@
 #include "jvm.h"
 #include "classfile/classLoaderHierarchyDCmd.hpp"
 #include "classfile/classLoaderStats.hpp"
+#include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "classfile/systemDictionaryShared.hpp"
 #include "classfile/vmClasses.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
@@ -98,6 +100,7 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<HeapInfoDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<FinalizerInfoDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<QuickStartDumpDCMD>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<DynamicCDSCheckInfoDCMD>(full_export, true, false));
 #if INCLUDE_SERVICES
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<HeapDumpDCmd>(DCmd_Source_Internal | DCmd_Source_AttachAPI, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassHistogramDCmd>(full_export, true, false));
@@ -1044,6 +1047,7 @@ void DebugOnCmdStartDCmd::execute(DCmdSource source, TRAPS) {
 #endif // INCLUDE_JVMTI
 
 void QuickStartDumpDCMD::execute(DCmdSource source, TRAPS) {
+  Ticks start_time = Ticks::now();
   if (QuickStart::is_tracer()) {
     Klass* klass = vmClasses::com_alibaba_util_QuickStart_klass();
     JavaValue result(T_VOID);
@@ -1052,4 +1056,52 @@ void QuickStartDumpDCMD::execute(DCmdSource source, TRAPS) {
     JavaCalls::call_static(&result, klass, vmSymbols::notifyDump_name(),
                            vmSymbols::void_method_signature(), &args, CHECK);
   }
+  Ticks end_time = Ticks::now();
+
+  Tickspan duration = end_time - start_time;
+  long ms = TimeHelper::counter_to_millis(duration.value());
+  output()->print_cr("It took %lu ms to execute Quickstart.dump .", ms);
+}
+
+
+DynamicCDSCheckInfoDCMD::DynamicCDSCheckInfoDCMD(outputStream* output, bool heap)
+  : DCmdWithParser(output, heap),
+    _verbose("verbose", "Dump the klasses and jars in black list of Incremental CDS", "BOOLEAN", false, "false"),
+    _filename("filename", "Name of the output log file", "STRING", false) {
+  _dcmdparser.add_dcmd_option(&_verbose);
+  _dcmdparser.add_dcmd_option(&_filename);
+}
+
+void DynamicCDSCheckInfoDCMD::execute(DCmdSource source, TRAPS) {
+  if (!QuickStart::is_replayer()) {
+    output()->print_cr("jcmd failed: should attach a QuickStart replayer progress");
+    return;
+  } else if (!EagerAppCDSDynamicClassDiffCheck) {
+    output()->print_cr("jcmd failed: should attach a progress with EagerAppCDSDynamicClassDiffCheck enabled");
+    return;
+  }
+
+  const int jsa_klasses_num = SystemDictionaryShared::get_entry_count();
+
+  Ticks start_time = Ticks::now();
+
+  Klass *klass = SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_cds_dynamic_DynamicCDSCheck(), true, CHECK);
+  JavaValue result(T_VOID);
+  JavaCallArguments args(3);
+  char buf[JVM_MAXPATHLEN];
+  args.push_int(jsa_klasses_num);
+  args.push_int(_verbose.value());
+  if (_filename.has_value()) {
+    args.push_oop(java_lang_String::create_from_str(_filename.value(), THREAD));
+  } else {
+    args.push_oop(Handle());
+  }
+  JavaCalls::call_static(&result, klass, vmSymbols::dumpCDSInfo_name(),
+                         vmSymbols::int_bool_string_void_signature(), &args, CHECK);
+
+  Ticks end_time = Ticks::now();
+
+  Tickspan duration = end_time - start_time;
+  long ms = TimeHelper::counter_to_millis(duration.value());
+  output()->print_cr("It took %lu ms to execute DynamicCDSCheck.info .", ms);
 }

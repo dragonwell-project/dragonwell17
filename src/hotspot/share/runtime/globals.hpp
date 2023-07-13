@@ -2101,6 +2101,15 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, EagerAppCDSStaticClassDiffCheck, false,                     \
           "Enable checking diff classes for eagerappcds."                   \
           "Diff take place before running quickstart as replay role.")      \
+  product(bool, PrintEagerAppCDSExceptions, false,  DIAGNOSTIC,             \
+          "aggressively skip over loadClass() to speed up boot time")       \
+                                                                            \
+  product(bool, EagerAppCDSDynamicClassDiffCheck, false,                    \
+          "aggressively skip over loadClass() to speed up boot time")       \
+                                                                            \
+  product(ccstr, JarRecordList, NULL,                                       \
+          "a jar file source <-> crc32 record list")                        \
+                                                                            \
 // end of RUNTIME_FLAGS
 
 DECLARE_FLAGS(LP64_RUNTIME_FLAGS)

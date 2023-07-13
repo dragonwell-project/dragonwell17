@@ -712,6 +712,9 @@
                                                                                                                   \
   /* CDS support */                                                                                               \
   template(com_alibaba_cds_NotFoundClassSet,           "com/alibaba/cds/NotFoundClassSet")                        \
+  template(com_alibaba_cds_dynamic_DynamicCDSCheck,    "com/alibaba/cds/dynamic/DynamicCDSCheck")                 \
+  template(checkKlassValidation_name,                  "checkKlassValidation")                                    \
+  template(dumpCDSInfo_name,                           "dumpCDSInfo")                                             \
   template(isNotFound_name,                            "isNotFound")                                              \
   template(isNotFound_signature,                       "(Ljava/lang/String;I)Z")                                  \
   template(com_alibaba_util_QuickStart,                "com/alibaba/util/QuickStart")                             \
@@ -721,6 +724,9 @@
   template(bool_string_bool_void_signature,                "(ZLjava/lang/String;Z)V")                             \
   template(string_string_string_string_bool_bool_void_signature,   "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZ)V") \
   template(string_string_string_string_bool_void_signature,   "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V") \
+  template(string_string_bool_signature,               "(Ljava/lang/String;Ljava/lang/String;)Z")                 \
+  template(int_bool_string_void_signature,             "(IZLjava/lang/String;)V")                                 \
+  template(string_string_void_signature,               "(Ljava/lang/String;Ljava/lang/String;)V")                \
   /*end*/
 
 // enum for figuring positions and size of Symbol::_vm_symbols[]
