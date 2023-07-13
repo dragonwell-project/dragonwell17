@@ -73,6 +73,7 @@ private:
   static int _jvm_option_count;
   static bool _profile_only;
   static bool _dump_only;
+  static bool _replay_only;
   static const char** _jvm_options;
 
   static bool set_optimization(const char* option, bool enabled);

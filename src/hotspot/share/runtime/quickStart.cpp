@@ -22,6 +22,7 @@ bool QuickStart::_print_stat_enabled = false;
 bool QuickStart::_need_destroy = false;
 bool QuickStart::_profile_only = false;
 bool QuickStart::_dump_only = false;
+bool QuickStart::_replay_only = false;
 
 QuickStart::QuickStartRole QuickStart::_role = QuickStart::Normal;
 
@@ -93,7 +94,8 @@ bool QuickStart::parse_command_line_arguments(const char* options) {
     "printStat",
     "satDump",
     "profile",
-    "dump"
+    "dump",
+    "replay"
   };
   _is_enabled = true;
   if (options == NULL) {
@@ -154,6 +156,12 @@ bool QuickStart::parse_command_line_arguments(const char* options) {
         log_error(quickstart)("Invalid -Xquickstart option '%s'", cur);
       }
       _dump_only = true;
+    } else if (match_option(cur, "replay", &tail)) {
+      if (tail[0] != '\0') {
+        success = false;
+        log_error(quickstart)("Invalid -Xquickstart option '%s'", cur);
+      }
+      _replay_only = true;
     } else {
       success = false;
       tty->print_cr("[QuickStart] Invalid -Xquickstart option '%s'", cur);
@@ -606,6 +614,10 @@ bool QuickStart::determine_role(JavaVMInitArgs* options_args) {
   if (ret != 0) {
     if (_print_stat_enabled) {
       print_stat(false);
+    }
+    if (_replay_only) {
+      log_info(quickstart)("QuickStart replay role is specified without shared directory found. Running as a normal process with quickstart disabled.");
+      return false;
     }
     ret = ::mkdir(_cache_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (ret != 0) {
