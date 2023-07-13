@@ -3,6 +3,7 @@
 #include "classfile/javaClasses.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/vmClasses.hpp"
+#include "memory/oopFactory.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -11,12 +12,16 @@
 #include "runtime/vm_version.hpp"
 #include "utilities/defaultStream.hpp"
 #include "runtime/globals_extension.hpp"
+#include "runtime/handles.hpp"
+#include "runtime/handles.inline.hpp"
 
 bool QuickStart::_is_starting = true;
 bool QuickStart::_is_enabled = false;
 bool QuickStart::_verbose = false;
 bool QuickStart::_print_stat_enabled = false;
 bool QuickStart::_need_destroy = false;
+bool QuickStart::_profile_only = false;
+bool QuickStart::_dump_only = false;
 
 QuickStart::QuickStartRole QuickStart::_role = QuickStart::Normal;
 
@@ -32,8 +37,10 @@ const char* QuickStart::_final_class_list = "cds_final_class.lst";
 const char* QuickStart::_jsa = "cds.jsa";
 const char* QuickStart::_eagerappcds_agent = NULL;
 const char* QuickStart::_eagerappcds_agentlib = NULL;
+const char* QuickStart::_module_filename      = "modules.lst";
 
 int QuickStart::_jvm_option_count = 0;
+const char** QuickStart::_jvm_options = NULL;
 
 const char* QuickStart::_opt_name[] = {
 #define OPT_TAG(name) #name,
@@ -80,6 +87,14 @@ int QuickStart::_lock_file_fd = 0;
 #define CDS_DIFF_CLASSES              "cds_diff_classes.lst"
 
 bool QuickStart::parse_command_line_arguments(const char* options) {
+  static const char *first_level_options[] = {
+    "help",
+    "destroy",
+    "printStat",
+    "satDump",
+    "profile",
+    "dump"
+  };
   _is_enabled = true;
   if (options == NULL) {
     return true;
@@ -127,6 +142,18 @@ bool QuickStart::parse_command_line_arguments(const char* options) {
       if (buffer != NULL) {
         _image_id = os::strdup_check_oom(buffer, mtArguments);
       }
+    } else if (match_option(cur, "profile", &tail)) {
+      if (tail[0] != '\0') {
+        success = false;
+        log_error(quickstart)("Invalid -Xquickstart option '%s'", cur);
+      }
+      _profile_only = true;
+    } else if (match_option(cur, "dump", &tail)) {
+      if (tail[0] != '\0') {
+        success = false;
+        log_error(quickstart)("Invalid -Xquickstart option '%s'", cur);
+      }
+      _dump_only = true;
     } else {
       success = false;
       tty->print_cr("[QuickStart] Invalid -Xquickstart option '%s'", cur);
@@ -179,6 +206,8 @@ void QuickStart::print_command_line_help(outputStream* out) {
   out->print_cr("  destroy              Destroy the cache files (use specified path or default)");
   out->print_cr("  +/-<opt>             Enable/disable the specific optimization");
   out->print_cr("  containerImageEnv=<env>   Specify the environment variable to get the unique identifier of the container");
+  out->print_cr("  profile                   Record profile information and save in the cache");
+  out->print_cr("  dump                      Dump using profile information in the cache");
   out->cr();
 
   out->print_cr("Available optimization:");
@@ -189,20 +218,51 @@ void QuickStart::print_command_line_help(outputStream* out) {
 void QuickStart::initialize(TRAPS) {
   Klass* klass = vmClasses::com_alibaba_util_QuickStart_klass();
   JavaValue result(T_VOID);
-  JavaCallArguments args(2);
-  args.push_int(is_tracer());
+  JavaCallArguments args(3);
+  args.push_int(_role);
   args.push_oop(java_lang_String::create_from_str(QuickStart::cache_path(), THREAD));
   args.push_int(QuickStart::_verbose);
 
   JavaCalls::call_static(&result, klass, vmSymbols::initialize_name(),
-                         vmSymbols::bool_string_bool_void_signature(), &args, CHECK);
+                         vmSymbols::int_string_bool_void_signature(), &args, CHECK);
 
-  if (is_tracer() && (_opt_enabled[_eagerappcds] || _opt_enabled[_appcds])) {
-    add_CDSDumpHook(CHECK);
+  if (is_tracer()) {
+    add_dump_hook(CHECK);
+  } else if (is_profiler()) {
+
+  } else if (is_dumper()) {
+    add_dump_hook(CHECK);
+    Klass *klass = vmClasses::com_alibaba_util_QuickStart_klass();
+    JavaValue result(T_VOID);
+    JavaCallArguments args(0);
+
+    JavaCalls::call_static(&result, klass, vmSymbols::notifyDump_name(),
+                           vmSymbols::void_method_signature(), &args, THREAD);
+    vm_exit(0);
   }
 }
 
-void QuickStart::add_CDSDumpHook(TRAPS) {
+void QuickStart::add_dump_hook(TRAPS) {
+  Handle h = is_dumper() ? jvm_option_handle(THREAD) : objArrayHandle();
+  if (_opt_enabled[_eagerappcds] || _opt_enabled[_appcds]) {
+    add_CDSDumpHook(h, CHECK);
+  }
+}
+
+Handle QuickStart::jvm_option_handle(TRAPS) {
+  InstanceKlass *ik = vmClasses::String_klass();
+  objArrayOop r = oopFactory::new_objArray(ik, _jvm_option_count, CHECK_NH);
+  objArrayHandle result_h(THREAD, r);
+  if (_jvm_option_count != 0 && _jvm_options != NULL) {
+    for (int i = 0; i < _jvm_option_count; i++) {
+      Handle h = java_lang_String::create_from_platform_dependent_str(_jvm_options[i], CHECK_NH);
+      result_h->obj_at_put(i, h());
+    }
+  }
+  return result_h;
+}
+
+void QuickStart::add_CDSDumpHook(Handle jvm_option, TRAPS) {
   Klass *klass = vmClasses::com_alibaba_util_CDSDumpHook_klass();
   JavaValue result(T_VOID);
   JavaCallArguments args(6);
@@ -211,8 +271,9 @@ void QuickStart::add_CDSDumpHook(TRAPS) {
   args.push_oop(java_lang_String::create_from_str(QuickStart::_jsa, THREAD));
   args.push_oop(java_lang_String::create_from_str(QuickStart::_eagerappcds_agent, THREAD));
   args.push_int(_opt_enabled[_eagerappcds]);
+  args.push_oop(jvm_option);
   JavaCalls::call_static(&result, klass, vmSymbols::initialize_name(),
-                         vmSymbols::string_string_string_string_bool_void_signature(), &args, CHECK);
+                         vmSymbols::string_string_string_string_bool_stringarray_void_signature(), &args, CHECK);
 }
 
 void QuickStart::post_process_arguments(JavaVMInitArgs* options_args) {
@@ -220,24 +281,30 @@ void QuickStart::post_process_arguments(JavaVMInitArgs* options_args) {
   calculate_cache_path();
   // destroy the cache directory
   destroy_cache_folder();
-  // Determine the role
-  if (!determine_tracer_or_replayer(options_args)) {
-    _role = Normal;
-    _is_enabled = false;
-    setenv_for_roles();
-    return;
+  if (_dump_only) {
+    if (!prepare_dump(options_args)) {
+      vm_exit(1);
+    }
+  } else {
+    // Determine the role
+    if (!determine_role(options_args)) {
+      _role = Normal;
+      _is_enabled = false;
+      setenv_for_roles();
+      return;
+    }
   }
   settle_opt_pass_table();
   // Process argument for each optimization
   process_argument_for_optimization();
 }
 
-bool QuickStart::check_integrity(JavaVMInitArgs* options_args) {
+bool QuickStart::check_integrity(JavaVMInitArgs* options_args, const char* meta_file) {
   if (_print_stat_enabled) {
     print_stat(true);
   }
 
-  _metadata_file = os::fopen(_metadata_file_path, "r");
+  _metadata_file = os::fopen(meta_file, "r");
   if (!_metadata_file) {
     // if one process removes metadata here, will NULL.
     log("metadata file may be destroyed by another process.");
@@ -288,6 +355,12 @@ void QuickStart::check_features(const char* &str) {
   for (int i = 0; i < QuickStart::Count; i++) {
     if (!tracer_features[i] && _opt_enabled[i]) {
       _opt_enabled[i] = false;
+    }
+    //when run with dump, features not pass by arguments,but by metadata file
+    if (_dump_only) {
+      if (tracer_features[i]) {
+        _opt_enabled[i] = true;
+      }
     }
   }
 }
@@ -347,11 +420,40 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
         if (fgets(line, sizeof(line), _metadata_file) == NULL) {
           log_error(quickstart)("Unable to read JVM option.");
           return false;
+        } else if (_dump_only) {
+          //when run with dump stage.JVM option and features only can get from metadata
+          //cannot get from arguments.
+          if (_jvm_options == NULL) {
+            _jvm_options = NEW_C_HEAP_ARRAY(const char*, _jvm_option_count, mtArguments);
+          }
+          trim_tail_newline(line);
+          _jvm_options[index] = os::strdup_check_oom(line);
         }
       }
     }
   }
   return true;
+}
+
+void QuickStart::trim_tail_newline(char *str) {
+  int len = (int)strlen(str);
+  int i;
+  // Replace \t\r\n with ' '
+  for (i = 0; i < len; i++) {
+    if (str[i] == '\t' || str[i] == '\r' || str[i] == '\n') {
+      str[i] = ' ';
+    }
+  }
+
+  // Remove trailing newline/space
+  while (len > 0) {
+    if (str[len-1] == ' ') {
+      str[len-1] = '\0';
+      len --;
+    } else {
+      break;
+    }
+  }
 }
 
 void QuickStart::calculate_cache_path() {
@@ -389,6 +491,17 @@ void QuickStart::destroy_cache_folder() {
     }
     vm_exit(0);
   }
+
+  //when profile enable,always clear cache path first which prepare for profiling again.
+  if (_profile_only && _cache_path != NULL) {
+    if (!os::dir_is_empty(_cache_path)) {
+      if (remove_dir(_cache_path) < 0) {
+        log_error(quickstart)("failed to destroy the cache folder: %s", _cache_path);
+      } else {
+        log_info(quickstart)("destroy the cache folder: %s", _cache_path);
+      }
+    }
+  }
 }
 
 void QuickStart::print_stat(bool isReplayer) {
@@ -422,6 +535,10 @@ void QuickStart::setenv_for_roles() {
     role = "REPLAYER";
   } else if (_role == Normal) {
     role = "NORMAL";
+  } else if (_role == Profiler) {
+    role = "PROFILER";
+  } else if (_role == Dumper) {
+    role = "DUMPER";
   } else {
     ShouldNotReachHere();
   }
@@ -429,7 +546,7 @@ void QuickStart::setenv_for_roles() {
 }
 
 void QuickStart::process_argument_for_optimization() {
-  if (_role == Tracer || _role == Replayer) {
+  if (_role == Tracer || _role == Replayer || _role == Profiler || _role == Dumper) {
     if (_opt_enabled[_eagerappcds]) {
       QuickStart::enable_appcds();
       QuickStart::enable_eagerappcds();
@@ -465,7 +582,7 @@ void QuickStart::enable_eagerappcds() {
 
 void QuickStart::enable_appcds() {
   char buf[JVM_MAXPATHLEN];
-  if (QuickStart::is_tracer()) {
+  if (QuickStart::is_tracer() || QuickStart::is_profiler()) {
     FLAG_SET_CMDLINE(UseSharedSpaces, false);
     FLAG_SET_CMDLINE(RequireSharedSpaces, false);
     sprintf(buf, "%s%s%s", QuickStart::cache_path(), os::file_separator(), _origin_class_list);
@@ -475,12 +592,14 @@ void QuickStart::enable_appcds() {
     FLAG_SET_CMDLINE(RequireSharedSpaces, true);
     sprintf(buf, "%s%s%s", QuickStart::cache_path(), os::file_separator(), _jsa);
     SharedArchiveFile = strdup(buf);
+  } else if (QuickStart::is_dumper()) {
+    sprintf(buf, "%s%s%s", QuickStart::cache_path(), os::file_separator(), _jsa);
   }
   FLAG_SET_CMDLINE(AppCDSLegacyVerisonSupport, true);
   FLAG_SET_CMDLINE(DumpAppCDSWithKlassId, true);
 }
 
-bool QuickStart::determine_tracer_or_replayer(JavaVMInitArgs* options_args) {
+bool QuickStart::determine_role(JavaVMInitArgs* options_args) {
   struct stat st;
   char buf[PATH_MAX];
   int ret = os::stat(_cache_path, &st);
@@ -535,14 +654,50 @@ bool QuickStart::determine_tracer_or_replayer(JavaVMInitArgs* options_args) {
       jio_fprintf(defaultStream::error_stream(), "[QuickStart] Failed to dump cached information\n");
       return false;
     }
-    _role = Tracer;
-    log("Running as tracer");
+    if (_profile_only) {
+      _role = Profiler;
+      log_info(quickstart)("Running as profiler");
+    } else {
+      _role = Tracer;
+      log_info(quickstart)("Running as tracer");
+    }
     return true;
-  } else if (ret == 0 && check_integrity(options_args)) {
+  } else if (ret == 0 && check_integrity(options_args, _metadata_file_path)) {
     _role = Replayer;
     log("Running as replayer");
     return true;
   }
+  return false;
+}
+
+bool QuickStart::prepare_dump(JavaVMInitArgs *options_args) {
+  struct stat st;
+  char buf[PATH_MAX];
+  // check whether the metadata file exists.
+  // when run quickstart with profile,then dump.In the profile stage,the metadata.tmp not rename to metadata.
+  jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), TEMP_METADATA_FILE);
+  _temp_metadata_file_path = os::strdup_check_oom(buf, mtArguments);
+  int ret = os::stat(_temp_metadata_file_path, &st);
+  if (ret < 0 && errno == ENOENT) {
+    log_error(quickstart)("The %s file not exists\n", _temp_metadata_file_path);
+    return false;
+  } else if (ret == 0 && check_integrity(options_args, _temp_metadata_file_path)) {
+    // Create a LOCK file
+    jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), LOCK_FILE);
+    _lock_path = os::strdup_check_oom(buf, mtArguments);
+    // if the lock exists, it returns -1.
+    _lock_file_fd = os::create_binary_file(_lock_path, false);
+    if (_lock_file_fd == -1) {
+      log_error(quickstart)("Fail to create LOCK file");
+      return false;
+    }
+    jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), METADATA_FILE);
+    _metadata_file_path = os::strdup_check_oom(buf, mtArguments);
+    _role = Dumper;
+    log_info(quickstart)("Running as dumper");
+    return true;
+  }
+  log_error(quickstart)("Cannot dump,maybe the %s is invalid!ret: %d", TEMP_METADATA_FILE, ret);
   return false;
 }
 
@@ -571,16 +726,16 @@ void QuickStart::set_opt_passed(opt feature) {
   }
 }
 
-void QuickStart::generate_metadata_file() {
-  // mv metadata to metadata.tmp
+void QuickStart::generate_metadata_file(bool rename_metafile) {
+  // mv metadata.tmp to metadata
   delete _temp_metadata_file;
-  int ret = ::rename(_temp_metadata_file_path, _metadata_file_path);
-  if (ret != 0) {
-    jio_fprintf(defaultStream::error_stream(),
-                "[QuickStart] Could not mv [%s] to [%s] because [%s]\n",
-                TEMP_METADATA_FILE,
-                METADATA_FILE,
-                os::strerror(errno));
+  int ret;
+  if (rename_metafile) {
+    ret = ::rename(_temp_metadata_file_path, _metadata_file_path);
+    if (ret != 0) {
+      log_error(quickstart)("Could not mv [%s] to [%s] because [%s]\n",
+                            TEMP_METADATA_FILE, METADATA_FILE, os::strerror(errno));
+    }
   }
 
   // remove lock file
@@ -655,8 +810,8 @@ int QuickStart::remove_dir(const char* dir) {
 }
 
 void QuickStart::notify_dump() {
-  if (_role == Tracer) {
-    generate_metadata_file();
+  if (_role == Tracer || _role == Profiler || _role == Dumper) {
+    generate_metadata_file(_role != Profiler);
   }
   log("notifying dump done.");
 }

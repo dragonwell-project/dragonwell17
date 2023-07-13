@@ -718,9 +718,9 @@
   template(initialize_name,                           "initialize")                                               \
   template(com_alibaba_util_CDSDumpHook,               "com/alibaba/util/CDSDumpHook")                            \
   template(notifyDump_name,                            "notifyDump")                                              \
-  template(bool_string_bool_void_signature,                "(ZLjava/lang/String;Z)V")                             \
+  template(int_string_bool_void_signature,                "(ILjava/lang/String;Z)V")                             \
   template(string_string_string_string_bool_bool_void_signature,   "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZ)V") \
-  template(string_string_string_string_bool_void_signature,   "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V") \
+  template(string_string_string_string_bool_stringarray_void_signature,   "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z[Ljava/lang/String)V") \
   /*end*/
 
 // enum for figuring positions and size of Symbol::_vm_symbols[]

@@ -3,18 +3,17 @@ package com.alibaba.util;
 import jdk.internal.misc.JavaLangClassLoaderAccess;
 import jdk.internal.access.SharedSecrets;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public class Utils {
 
@@ -25,6 +24,9 @@ public class Utils {
      * it won't be removed when unloading the class loader.
      * */
     private static Map<Integer, WeakReference<ClassLoader>> hash2Loader = new ConcurrentHashMap<>();
+    private final static String CP_FLAG = "-Djava.class.path";
+    private final static String JAVA_COMMAND_FLAG = "-Dsun.java.command";
+    private final static String JAVA_LAUNCHER_FLAG = "-Dsun.java.launcher";
 
     public static void registerClassLoader(ClassLoader loader, String identifier) {
         if (identifier == null || loader == null) {
@@ -117,6 +119,27 @@ public class Utils {
         return jdkHome;
     }
 
+    public static String getVMRuntimeArguments(String[] vmOptions) {
+        List<String> result = new ArrayList<>();
+        for (String vmOption : vmOptions) {
+            if (!vmOption.startsWith(CP_FLAG) && !vmOption.startsWith(JAVA_COMMAND_FLAG) && !vmOption.startsWith(JAVA_LAUNCHER_FLAG)) {
+                //some vm options like this: "-Dsun.java.command=URLClassLoaderLauncher com.z.Main add-sub.1.0.jar mul-div-1.0.jar"
+                //so need split with space first ,then remove all non java options
+                result.addAll(Arrays.stream(vmOption.split("\\s+")).filter((s) -> s.startsWith("-")).collect(Collectors.toList()));
+            }
+        }
+        return result.stream().collect(Collectors.joining(" "));
+    }
+
+    public static String getClassPath(String[] vmOptions) {
+        for (String vmOption : vmOptions) {
+            if (vmOption.startsWith(CP_FLAG)) {
+                return vmOption.substring(CP_FLAG.length());
+            }
+        }
+        return null;
+    }
+    
     public static native String[] getModuleNames();
     public static native String getJDKBootClassPathAppend();
 }

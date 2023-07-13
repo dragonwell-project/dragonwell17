@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 public class CDSDumperHelper {
 
     private static String cdsDumper;
+
     public static void setCdsDumper(String cdsDumper) {
         CDSDumperHelper.cdsDumper = cdsDumper;
     }
@@ -20,11 +21,25 @@ public class CDSDumperHelper {
         return str == null ? "" : str;
     }
 
+    private static String[] restoreCommandLineOptions(String[] arguments) {
+        // if user specifies '-Dcom.alibaba.wisp.threadAsWisp.black=name:process\ reaper\;name:epollEventLoopGroup\*' as the command line:
+        // VM will change it to '-Dcom.alibaba.wisp.threadAsWisp.black=name:process reaper;name:epollEventLoopGroup*',
+        // in which the escape character is removed. We will concat all of them with a ' ' (space character) because
+        // users could use any character inside the command line. So we need to restore the ' ' inside the option back
+        // to '\ ': '-Dcom.alibaba.wisp.threadAsWisp.black=name:process\ reaper;name:epollEventLoopGroup*'
+        for (int i = 0; i < arguments.length; i++) {
+            arguments[i] = arguments[i].replace(" ", "\\ ");
+        }
+        return arguments;
+    }
+
     public static void invokeCDSDumper() {
         CDSDumpHook.Info info = CDSDumpHook.getInfo();
         boolean verbose = QuickStart.isVerbose();
 
         String jdkHome = Utils.getJDKHome();
+        String vmOptions = getVmOptions(info);
+        String classPath = getClassPath(info);
         Utils.runProcess(verbose, "[CDSDumper] ", (pb) -> {
                     // clear up agent options because cds dump phase cannot live with java agent in peace
                     String toolOp = Utils.removeAgentOp();
@@ -44,9 +59,24 @@ public class CDSDumperHelper {
                 info.jsaName,                                           // arg[4]: String jsaName
                 nonNullString(info.agent),                              // arg[5]: String agent
                 Boolean.toString(verbose),                              // arg[6]: boolean verbose
-                Arrays.stream(VM.getRuntimeArguments()).
-                                collect(Collectors.joining(" ")),       // arg[7]: String runtimeCommandLine
-                System.getProperty("java.class.path")                   // arg[8]: String cp
+                vmOptions,                                              // arg[7]: String runtimeCommandLine
+                classPath                                               // arg[8]: String cp
         );
+    }
+
+    private static String getClassPath(CDSDumpHook.Info info) {
+        if (QuickStart.isDumper()) {
+            return Utils.getClassPath(info.jvmOptions);
+        } else {
+            return System.getProperty("java.class.path");
+        }
+    }
+
+    private static String getVmOptions(CDSDumpHook.Info info) {
+        if (QuickStart.isDumper()) {
+            return Utils.getVMRuntimeArguments(info.jvmOptions);
+        } else {
+            return String.join(" ", restoreCommandLineOptions(VM.getRuntimeArguments()));
+        }
     }
 }

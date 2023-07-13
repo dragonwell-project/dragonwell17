@@ -46,7 +46,7 @@ public abstract class QuickStartTestRunner {
 
     abstract String[] getQuickStartOptions(File cacheDir);
 
-    private String[] merge(String[][] arrays) {
+    protected String[] merge(String[][] arrays) {
         int total = 0;
         for (int i = 0; i < arrays.length; i++) {
             total += arrays[i].length;
@@ -114,6 +114,21 @@ public abstract class QuickStartTestRunner {
             args.add(System.getProperty("java.class.path"));
         }
 
+        Collections.addAll(args, command);
+
+        // Reporting
+        StringBuilder cmdLine = new StringBuilder();
+        for (String cmd : args)
+            cmdLine.append(cmd).append(' ');
+        System.out.println("Command line: [" + cmdLine.toString() + "]");
+        return new ProcessBuilder(args.toArray(new String[args.size()]));
+    }
+
+    protected ProcessBuilder createJavaProcessBuilderNoCP(String... command) {
+        String javapath = jdk.test.lib.JDKToolFinder.getJDKTool("java");
+
+        ArrayList<String> args = new ArrayList<>();
+        args.add(javapath);
         Collections.addAll(args, command);
 
         // Reporting

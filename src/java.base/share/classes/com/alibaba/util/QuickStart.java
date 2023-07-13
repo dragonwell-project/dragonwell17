@@ -58,7 +58,27 @@ public class QuickStart {
     /**
      * The enumeration is the same as VM level `enum QuickStart::QuickStartRole`
      */
-    public enum QuickStartRole { NORMAL, TRACER, REPLAYER }
+    public enum QuickStartRole {
+        NORMAL(0),
+        TRACER(1),
+        REPLAYER(2),
+        PROFILER(3),
+        DUMPER(4);
+        int code;
+
+        QuickStartRole(int code) {
+            this.code = code;
+        }
+
+        public static QuickStartRole getRoleByCode(int code) {
+            for (QuickStartRole role : QuickStartRole.values()) {
+                if (role.code == code) {
+                    return role;
+                }
+            }
+            return null;
+        }
+    }
 
     private static QuickStartRole role = QuickStartRole.NORMAL;
 
@@ -72,12 +92,12 @@ public class QuickStart {
     protected static String cachePath;
 
     // called by JVM
-    private static void initialize(boolean isTracer, String cachePath, boolean verbose) {
-        role = isTracer ? QuickStartRole.TRACER : QuickStartRole.REPLAYER;
+    private static void initialize(int roleCode, String cachePath, boolean verbose) {
+        role = QuickStartRole.getRoleByCode(roleCode);
         QuickStart.cachePath = cachePath;
         QuickStart.verbose = verbose;
 
-        if (isTracer) {
+        if (role == QuickStartRole.TRACER || role == QuickStartRole.PROFILER) {
             Runtime.getRuntime().addShutdownHook(new Thread(QuickStart::notifyDump));
         }
     }
@@ -107,6 +127,10 @@ public class QuickStart {
      */
     public static boolean isReplayer() {
         return role == QuickStartRole.REPLAYER;
+    }
+
+    public static boolean isDumper() {
+        return role == QuickStartRole.DUMPER;
     }
 
     public static String cachePath() {

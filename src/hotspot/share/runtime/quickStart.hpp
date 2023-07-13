@@ -25,6 +25,8 @@ public:
     Normal,
     Tracer,
     Replayer,
+    Profiler,
+    Dumper
   } QuickStartRole;
 
   static const char* cache_path()       { return _cache_path; }
@@ -35,7 +37,9 @@ public:
   static void initialize(TRAPS);
   static bool is_tracer()               { return _role == Tracer; }
   static bool is_replayer()             { return _role == Replayer; }
+  static bool is_profiler()             { return _role == Profiler; }
   static bool is_normal()               { return _role == Normal; }
+  static bool is_dumper()               { return _role == Dumper; }
   static bool is_starting()             { return is_enabled() && _is_starting; }
 
   static int remove_dir(const char* dir);
@@ -67,15 +71,19 @@ private:
   static bool _opt_enabled[];
   static bool _opt_passed[];
   static int _jvm_option_count;
+  static bool _profile_only;
+  static bool _dump_only;
+  static const char** _jvm_options;
 
   static bool set_optimization(const char* option, bool enabled);
-  static bool determine_tracer_or_replayer(JavaVMInitArgs* options_args);
+  static bool determine_role(JavaVMInitArgs* options_args);
+  static bool prepare_dump(JavaVMInitArgs* options_args);
   static void calculate_cache_path();
   static void destroy_cache_folder();
   static void setenv_for_roles();
   static void process_argument_for_optimization();
-  static bool check_integrity(JavaVMInitArgs* options_args);
-  static void generate_metadata_file();
+  static bool check_integrity(JavaVMInitArgs* options_args, const char* meta_file);
+  static void generate_metadata_file(bool rename_metafile);
   static bool match_option(const char* option, const char* name, const char** tail);
   static void print_command_line_help(outputStream* out);
   static bool dump_cached_info(JavaVMInitArgs* options_args);
@@ -84,6 +92,9 @@ private:
   static void print_stat(bool isReplayer);
   static void log(const char* msg, ...) ATTRIBUTE_PRINTF(1, 2);
   static void settle_opt_pass_table();
+  static void add_dump_hook(TRAPS);
+  static void trim_tail_newline(char* str);
+  static Handle jvm_option_handle(TRAPS);
 
 public:
   static void set_opt_passed(opt feature);
@@ -96,10 +107,11 @@ private:
   static const char *_jsa;
   static const char *_eagerappcds_agentlib;
   static const char *_eagerappcds_agent;
+  static const char *_module_filename;
 private:
   static void enable_eagerappcds();
   static void enable_appcds();
-  static void add_CDSDumpHook(TRAPS);
+  static void add_CDSDumpHook(Handle jvm_option, TRAPS);
 };
 
 #endif
