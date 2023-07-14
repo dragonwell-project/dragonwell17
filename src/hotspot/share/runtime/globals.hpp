@@ -2101,6 +2101,8 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, EagerAppCDSStaticClassDiffCheck, false,                     \
           "Enable checking diff classes for eagerappcds."                   \
           "Diff take place before running quickstart as replay role.")      \
+  product(bool, AppCDSVerifyClassPathOrder, true,                           \
+          "The classpath order when dump is the same as when run")          \
 // end of RUNTIME_FLAGS
 
 DECLARE_FLAGS(LP64_RUNTIME_FLAGS)

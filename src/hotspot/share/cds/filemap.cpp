@@ -749,12 +749,63 @@ GrowableArray<const char*>* FileMapInfo::create_path_array(const char* paths) {
   return path_array;
 }
 
+GrowableArray<const char*>* FileMapInfo::get_app_cp_array(int shared_path_start_idx, int num_paths) {
+  GrowableArray<const char*>* path_array = new GrowableArray<const char*>(num_paths);
+  int i = 0;
+  int j = shared_path_start_idx;
+  int shared_path_len = get_number_of_shared_paths();
+  while(i < num_paths) {
+    while (j < shared_path_len && shared_path(j)->from_class_path_attr()) {
+      // shared_path(j) was expanded from the JAR file attribute "Class-Path:"
+      // during dump time. It's not included in the -classpath VM argument.
+      j++;
+    }
+    path_array->append(shared_path(j)->name());
+    i++;
+    j++;
+  }
+  return path_array;
+}
+
+
 bool FileMapInfo::classpath_failure(const char* msg, const char* name) {
   ClassLoader::trace_class_path(msg, name);
   if (PrintSharedArchiveAndExit) {
     MetaspaceShared::set_archive_loading_failed();
   }
   return false;
+}
+
+static int qsort_strcmp(const void* a, const void* b) {
+  return strcmp((*(const char**)a), (*(const char**)b));
+}
+
+static void free_string_array(char** array, int size) {
+  for (int i = 0; i < size; i++) {
+    if (array[i] != NULL) {
+      FREE_C_HEAP_ARRAY(char, array[i]);
+    }
+  }
+  FREE_C_HEAP_ARRAY(char*, array);
+}
+
+static char** new_string_array(GrowableArray<const char*>* array) {
+  int count = array->length();
+  char** string_array = (char**) NEW_C_HEAP_ARRAY(char*, count, mtInternal);
+  if (string_array == NULL) {
+    return NULL;
+  }
+  for(int i = 0; i < count; i++) {
+    int len = strlen(array->at(i));
+    char* s  = (char*)NEW_C_HEAP_ARRAY(char, len + 1, mtInternal);
+    if (s == NULL) {
+      return NULL;
+    }
+    strncpy(s, array->at(i), len);
+    s[len] = '\0';
+    string_array[i] = s;
+  }
+  return string_array;
 }
 
 bool FileMapInfo::check_paths(int shared_path_start_idx, int num_paths, GrowableArray<const char*>* rp_array) {
@@ -871,10 +922,54 @@ bool FileMapInfo::validate_app_class_paths(int shared_app_paths_len) {
     // run 2: -cp x.jar:NE4:b.jar      -> x.jar:b.jar -> mismatched
 
     int j = header()->app_class_paths_start_index();
-    mismatch = check_paths(j, shared_app_paths_len, rp_array);
-    if (mismatch) {
-      return classpath_failure("[APP classpath mismatch, actual: -Djava.class.path=", appcp);
+
+    if (AppCDSVerifyClassPathOrder) {
+      mismatch = check_paths(j, shared_app_paths_len, rp_array);
+      if (mismatch) {
+        return classpath_failure("[APP classpath mismatch, actual: -Djava.class.path=", appcp);
+      }
+    } else {
+      // reorder the app paths and then cmp
+      int n_app = rp_array->length();
+      char **app_elements = new_string_array(rp_array);
+      if (NULL == app_elements) {
+        return classpath_failure("Create app classpath array failed! appcp: ", appcp);
+      }
+
+      GrowableArray<const char*>* classpath_array = get_app_cp_array(j, shared_app_paths_len);
+      int n_path = classpath_array->length();
+      char **path_elements = new_string_array(classpath_array);
+      if (NULL == path_elements) {
+        free_string_array(app_elements, n_app);
+        return classpath_failure("Create shared classpath array failed! appcp: ", appcp);
+      }
+
+      qsort(app_elements, n_app, sizeof(*app_elements), qsort_strcmp);
+      qsort(path_elements, n_path, sizeof(*path_elements), qsort_strcmp);
+
+      // S1: the set of dump(path_elements)
+      // S2: the set of run(app_elements)
+      // check if S1 == S2 or S1 is proper subset of S2
+      int i = 0, j = 0;
+      while (i < n_path && j < n_app) {
+        int c = strcmp(app_elements[j], path_elements[i]);
+        if (c == 0) {
+          i++;
+          j++;
+        } else if (c < 0) {
+          j++;
+        } else {
+          break;
+        }
+      }
+
+      free_string_array(app_elements, n_app);
+      free_string_array(path_elements, n_path);
+      if (i != n_path) {
+        return classpath_failure("[APP classpath mismatch, actual: -Djava.class.path=", appcp);
+      } 
     }
+    
   }
   return true;
 }

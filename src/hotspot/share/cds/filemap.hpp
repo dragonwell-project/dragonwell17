@@ -523,6 +523,8 @@ public:
     return _shared_path_table.size();
   }
 
+  GrowableArray<const char*>* get_app_cp_array(int shared_path_start_idx, int num_paths);
+
   static int get_module_shared_path_index(Symbol* location) NOT_CDS_RETURN_(-1);
 
   char* region_addr(int idx);
