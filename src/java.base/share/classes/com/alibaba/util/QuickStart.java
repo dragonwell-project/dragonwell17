@@ -91,11 +91,17 @@ public class QuickStart {
     // JVM will set these fields
     protected static String cachePath;
 
+    protected static String[] vmOptionsInProfileStage;
+
+    protected static String classPathInProfileStage;
+
     // called by JVM
-    private static void initialize(int roleCode, String cachePath, boolean verbose) {
+    private static void initialize(int roleCode, String cachePath, boolean verbose, String[] vmOptionsInProfileStage, String classPathInProfileStage) {
         role = QuickStartRole.getRoleByCode(roleCode);
         QuickStart.cachePath = cachePath;
         QuickStart.verbose = verbose;
+        QuickStart.vmOptionsInProfileStage = vmOptionsInProfileStage;
+        QuickStart.classPathInProfileStage = classPathInProfileStage;
 
         if (role == QuickStartRole.TRACER || role == QuickStartRole.PROFILER) {
             Runtime.getRuntime().addShutdownHook(new Thread(QuickStart::notifyDump));
@@ -135,6 +141,14 @@ public class QuickStart {
 
     public static String cachePath() {
         return cachePath;
+    }
+
+    public static String[] getVmOptionsInProfileStage() {
+        return vmOptionsInProfileStage;
+    }
+
+    public static String getClassPathInProfileStage() {
+        return classPathInProfileStage;
     }
 
     public static synchronized void addDumpHook(Runnable runnable) {

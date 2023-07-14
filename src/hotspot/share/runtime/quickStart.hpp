@@ -75,6 +75,7 @@ private:
   static bool _dump_only;
   static bool _replay_only;
   static const char** _jvm_options;
+  static const char* _cp_in_metadata_file;
 
   static bool set_optimization(const char* option, bool enabled);
   static bool determine_role(JavaVMInitArgs* options_args);
@@ -112,7 +113,7 @@ private:
 private:
   static void enable_eagerappcds();
   static void enable_appcds();
-  static void add_CDSDumpHook(Handle jvm_option, TRAPS);
+  static void add_CDSDumpHook(TRAPS);
 };
 
 #endif

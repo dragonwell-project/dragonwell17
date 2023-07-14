@@ -38,8 +38,8 @@ public class CDSDumperHelper {
         boolean verbose = QuickStart.isVerbose();
 
         String jdkHome = Utils.getJDKHome();
-        String vmOptions = getVmOptions(info);
-        String classPath = getClassPath(info);
+        String vmOptions = getVmOptions();
+        String classPath = getClassPath();
         Utils.runProcess(verbose, "[CDSDumper] ", (pb) -> {
                     // clear up agent options because cds dump phase cannot live with java agent in peace
                     String toolOp = Utils.removeAgentOp();
@@ -64,17 +64,17 @@ public class CDSDumperHelper {
         );
     }
 
-    private static String getClassPath(CDSDumpHook.Info info) {
+    private static String getClassPath() {
         if (QuickStart.isDumper()) {
-            return Utils.getClassPath(info.jvmOptions);
+            return QuickStart.getClassPathInProfileStage();
         } else {
             return System.getProperty("java.class.path");
         }
     }
 
-    private static String getVmOptions(CDSDumpHook.Info info) {
+    private static String getVmOptions() {
         if (QuickStart.isDumper()) {
-            return Utils.getVMRuntimeArguments(info.jvmOptions);
+            return Utils.getVMRuntimeArguments(QuickStart.getVmOptionsInProfileStage());
         } else {
             return String.join(" ", restoreCommandLineOptions(VM.getRuntimeArguments()));
         }

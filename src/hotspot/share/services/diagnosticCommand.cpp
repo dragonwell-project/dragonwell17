@@ -1044,7 +1044,7 @@ void DebugOnCmdStartDCmd::execute(DCmdSource source, TRAPS) {
 #endif // INCLUDE_JVMTI
 
 void QuickStartDumpDCMD::execute(DCmdSource source, TRAPS) {
-  if (QuickStart::is_tracer()) {
+  if (QuickStart::is_tracer() || QuickStart::is_profiler()) {
     Klass* klass = vmClasses::com_alibaba_util_QuickStart_klass();
     JavaValue result(T_VOID);
     JavaCallArguments args(0);

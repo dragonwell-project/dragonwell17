@@ -42,6 +42,7 @@ const char* QuickStart::_module_filename      = "modules.lst";
 
 int QuickStart::_jvm_option_count = 0;
 const char** QuickStart::_jvm_options = NULL;
+const char*  QuickStart::_cp_in_metadata_file = NULL;
 
 const char* QuickStart::_opt_name[] = {
 #define OPT_TAG(name) #name,
@@ -53,14 +54,16 @@ enum identifier {
   Features,
   VMVersion,
   ContainerImageID,
-  JVMOptionCount
+  JVMOptionCount,
+  ClassPathLength
 };
 
 const char* QuickStart::_identifier_name[] = {
   "Features: ",
   "VM_Version: ",
   "Container_Image_ID: ",
-  "JVM_Option_Count: "
+  "JVM_Option_Count: ",
+  "Class_Path_Length: "
 };
 
 bool QuickStart::_opt_enabled[] = {
@@ -226,13 +229,15 @@ void QuickStart::print_command_line_help(outputStream* out) {
 void QuickStart::initialize(TRAPS) {
   Klass* klass = vmClasses::com_alibaba_util_QuickStart_klass();
   JavaValue result(T_VOID);
-  JavaCallArguments args(3);
+  JavaCallArguments args(5);
   args.push_int(_role);
   args.push_oop(java_lang_String::create_from_str(QuickStart::cache_path(), THREAD));
   args.push_int(QuickStart::_verbose);
+  args.push_oop(is_dumper() ? jvm_option_handle(THREAD) : objArrayHandle());
+  args.push_oop(is_dumper() ? java_lang_String::create_from_str(_cp_in_metadata_file, THREAD) : Handle());
 
   JavaCalls::call_static(&result, klass, vmSymbols::initialize_name(),
-                         vmSymbols::int_string_bool_void_signature(), &args, CHECK);
+                         vmSymbols::int_string_bool_stringarray_string_void_signature(), &args, CHECK);
 
   if (is_tracer()) {
     add_dump_hook(CHECK);
@@ -251,9 +256,8 @@ void QuickStart::initialize(TRAPS) {
 }
 
 void QuickStart::add_dump_hook(TRAPS) {
-  Handle h = is_dumper() ? jvm_option_handle(THREAD) : objArrayHandle();
   if (_opt_enabled[_eagerappcds] || _opt_enabled[_appcds]) {
-    add_CDSDumpHook(h, CHECK);
+    add_CDSDumpHook(CHECK);
   }
 }
 
@@ -270,18 +274,17 @@ Handle QuickStart::jvm_option_handle(TRAPS) {
   return result_h;
 }
 
-void QuickStart::add_CDSDumpHook(Handle jvm_option, TRAPS) {
+void QuickStart::add_CDSDumpHook(TRAPS) {
   Klass *klass = vmClasses::com_alibaba_util_CDSDumpHook_klass();
   JavaValue result(T_VOID);
-  JavaCallArguments args(6);
+  JavaCallArguments args(5);
   args.push_oop(java_lang_String::create_from_str(QuickStart::_origin_class_list, THREAD));
   args.push_oop(java_lang_String::create_from_str(QuickStart::_final_class_list, THREAD));
   args.push_oop(java_lang_String::create_from_str(QuickStart::_jsa, THREAD));
   args.push_oop(java_lang_String::create_from_str(QuickStart::_eagerappcds_agent, THREAD));
   args.push_int(_opt_enabled[_eagerappcds]);
-  args.push_oop(jvm_option);
   JavaCalls::call_static(&result, klass, vmSymbols::initialize_name(),
-                         vmSymbols::string_string_string_string_bool_stringarray_void_signature(), &args, CHECK);
+                         vmSymbols::string_string_string_string_bool_void_signature(), &args, CHECK);
 }
 
 void QuickStart::post_process_arguments(JavaVMInitArgs* options_args) {
@@ -380,6 +383,7 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
   bool version_checked      = false;
   bool container_checked    = false;
   bool option_checked       = false;
+  bool cp_len_checked       = false;
 
   _vm_version = VM_Version::internal_vm_info_string();
 
@@ -438,6 +442,35 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
           _jvm_options[index] = os::strdup_check_oom(line);
         }
       }
+    } else if (!cp_len_checked && match_option(line, _identifier_name[ClassPathLength], &tail)) {
+      int cp_len = 0;
+      if (sscanf(tail, "%d", &cp_len) != 1) {
+        tty->print_cr("Unable read class path length.");
+        return false;
+      }
+      if (cp_len <= 0 || (size_t)cp_len > 64 * M) {
+        tty->print_cr("Invalid \"%s\"'s value: %d.It should > 0 and <= 64M.", _identifier_name[ClassPathLength], cp_len);
+        return false;
+      }
+
+      cp_len_checked = true;
+      //+2,one for new line, one for \0
+      cp_len += 2;
+      char *cp_buff = NEW_C_HEAP_ARRAY(char, cp_len, mtArguments);
+      if (fgets(cp_buff, cp_len, _metadata_file) == NULL) {
+        tty->print_cr("Unable to read classpath option.");
+        FREE_C_HEAP_ARRAY(char, cp_buff);
+        return false;
+      }
+      if (cp_buff[cp_len - 2] != '\n') {
+        tty->print_cr("ClassPath real size not match with expect size.");
+        FREE_C_HEAP_ARRAY(char, cp_buff);
+        return false;
+      }
+
+      trim_tail_newline(cp_buff);
+      _cp_in_metadata_file = os::strdup_check_oom(cp_buff);
+      FREE_C_HEAP_ARRAY(char, cp_buff);
     }
   }
   return true;
@@ -861,6 +894,11 @@ bool QuickStart::dump_cached_info(JavaVMInitArgs* options_args) {
   } else {
     _temp_metadata_file->print_cr("%s", _identifier_name[ContainerImageID]);
   }
+
+  int cp_len = strlen(Arguments::get_appclasspath());
+  _temp_metadata_file->print_cr("%s%d", _identifier_name[ClassPathLength], cp_len);
+  _temp_metadata_file->write(Arguments::get_appclasspath(), cp_len);
+  _temp_metadata_file->cr();
 
   _temp_metadata_file->print_cr("%s%d", _identifier_name[JVMOptionCount], _jvm_option_count);
   // write options args

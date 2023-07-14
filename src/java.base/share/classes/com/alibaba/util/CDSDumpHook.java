@@ -10,28 +10,27 @@ public class CDSDumpHook {
         public String jsaName;
         public final String agent;
         public final boolean eager;
-        public final String[] jvmOptions;
+
         public Info(String cdsOriginClassList,
                     String cdsFinalClassList,
                     String cdsJsa,
                     boolean useEagerAppCDS,
-                    String eagerAppCDSAgent,
-                    String[] jvmOptions) {
+                    String eagerAppCDSAgent) {
 
             this.originClassListName = cdsOriginClassList;
             this.finalClassListName = cdsFinalClassList;
             this.jsaName = cdsJsa;
             this.eager = useEagerAppCDS;
             this.agent = eagerAppCDSAgent;
-            this.jvmOptions = jvmOptions;
+
         }
     }
     private static Info info;
     public static Info getInfo() { return info; }
 
     // called by JVM
-    private static void initialize(String cdsOriginClassList, String cdsFinalClassList, String cdsJSA, String agent, boolean useEagerAppCDS, String[] jvmOptions) {
-        info = new Info(cdsOriginClassList, cdsFinalClassList, cdsJSA, useEagerAppCDS, agent, jvmOptions);
+    private static void initialize(String cdsOriginClassList, String cdsFinalClassList, String cdsJSA, String agent, boolean useEagerAppCDS) {
+        info = new Info(cdsOriginClassList, cdsFinalClassList, cdsJSA, useEagerAppCDS, agent);
 
         CDSDumpHook.setup();
     }

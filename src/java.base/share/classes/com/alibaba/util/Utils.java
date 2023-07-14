@@ -131,15 +131,6 @@ public class Utils {
         return result.stream().collect(Collectors.joining(" "));
     }
 
-    public static String getClassPath(String[] vmOptions) {
-        for (String vmOption : vmOptions) {
-            if (vmOption.startsWith(CP_FLAG)) {
-                return vmOption.substring(CP_FLAG.length());
-            }
-        }
-        return null;
-    }
-    
     public static native String[] getModuleNames();
     public static native String getJDKBootClassPathAppend();
 }
