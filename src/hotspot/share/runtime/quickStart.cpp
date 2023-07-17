@@ -603,14 +603,14 @@ void QuickStart::enable_eagerappcds() {
 
   if (!_eagerappcds_agent) {
     char buf[JVM_MAXPATHLEN];
-    sprintf(buf, "EagerAppCDS%sCDSXMLAutoRegisterAgent.jar", os::file_separator());
-    // The real path: <JDK_HOME>/lib/EagerAppCDS/CDSXMLAutoRegisterAgent.jar
+    sprintf(buf, "serverless%sserverless-adapter.jar", os::file_separator());
+    // The real path: <JDK_HOME>/lib/serverless/CDSXMLAutoRegisterAgent.jar
     _eagerappcds_agent = strdup(buf);
   }
   if (!_eagerappcds_agentlib) {
     char buf[JVM_MAXPATHLEN];
-    sprintf(buf, "EagerAppCDS%slibloadclassagent.so", os::file_separator());
-    // The real path: <JDK_HOME>/lib/EagerAppCDS/libloadclassagent.so
+    sprintf(buf, "serverless%slibloadclassagent.so", os::file_separator());
+    // The real path: <JDK_HOME>/lib/serverless/libloadclassagent.so
     _eagerappcds_agentlib = strdup(buf);
   }
 

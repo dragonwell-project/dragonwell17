@@ -45,7 +45,7 @@ public final class StaticDiffTestRunner extends QuickStartTestRunner {
     @Override
     public String[] getQuickStartOptions(File cacheDir) {
         return new String[]{"-Xquickstart:path=" + cacheDir.getAbsolutePath(),
-                "-XX:+IgnoreAppCDSDirCheck", "-XX:+EagerAppCDSStaticClassDiffCheck", "-Xquickstart:verbose", "-Xlog:class+eagerappcds=trace"};
+                "-XX:+IgnoreAppCDSDirCheck", "-XX:+EagerAppCDSStaticClassDiffCheck", "-Xquickstart:verbose", "-Xlog:class+eagerappcds=trace,quickstart=info"};
     }
 
     private void diffClasses(ProjectWorkDir pwd, Project project) throws IOException {

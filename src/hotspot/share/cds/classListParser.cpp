@@ -251,7 +251,17 @@ bool ClassListParser::parse_one_line() {
         *s = '\0'; // mark the end of _source
         _token = s+1;
       }
-    } else if (EagerAppCDS && parse_hex_option("defining_loader_hash:", &_defining_loader_hash)) {
+    } else if (skip_token("origin:")) {
+      // EagerAppCDSDynamicClassDiffCheck use "origin:", but isn't ported now
+      skip_whitespaces();
+      char *s = strchr(_token, ' ');
+      if (s == NULL) {
+        break; // end of input line
+      } else {
+        *s = '\0'; // mark the end of _source
+        _token = s+1;
+      }
+    }  else if (EagerAppCDS && parse_hex_option("defining_loader_hash:", &_defining_loader_hash)) {
       continue;
     } else if (EagerAppCDS && parse_hex_option("initiating_loader_hash:", &_initiating_loader_hash)) {
       continue;
