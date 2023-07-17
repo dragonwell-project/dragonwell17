@@ -207,8 +207,8 @@ public class CoroutineTest {
 		Coroutine.yieldTo(threadCoro);
 	}
 
-  @Test
+	@Test
 	public void destroyNonInitedTest() {
-    new Coroutine();
-  }
+		new Coroutine();
+	}
 }
