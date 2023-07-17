@@ -549,6 +549,10 @@ int FileMapInfo::add_shared_classpaths(int i, const char* which, ClassPathEntry 
 void FileMapInfo::check_nonempty_dir_in_shared_path_table() {
   Arguments::assert_is_dumping_archive();
 
+  if (IgnoreAppCDSDirCheck) {
+    return;
+  }
+
   bool has_nonempty_dir = false;
 
   int last = _shared_path_table.size() - 1;
