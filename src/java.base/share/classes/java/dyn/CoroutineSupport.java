@@ -394,4 +394,10 @@ public class CoroutineSupport {
      */
     public static native void setWispBooted();
 
+    /**
+     * this will turn on a safepoint to stop all threads.
+     * @param coroPtr coroutine
+     * @return target coroutine's stack
+     */
+    public static native StackTraceElement[] getCoroutineStack(long coroPtr);
 }

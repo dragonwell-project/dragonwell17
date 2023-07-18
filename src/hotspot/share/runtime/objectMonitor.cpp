@@ -1373,6 +1373,7 @@ void ObjectMonitor::ExitEpilog(JavaThread* current, ObjectWaiter* Wakee) {
   const int  wisp_id  = Wakee->_park_wisp_id;
   const bool use_wisp = Wakee->_using_wisp_park;
   const bool proxy_unpark = Wakee->_proxy_wisp_unpark;
+  WispThread* wisp_thread = (WispThread*)Wakee->_thread;
 
 
   // Hygiene -- once we've set _owner = NULL we can't safely dereference Wakee again.
@@ -1387,7 +1388,7 @@ void ObjectMonitor::ExitEpilog(JavaThread* current, ObjectWaiter* Wakee) {
 
   DTRACE_MONITOR_PROBE(contended__exit, this, object(), current);
   if (UseWispMonitor) {
-    WispThread::unpark(wisp_id, use_wisp, proxy_unpark, Trigger, current);
+    WispThread::unpark(wisp_id, use_wisp, proxy_unpark, Trigger, wisp_thread, current);
   } else {
     Trigger->unpark();
   }

@@ -241,6 +241,22 @@ class VM_ThreadDump : public VM_Operation {
 };
 
 
+class VM_CoroutineDump : public VM_Operation {
+ private:
+  ThreadDumpResult*              _result;
+  Coroutine *                    _target;
+
+  ThreadSnapshot* snapshot_thread(JavaThread* java_thread, ThreadConcurrentLocks* tcl);
+
+ public:
+  VM_CoroutineDump(ThreadDumpResult* result, Coroutine *target);
+
+  VMOp_Type type() const { return VMOp_CoroutineDump; }
+  void doit();
+  bool doit_prologue();
+  void doit_epilogue();
+};
+
 class VM_Exit: public VM_Operation {
  private:
   int  _exit_code;

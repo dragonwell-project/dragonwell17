@@ -2101,6 +2101,9 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, UseWisp2, false,                                            \
           "Enable Wisp2")                                                   \
                                                                             \
+  product(bool, PrintThreadCoroutineInfo, false, MANAGEABLE,                \
+          "print the park/unpark information for thread coroutine")         \
+                                                                            \
 
 
 // end of RUNTIME_FLAGS
