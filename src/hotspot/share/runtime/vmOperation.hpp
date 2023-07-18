@@ -38,6 +38,7 @@
   template(None)                                  \
   template(Cleanup)                               \
   template(ThreadDump)                            \
+  template(CoroutineDump)                         \
   template(PrintThreads)                          \
   template(FindDeadlocks)                         \
   template(ClearICs)                              \
