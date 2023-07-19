@@ -16,6 +16,7 @@
 #include "runtime/globals_extension.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/handles.inline.hpp"
+#include "oops/objArrayOop.inline.hpp"
 
 bool QuickStart::_is_starting = true;
 bool QuickStart::_is_enabled = false;
