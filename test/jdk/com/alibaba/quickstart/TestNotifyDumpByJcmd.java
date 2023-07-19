@@ -5,7 +5,7 @@
  * @library /test/lib
  * @build TestDump
  * @requires os.arch=="amd64"
- * @run driver jdk.test.lib.helpers.ClassFileInstaller  -jar test.jar TestDump TestDump$Policy TestDump$ClassLoadingPolicy TestDump$WatcherThread
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller  -jar test-notifyDumpByJcmd.jar TestDump TestDump$Policy TestDump$ClassLoadingPolicy TestDump$WatcherThread
  * @run main/othervm/timeout=600 TestNotifyDumpByJcmd
  */
 
