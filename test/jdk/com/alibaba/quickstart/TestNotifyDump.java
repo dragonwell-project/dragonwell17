@@ -48,7 +48,7 @@ public class TestNotifyDump {
     static void destroyCache(String parentDir) throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + parentDir + "/testnotifydump", "-Xquickstart:verbose,destroy", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        output.shouldContain("destory the cache folder");
+        output.shouldContain("destroy the cache folder");
         output.shouldHaveExitValue(0);
     }
 }

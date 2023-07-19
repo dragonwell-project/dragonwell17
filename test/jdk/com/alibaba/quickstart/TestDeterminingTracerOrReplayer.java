@@ -41,7 +41,7 @@ public class TestDeterminingTracerOrReplayer {
     void destroyCache() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xquickstart:path=" + cachepath, "-Xquickstart:verbose,destroy", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        output.shouldContain("destory the cache folder");
+        output.shouldContain("destroy the cache folder");
         output.shouldHaveExitValue(0);
     }
 
