@@ -172,7 +172,10 @@
   do_klass(java_dyn_CoroutineSupport_klass,             java_dyn_CoroutineSupport                             ) \
   do_klass(java_dyn_CoroutineBase_klass,                java_dyn_CoroutineBase                                ) \
   do_klass(com_alibaba_wisp_engine_WispTask_klass,      com_alibaba_wisp_engine_WispTask                      ) \
+  do_klass(com_alibaba_wisp_engine_WispTask_CacheableCoroutine_klass,                                           \
+                                                        com_alibaba_wisp_engine_WispTask_CacheableCoroutine   ) \
   do_klass(com_alibaba_wisp_engine_WispEngine_klass,    com_alibaba_wisp_engine_WispEngine                    ) \
+  do_klass(com_alibaba_wisp_engine_WispEventPump_klass, com_alibaba_wisp_engine_WispEventPump                 ) \
                                                                                                                 \
   /* force inline of iterators */                                                                               \
   do_klass(Iterator_klass,                              java_util_Iterator                                    ) \
