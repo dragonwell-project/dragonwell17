@@ -392,7 +392,7 @@ class ServerSocketChannelImpl
         try {
             boolean blocking = isBlocking();
             final boolean wispAndBlocking = WispEngine.transparentWispSwitch() && blocking &&
-                                            WEA.usingWispEpoll(null);
+                                            WEA.usingWispEpoll();
             try {
                 begin(blocking);
                 if (wispAndBlocking) {
