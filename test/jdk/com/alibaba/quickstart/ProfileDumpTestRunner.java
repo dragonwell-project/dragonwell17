@@ -20,7 +20,7 @@ public class ProfileDumpTestRunner extends QuickStartTestRunner {
         project.build(projectWorkDir);
         runAsProfile(project, projectWorkDir);
         runAsDump(project, projectWorkDir);
-        runAsReplayer(project, projectWorkDir, false);
+        runAsReplayer(project, projectWorkDir);
     }
 
     @Override
@@ -29,9 +29,10 @@ public class ProfileDumpTestRunner extends QuickStartTestRunner {
     }
 
     @Override
-    public String[] getQuickStartOptions(File cacheDir, boolean doClassDiff) {
+    public String[] getQuickStartOptions(File cacheDir) {
         return merge(new String[][]{feature.getAppendixOption(),
                 new String[]{"-Xquickstart:verbose,path=" + cacheDir.getAbsolutePath() + append(feature.getQuickstartSubOption())}});
+                
     }
 
     private String append(String subOption) {
@@ -40,7 +41,11 @@ public class ProfileDumpTestRunner extends QuickStartTestRunner {
 
     private String[] getProfileOptions(File cacheDir) {
         return merge(new String[][]{feature.getAppendixOption(),
-                new String[]{"-Xquickstart:profile,verbose,path=" + cacheDir.getAbsolutePath() + append(feature.getQuickstartSubOption())}});
+                new String[]{"-Xquickstart:profile,verbose,path=" + cacheDir.getAbsolutePath() + append(feature.getQuickstartSubOption())},
+                new String[] {"--add-exports=java.base/jdk.internal.util.xml.impl=ALL-UNNAMED",
+                "--add-exports=java.base/jdk.internal.org.xml.sax=ALL-UNNAMED",
+                "--add-exports=java.base/jdk.internal.org.xml.sax.helpers=ALL-UNNAMED"}
+                });
     }
 
     private String[] getDumpOptions(File cacheDir) {

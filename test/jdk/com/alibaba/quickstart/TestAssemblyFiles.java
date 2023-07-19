@@ -11,12 +11,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.jar.JarFile;
-
-import static jdk.testlibrary.Asserts.assertTrue;
+import jdk.test.lib.Asserts;
 
 public class TestAssemblyFiles {
 
-    private static final String SERVERLESS_ADAPTER    = "serverless-adapter.jar";
+    private static final String SERVERLESS_ADAPTER    = "serverless/serverless-adapter.jar";
     private static final String QUICKSTART_CONFIG     = "quickstart.properties";
 
     public static void main(String[] args) throws Exception {
@@ -36,16 +35,20 @@ public class TestAssemblyFiles {
         return getJDKHome().resolve("lib");
     }
 
+    private static Path getJDKConfDir() {
+        return getJDKHome().resolve("conf");
+    }
+
     private static void verifyAssemblyFiles() throws Exception {
         verifyQuickStartProperties();
         verifyServerlessAdapter();
     }
 
     private static void verifyQuickStartProperties() {
-        assertTrue(getJDKConfDir().resolve(QUICKSTART_CONFIG).toFile().exists(), "must have " + QUICKSTART_CONFIG);
+        Asserts.assertTrue(getJDKConfDir().resolve(QUICKSTART_CONFIG).toFile().exists(), "must have " + QUICKSTART_CONFIG);
     }
 
     private static void verifyServerlessAdapter() {
-        assertTrue(getJDKLibDir().resolve(SERVERLESS_ADAPTER).toFile().exists(), "must have " + SERVERLESS_ADAPTER);
+        Asserts.assertTrue(getJDKLibDir().resolve(SERVERLESS_ADAPTER).toFile().exists(), "must have " + SERVERLESS_ADAPTER);
     }
 }
