@@ -22,27 +22,27 @@ public final class ClassPathOrderChangedTestRunner extends QuickStartTestRunner 
         projectWorkDir = new ProjectWorkDir(workDir + File.separator + "a");
         Project project = projectProvider.getProject();
         project.build(projectWorkDir);
-        runAsTracer(project, projectWorkDir, true);
-        runAsReplayer(project, projectWorkDir, true);
+        runAsTracer(project, projectWorkDir);
+        runAsReplayer(project, projectWorkDir);
     }
 
-    protected void runAsTracer(Project p, ProjectWorkDir workDir, boolean doClassDiff) throws Exception {
+    protected void runAsTracer(Project p, ProjectWorkDir workDir) throws Exception {
         String[] commands = p.getRunConf().buildJavaRunCommands(workDir.getBuild(), p.getArtifacts());
         List<String> cp = p.getRunConf().classpath(workDir.getBuild(), p.getArtifacts());
         cp = traceCPTransformer.apply(cp);
         ProcessBuilder pb = createJavaProcessBuilder(cp, merge(new String[][]{
-                getQuickStartOptions(workDir.getCacheDir(), doClassDiff), commands}));
+                getQuickStartOptions(workDir.getCacheDir()), commands}));
         jdk.test.lib.process.OutputAnalyzer output = new jdk.test.lib.process.OutputAnalyzer(pb.start());
         output.shouldContain("Running as tracer");
         output.shouldHaveExitValue(0);
     }
 
-    protected void runAsReplayer(Project p, ProjectWorkDir workDir, boolean doClassDiff) throws IOException {
+    protected void runAsReplayer(Project p, ProjectWorkDir workDir) throws IOException {
         String[] commands = p.getRunConf().buildJavaRunCommands(workDir.getBuild(), p.getArtifacts());
         List<String> cp = p.getRunConf().classpath(workDir.getBuild(), p.getArtifacts());
         cp = replayCPTransformer.apply(cp);
         ProcessBuilder pb = createJavaProcessBuilder(cp, merge(new String[][]{
-                getQuickStartOptions(workDir.getCacheDir(), doClassDiff), commands}));
+                getQuickStartOptions(workDir.getCacheDir()), commands}));
         jdk.test.lib.process.OutputAnalyzer output = new jdk.test.lib.process.OutputAnalyzer(pb.start());
         System.out.println("==========   QuickStart Output   ==========");
         System.out.println(output.getOutput());
@@ -67,7 +67,7 @@ public final class ClassPathOrderChangedTestRunner extends QuickStartTestRunner 
     }
 
     @Override
-    public String[] getQuickStartOptions(File cacheDir, boolean dummy) {
-        return new String[]{"-Xquickstart:path=" + cacheDir.getAbsolutePath(), "-XX:-AppCDSVerifyClassPathOrder", "-XX:+IgnoreAppCDSDirCheck", "-Xquickstart:verbose", "-Xlog:class+eagerappcds=trace"};
+    public String[] getQuickStartOptions(File cacheDir) {
+        return new String[]{"-Xquickstart:path=" + cacheDir.getAbsolutePath(), "-XX:-AppCDSVerifyClassPathOrder", "-XX:+IgnoreAppCDSDirCheck", "-Xquickstart:verbose", "-Xlog:class+eagerappcds=trace,quickstart=info"};
     }
 }
