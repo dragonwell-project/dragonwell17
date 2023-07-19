@@ -4,6 +4,7 @@ import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.WispEngineAccess;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.ref.CleanerFactory;
 
 import java.dyn.CoroutineExitException;
 import java.dyn.CoroutineSupport;
@@ -335,6 +336,19 @@ public abstract class WispEngine extends AbstractExecutorService {
                 Class.forName(WispEventPump.class.getName());
             }
             WispEngine.current().preloadClasses();
+            // It will load configuration files and trigger
+            // CleanerFactory.cleaner() when run thread as wisp firstly. But
+            // CleanerFactory.clean() would start another cleaner
+            // thread as wisp which loads configuration files again. But
+            // this time it sees that configuration is loading and try to
+            // wait it finished. So it leads to a deadlock because it waits
+            // for itself. So loading configurations should not be reentrant
+            // twice by the same thread.
+            // We move cleaner initialization before wisp initialization
+            // to avoid deadlock.
+            if (CleanerFactory.cleaner() == null) {
+                throw new InternalError("Cleaner is not available");
+            }
         } catch (Exception e) {
             throw new ExceptionInInitializerError(e);
         }
