@@ -3,6 +3,8 @@
 #include "classfile/javaClasses.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/vmClasses.hpp"
+#include "logging/log.hpp"
+#include "logging/logConfiguration.hpp"
 #include "memory/oopFactory.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/java.hpp"
@@ -128,6 +130,7 @@ bool QuickStart::parse_command_line_arguments(const char* options) {
         tty->print_cr("[QuickStart] Invalid -Xquickstart option '%s'", cur);
       }
       _verbose = true;
+      LogConfiguration::configure_stdout(LogLevel::Info, true, LOG_TAGS(quickstart));
     } else if (match_option(cur, "printStat", &tail)) {
       if (tail[0] != '\0') {
         success = false;
@@ -318,7 +321,7 @@ bool QuickStart::check_integrity(JavaVMInitArgs* options_args, const char* meta_
   _metadata_file = os::fopen(meta_file, "r");
   if (!_metadata_file) {
     // if one process removes metadata here, will NULL.
-    log("metadata file may be destroyed by another process.");
+    log_error(quickstart)("metadata file may be destroyed by another process.");
     return false;
   }
   bool result = load_and_validate(options_args);
@@ -395,7 +398,7 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
     } else if (!version_checked && match_option(line, _identifier_name[VMVersion], &tail)) {
       // read jvm info
       if (options_args != NULL && strncmp(tail, _vm_version, strlen(_vm_version)) != 0) {
-        log("VM Version isn't the same.");
+        log_error(quickstart)("VM Version isn't the same.");
         return false;
       }
       version_checked = true;
@@ -410,12 +413,12 @@ bool QuickStart::load_and_validate(JavaVMInitArgs* options_args) {
       const char *image_ident = QuickStart::image_id();
       int ident_size = image_ident != NULL ? strlen(image_ident) : 0;
       if (size != ident_size) {
-        QuickStart::log("Container image isn't the same.");
+        log_error(quickstart)("Container image isn't the same.");
         return false;
       }
 
       if (strncmp(tail, QuickStart::image_id(), size) != 0) {
-        log("Container image isn't the same.");
+        log_error(quickstart)("Container image isn't the same.");
         return false;
       }
     } else if (!option_checked && match_option(line, _identifier_name[JVMOptionCount], &tail)) {
@@ -499,13 +502,13 @@ void QuickStart::trim_tail_newline(char *str) {
 
 void QuickStart::calculate_cache_path() {
   if (_cache_path != NULL) {
-    log("cache path is set from -Xquickstart:path=%s", _cache_path);
+    log_info(quickstart)("cache path is set from -Xquickstart:path=%s", _cache_path);
     return;
   }
 
   const char *buffer = ::getenv("QUICKSTART_CACHE_PATH");
   if (buffer != NULL && (_cache_path = os::strdup_check_oom(buffer)) != NULL) {
-    log("cache path is set from env with %s", _cache_path);
+    log_info(quickstart)("cache path is set from env with %s", _cache_path);
     return;
   }
   const char* home = ::getenv("HOME");
@@ -520,15 +523,15 @@ void QuickStart::calculate_cache_path() {
   char buf[PATH_MAX];
   jio_snprintf(buf, PATH_MAX, "%s%s%s", home, os::file_separator(), DEFAULT_SHARED_DIRECTORY);
   _cache_path = os::strdup_check_oom(buf);
-  log("cache path is set as default with %s", _cache_path);
+  log_info(quickstart)("cache path is set as default with %s", _cache_path);
 }
 
 void QuickStart::destroy_cache_folder() {
   if (_need_destroy && _cache_path != NULL) {
     if (remove_dir(_cache_path) < 0) {
-      log("failed to destory the cache folder: %s", _cache_path);
+      log_error(quickstart)("failed to destroy the cache folder: %s", _cache_path);
     } else {
-      log("destory the cache folder: %s", _cache_path);
+      log_info(quickstart)("destroy the cache folder: %s", _cache_path);
     }
     vm_exit(0);
   }
@@ -654,11 +657,11 @@ bool QuickStart::determine_role(JavaVMInitArgs* options_args) {
     }
     ret = ::mkdir(_cache_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (ret != 0) {
-      log("Could not mkdir [%s] because [%s]", _cache_path, os::strerror(errno));
+      log_error(quickstart)("Could not mkdir [%s] because [%s]", _cache_path, os::strerror(errno));
       return false;
     }
   } else if (!S_ISDIR(st.st_mode)) {
-    log("Cache path [%s] is not a directory, "
+    log_error(quickstart)("Cache path [%s] is not a directory, "
         "please use -Xquickstart:path=<path> or environment variable "
         "QUICKSTART_CACHE_PATH to specify.\n",
         _cache_path);
@@ -679,7 +682,7 @@ bool QuickStart::determine_role(JavaVMInitArgs* options_args) {
     // if the lock exists, it returns -1.
     _lock_file_fd = os::create_binary_file(_lock_path, false);
     if (_lock_file_fd == -1) {
-      log("Fail to create LOCK file");
+      log_error(quickstart)("Fail to create LOCK file");
       return false;
     }
     jio_snprintf(buf, PATH_MAX, "%s%s%s", _cache_path, os::file_separator(), TEMP_METADATA_FILE);
@@ -801,17 +804,6 @@ void QuickStart::generate_metadata_file(bool rename_metafile) {
   }
 }
 
-void QuickStart::log(const char* msg, ...) {
-  if (_verbose) {
-    va_list ap;
-    va_start(ap, msg);
-    tty->print("[QuickStart(%d)] ", os::current_process_id());
-    tty->vprint(msg, ap);
-    tty->print_cr("");
-    va_end(ap);
-  }
-}
-
 int QuickStart::remove_dir(const char* dir) {
   char cur_dir[] = ".";
   char up_dir[]  = "..";
@@ -858,7 +850,7 @@ void QuickStart::notify_dump() {
   if (_role == Tracer || _role == Profiler || _role == Dumper) {
     generate_metadata_file(_role != Profiler);
   }
-  log("notifying dump done.");
+  log_info(quickstart)("notifying dump done.");
 }
 
 bool QuickStart::dump_cached_info(JavaVMInitArgs* options_args) {

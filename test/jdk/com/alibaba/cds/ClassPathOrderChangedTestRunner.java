@@ -68,6 +68,6 @@ public final class ClassPathOrderChangedTestRunner extends QuickStartTestRunner 
 
     @Override
     public String[] getQuickStartOptions(File cacheDir) {
-        return new String[]{"-Xquickstart:path=" + cacheDir.getAbsolutePath(), "-XX:-AppCDSVerifyClassPathOrder", "-XX:+IgnoreAppCDSDirCheck", "-Xquickstart:verbose", "-Xlog:class+eagerappcds=trace,quickstart=info"};
+        return new String[]{"-Xquickstart:path=" + cacheDir.getAbsolutePath(), "-XX:-AppCDSVerifyClassPathOrder", "-XX:+IgnoreAppCDSDirCheck", "-Xquickstart:verbose", "-Xlog:class+eagerappcds=trace"};
     }
 }

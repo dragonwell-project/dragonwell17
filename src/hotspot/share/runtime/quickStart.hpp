@@ -92,7 +92,6 @@ private:
   static bool load_and_validate(JavaVMInitArgs* options_args);
   static void check_features(const char* &str);
   static void print_stat(bool isReplayer);
-  static void log(const char* msg, ...) ATTRIBUTE_PRINTF(1, 2);
   static void settle_opt_pass_table();
   static void add_dump_hook(TRAPS);
   static void trim_tail_newline(char* str);
