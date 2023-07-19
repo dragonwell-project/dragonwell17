@@ -25,7 +25,11 @@ public final class EagerAppCDSTestRunner extends QuickStartTestRunner {
 
     @Override
     public String[] getQuickStartOptions(File cacheDir) {
-        return new String[]{"-Xquickstart:path=" + cacheDir.getAbsolutePath(), "-XX:+IgnoreAppCDSDirCheck", "-Xquickstart:verbose", "-Xlog:class+eagerappcds=trace"};
+        return new String[]{"-Xquickstart:path=" + cacheDir.getAbsolutePath(), "-XX:+IgnoreAppCDSDirCheck", "-Xquickstart:verbose", "-Xlog:class+eagerappcds=trace,quickstart=info",
+        "--add-exports=java.base/jdk.internal.util.xml.impl=ALL-UNNAMED",
+        "--add-exports=java.base/jdk.internal.org.xml.sax=ALL-UNNAMED",
+        "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED", 
+        "--add-exports=java.base/jdk.internal.org.xml.sax.helpers=ALL-UNNAMED"};
     }
 
     @Override

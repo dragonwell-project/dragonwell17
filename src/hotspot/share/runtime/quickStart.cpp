@@ -709,7 +709,7 @@ bool QuickStart::determine_role(JavaVMInitArgs* options_args) {
     return true;
   } else if (ret == 0 && check_integrity(options_args, _metadata_file_path)) {
     _role = Replayer;
-    log("Running as replayer");
+    log_info(quickstart)("Running as replayer");
     return true;
   }
   return false;
