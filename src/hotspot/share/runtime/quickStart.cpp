@@ -586,7 +586,11 @@ void QuickStart::setenv_for_roles() {
   } else {
     ShouldNotReachHere();
   }
+#if defined(_WINDOWS)
+  Unimplemented();
+#else
   setenv("ALIBABA_QUICKSTART_ROLE", role, 1);
+#endif
 }
 
 void QuickStart::process_argument_for_optimization() {
@@ -644,6 +648,10 @@ void QuickStart::enable_appcds() {
 }
 
 bool QuickStart::determine_role(JavaVMInitArgs* options_args) {
+#if defined(_WINDOWS)
+  Unimplemented();
+  return false;
+#else
   struct stat st;
   char buf[PATH_MAX];
   int ret = os::stat(_cache_path, &st);
@@ -747,6 +755,7 @@ bool QuickStart::prepare_dump(JavaVMInitArgs *options_args) {
   }
   log_error(quickstart)("Cannot dump,maybe the %s is invalid!ret: %d", TEMP_METADATA_FILE, ret);
   return false;
+#endif
 }
 
 void QuickStart::settle_opt_pass_table() {
@@ -805,6 +814,10 @@ void QuickStart::generate_metadata_file(bool rename_metafile) {
 }
 
 int QuickStart::remove_dir(const char* dir) {
+#if defined(_WINDOWS)
+  Unimplemented();
+  return -1;
+#else
   char cur_dir[] = ".";
   char up_dir[]  = "..";
   char dir_name[PATH_MAX];
@@ -844,6 +857,7 @@ int QuickStart::remove_dir(const char* dir) {
     jio_fprintf(defaultStream::error_stream(), "[QuickStart] unknow file type\n");
   }
   return ret;
+#endif
 }
 
 void QuickStart::notify_dump() {
