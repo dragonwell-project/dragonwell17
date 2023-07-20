@@ -800,7 +800,7 @@ static char** new_string_array(GrowableArray<const char*>* array) {
     return NULL;
   }
   for(int i = 0; i < count; i++) {
-    int len = strlen(array->at(i));
+    size_t len = strlen(array->at(i));
     char* s  = (char*)NEW_C_HEAP_ARRAY(char, len + 1, mtInternal);
     if (s == NULL) {
       return NULL;
