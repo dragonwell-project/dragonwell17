@@ -99,6 +99,14 @@ public class CoroutineSupport {
         return thread;
     }
 
+    /**
+     * check if we should throw a TenantDeath or ThreqadDeathException
+     * @param coroutine the coroutine
+     */
+    public static void checkAndThrowException(Coroutine coroutine) {
+        checkAndThrowException0(coroutine.nativeCoroutine);
+    }
+
 
     /**
      * Telling if current coroutine is executing clinit
@@ -413,4 +421,6 @@ public class CoroutineSupport {
     public static native StackTraceElement[] getCoroutineStack(long coroPtr);
 
     private static native boolean isInClinit0(long coroPtr);
+
+    private static native void checkAndThrowException0(long coroPtr);
 }

@@ -19,6 +19,12 @@ public class TestPreempt {
     public static void main(String[] args) throws Exception {
         doTest(TestPreempt::complexLoop);
         doTest(TestPreempt::simpleLoop);
+        doTest(new Runnable() {
+            @Override
+            public void run() {
+                stackTrace(0);
+            }
+        });
     }
 
     private static void doTest(Runnable r) throws Exception {
@@ -48,6 +54,19 @@ public class TestPreempt {
             x = n;
         } while (x == n);
     }
+
+
+    private static void stackTrace(int i) {
+        if (i == 10000) {
+            int x;
+            do {
+                x = n;
+            } while (x == n);
+        } else {
+            stackTrace(i + 1);
+        }
+    }
+
 
     // TODO: handle safepoint consumed by state switch
 
