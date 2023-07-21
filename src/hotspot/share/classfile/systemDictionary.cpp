@@ -25,8 +25,10 @@
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "cds/heapShared.hpp"
+#if INCLUDE_CDS
 #include "cds/classListParser.hpp"
 #include "cds/classListWriter.hpp"
+#endif
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
@@ -112,9 +114,10 @@ const int _loader_constraint_size = 107;                     // number of entrie
 static LoaderConstraintTable*  _loader_constraints;
 static LoaderConstraintTable* constraints() { return _loader_constraints; }
 
+#if INCLUDE_CDS
 InvalidSharedClassTable* SystemDictionary::_invalid_shared_class_table = NULL;
 InvalidSharedClassTable* SystemDictionary::_invalid_class_not_found_table = NULL;
-
+#endif
 // ----------------------------------------------------------------------------
 // Java-level SystemLoader and PlatformLoader
 oop SystemDictionary::java_system_loader() {
@@ -2587,7 +2590,7 @@ void SystemDictionaryDCmd::execute(DCmdSource source, TRAPS) {
                          _verbose.value());
   VMThread::execute(&dumper);
 }
-
+#if INCLUDE_CDS
 bool SystemDictionary::in_invalid_shared_class_table(const Symbol *sym) {
   return _invalid_shared_class_table != NULL && _invalid_shared_class_table->contains(sym);
 }
@@ -2595,3 +2598,4 @@ bool SystemDictionary::in_invalid_shared_class_table(const Symbol *sym) {
 bool SystemDictionary::in_invalid_class_not_found_table(const Symbol *sym) {
   return _invalid_class_not_found_table != NULL && _invalid_class_not_found_table->contains(sym);
 }
+#endif

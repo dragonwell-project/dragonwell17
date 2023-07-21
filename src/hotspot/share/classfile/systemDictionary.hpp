@@ -191,12 +191,12 @@ class SystemDictionary : AllStatic {
 
   // Protection Domain Table
   static ProtectionDomainCacheTable* pd_cache_table() { return _pd_cache_table; }
-
+#if INCLUDE_CDS
   static void set_invalid_shared_class_table(InvalidSharedClassTable* t) { _invalid_shared_class_table = t;}
   static void set_invalid_class_not_found_table(InvalidSharedClassTable* t) { _invalid_class_not_found_table = t; }
   static bool in_invalid_shared_class_table(const Symbol* sym);
   static bool in_invalid_class_not_found_table(const Symbol* sym);
-  
+#endif
   // Printing
   static void print();
   static void print_on(outputStream* st);
@@ -310,9 +310,11 @@ public:
   // ProtectionDomain cache
   static ProtectionDomainCacheTable*   _pd_cache_table;
 
+#if INCLUDE_CDS
   // CDS static diff support.
   static InvalidSharedClassTable* _invalid_shared_class_table;
   static InvalidSharedClassTable* _invalid_class_not_found_table;
+#endif
 protected:
   static InstanceKlass* _well_known_klasses[];
 
