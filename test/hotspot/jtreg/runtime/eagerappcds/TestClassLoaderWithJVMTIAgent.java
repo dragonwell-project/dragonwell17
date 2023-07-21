@@ -1,7 +1,7 @@
 /*
  * @test
  * @summary Test dumping for custom classloaders with JVMTI ClassfileHook and transforming.
- * @library /test/lib /test/hotspot/jtreg/runtime/appcds
+ * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds
  * @modules java.base/jdk.internal.misc
  *          java.management
  *          jdk.jartool/sun.tools.jar
@@ -12,10 +12,10 @@
  * @build generatePackageInfo.Simple
  * @build LoadWithCustomClassLoader
  * @requires os.arch=="amd64"
- * @run driver ClassFileInstaller -jar test.jar LoadWithCustomClassLoader
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar test.jar LoadWithCustomClassLoader
  * @run main/othervm/native -XX:+UnlockExperimentalVMOptions TestClassLoaderWithJVMTIAgent
  */
-
+import com.alibaba.util.QuickStart;
 import com.alibaba.util.Utils;
 import jdk.test.lib.cds.CDSTestUtils;
 import jdk.test.lib.process.OutputAnalyzer;
@@ -79,7 +79,7 @@ public class TestClassLoaderWithJVMTIAgent {
     }
 
     static void traceClasses() throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
             "-Dtest.classes=" + TEST_CLASS,
             "-Xlog:class+eagerappcds=trace",
             "-XX:DumpLoadedClassList=" + CLASSLIST_FILE,
@@ -88,7 +88,9 @@ public class TestClassLoaderWithJVMTIAgent {
             // trigger JVMCI runtime init so that JVMCI classes will be
             // included in the classlist
             "--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED",
+            "-XX:+UnlockExperimentalVMOptions",
             "-XX:+EagerAppCDS",
+            "-XX:-UseSharedSpaces",
             "-cp",
             TESTJAR,
             TESTNAME);
@@ -119,11 +121,11 @@ public class TestClassLoaderWithJVMTIAgent {
     }
 
     static void convertClassList() throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                "--add-exports",
+                "java.base/jdk.internal.misc=ALL-UNNAMED",
                 "-cp",
-                getJDKLibDir().toAbsolutePath().toString() +
-                        File.separator + "serverless" +
-                        File.separator + "serverless-adapter.jar",
+                Path.of(Utils.getJDKHome(), "lib", QuickStart.getServerlessAdapter()).toString(),
                 "com.alibaba.jvm.cds.Classes4CDS",
                 CLASSLIST_FILE,
                 CLASSLIST_FILE_2);
@@ -133,13 +135,14 @@ public class TestClassLoaderWithJVMTIAgent {
 
     }
     static void dumpArchive() throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                 "-cp",
                 TESTJAR,
+                "-XX:+UnlockExperimentalVMOptions",
                 "-XX:+EagerAppCDS",
                 "-XX:SharedClassListFile=" + CLASSLIST_FILE_2,
                 "-XX:SharedArchiveFile=" + ARCHIVE_FILE,
-                "-Xlog:class+eagerappcds=trace",
+                "-Xlog:class+eagerappcds=trace,cds=info",
                 "--add-exports=java.base/jdk.internal.loader=ALL-UNNAMED",
                 "-Xshare:dump",
                 "-XX:MetaspaceSize=12M",
@@ -157,8 +160,9 @@ public class TestClassLoaderWithJVMTIAgent {
     }
 
     static void startWithJsa() throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                 "-Dtest.classes=" + TEST_CLASS,
+                "-XX:+UnlockExperimentalVMOptions",
                 "-XX:+EagerAppCDS",
                 "-Xshare:on",
                 "-XX:SharedArchiveFile=" + ARCHIVE_FILE,
