@@ -806,6 +806,10 @@ InvalidSharedClassTable::Entry* InvalidSharedClassTable::find_entry(const Symbol
   return NULL;
 }
 
+bool InvalidSharedClassTable::contains(const Symbol* sym) {
+  return find_entry(sym) != NULL;
+}
+
 InvalidSharedClassListFileParser::InvalidSharedClassListFileParser(const char *file) {
   _file = NULL;
   // Use os::open() because neither fopen() nor os::fopen()

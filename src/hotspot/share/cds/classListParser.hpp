@@ -221,9 +221,7 @@ public:
 
   Entry* add_entry(Symbol* sym);
   Entry* find_entry(const Symbol* sym);
-  bool  contains(const Symbol* sym) {
-    return find_entry(sym) != NULL;
-  }
+  bool  contains(const Symbol* sym);
 };
 
 class InvalidSharedClassListFileParser : public StackObj {

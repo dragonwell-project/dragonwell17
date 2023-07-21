@@ -1,4 +1,5 @@
 #include "precompiled.hpp"
+#include "jvm_io.h"
 #include "classfile/vmSymbols.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/stringTable.hpp"
