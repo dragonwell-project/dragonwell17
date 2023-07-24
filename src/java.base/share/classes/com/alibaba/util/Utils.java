@@ -66,8 +66,9 @@ public class Utils {
             return;
         }
         System.out.print(msg);
-        for (String s : arguments) {
-            System.out.print(s + " ");
+        for (int i = 0; i < arguments.size(); i++) {
+            String s = arguments.get(i);
+            System.out.println("[" + i + "] " + s);
         }
         System.out.println();
     }
