@@ -216,7 +216,7 @@ class EPollSelectorImpl extends SelectorImpl {
             }
         }
 
-        if (interrupted || WEA.useDirectSelectorWakeup() && status.get() == INTERRUPTED) {
+        if (interrupted || WispEngine.transparentWispSwitch() && WEA.useDirectSelectorWakeup() && status.get() == INTERRUPTED) {
             clearInterrupt();
         }
 
@@ -266,7 +266,7 @@ class EPollSelectorImpl extends SelectorImpl {
     public Selector wakeup() {
         synchronized (interruptLock) {
             if (!interruptTriggered) {
-                if (WEA.useDirectSelectorWakeup()) {
+                if (WispEngine.transparentWispSwitch() && WEA.useDirectSelectorWakeup()) {
                     WEA.interruptEpoll(status, INTERRUPTED, eventfd.efd());
                 } else {
                     try {
@@ -283,7 +283,7 @@ class EPollSelectorImpl extends SelectorImpl {
 
     private void clearInterrupt() throws IOException {
         synchronized (interruptLock) {
-            if (WEA.useDirectSelectorWakeup()) {
+            if (WispEngine.transparentWispSwitch() && WEA.useDirectSelectorWakeup()) {
                 assert status.get() == INTERRUPTED;
                 status.lazySet(null);
                 if (!WEA.isAllThreadAsWisp()) {
