@@ -38,9 +38,10 @@ class JavaThread;
 class StackOverflow {
   friend class JVMCIVMStructs;
   friend class JavaThread;
+  friend class CoroutineStack;
  public:
   // State of the stack guard pages for the containing thread.
-  enum StackGuardState {
+  enum StackGuardState : int {
     stack_guard_unused,         // not needed
     stack_guard_reserved_disabled,
     stack_guard_yellow_reserved_disabled,// disabled (temporarily) after stack overflow
@@ -55,8 +56,16 @@ class StackOverflow {
 
   // Initialization after thread is started.
   void initialize(address base, address end) {
-     _stack_base = base;
-     _stack_end = end;
+    // For JavaThread, Thread::record_stack_base_and_size() may be
+    // invoked twice. One is in JavaThread::run while the other is
+    // in thread_native_entry. Add a check here to avoid duplicated
+    // initialization.
+    if (_stack_base != NULL) {
+      assert(_stack_base == base, "Sanity check");
+      return;
+    }
+    _stack_base = base;
+    _stack_end = end;
     set_stack_overflow_limit();
     set_reserved_stack_activation(base);
   }
@@ -189,6 +198,10 @@ class StackOverflow {
     return _stack_shadow_zone_size;
   }
 
+  static void copy(StackOverflow* dest, StackOverflow* src) {
+    memcpy(dest, src, sizeof(StackOverflow));
+  }
+
   void create_stack_guard_pages();
   void remove_stack_guard_pages();
 
@@ -219,11 +232,16 @@ class StackOverflow {
   bool stack_guards_enabled() const;
 
   address reserved_stack_activation() const { return _reserved_stack_activation; }
+
   void set_reserved_stack_activation(address addr) {
     assert(_reserved_stack_activation == stack_base()
             || _reserved_stack_activation == nullptr
             || addr == stack_base(), "Must not be set twice");
     _reserved_stack_activation = addr;
+  }
+
+  bool reserved_stack_activated() {
+    return _reserved_stack_activation < stack_base();
   }
 
   // Attempt to reguard the stack after a stack overflow may have occurred.
@@ -241,6 +259,10 @@ class StackOverflow {
   void set_stack_overflow_limit() {
     _stack_overflow_limit =
       stack_end() + MAX2(stack_guard_zone_size(), stack_shadow_zone_size());
+  }
+
+  void set_stack_guard_state(StackGuardState state) {
+    _stack_guard_state = state;
   }
 };
 

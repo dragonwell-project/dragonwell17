@@ -1022,7 +1022,11 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
 // Throw IllegalMonitorException if object is not locked by current thread.
 void InterpreterMacroAssembler::unlock_object(Register monitor) {
   if (UseHeavyMonitors) {
-    call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit), monitor);
+    if (UseWispMonitor) {
+      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit_wisp), monitor);
+    } else {
+      call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit), monitor);
+    }
   } else {
 
     // template code:
@@ -1094,7 +1098,11 @@ void InterpreterMacroAssembler::unlock_object(Register monitor) {
     // The lock has been converted into a heavy lock and hence
     // we need to get into the slow case.
     bind(slow_case);
-    call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit), monitor);
+    if (UseWispMonitor) {
+      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit_wisp), monitor);
+    } else {
+      call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit), monitor);
+    }
     // }
 
     Label done;

@@ -344,7 +344,8 @@ class SharedRuntime: AllStatic {
 
   static void monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread);
 
-  static void monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* current);
+  template<typename OopRef>
+  static void monitor_exit_helper(OopRef obj, BasicLock* lock, JavaThread* current);
 
  private:
   static Handle find_callee_info(Bytecodes::Code& bc, CallInfo& callinfo, TRAPS);
@@ -496,7 +497,7 @@ class SharedRuntime: AllStatic {
   // Slow-path Locking and Unlocking
   static void complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
   static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
-  static void complete_wisp_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
+  static void complete_wisp_monitor_unlocking_C(JavaThread* current, oopDesc* obj, BasicLock* lock);
 
   // Resolving of calls
   static address resolve_static_call_C     (JavaThread* current);

@@ -165,6 +165,24 @@ public class Coroutine extends CoroutineBase {
     }
 
     /**
+     * Update thread object for coroutine WispThread.
+     * For transparent wisp mode, thread object is created by WispTask.
+     * It is should be updated to WispThread if UseMonitorWisp is open.
+     * Otherwise, Coroutine::print_stack_on could not print lock info.
+     * For each coroutine, it holds three thead objects: one is for underly
+     * JavaThread, one is for WispTask, one is for WispThread. The underly
+     * JavaThread threadObject should not be exposed to end user. Its status
+     * is not critical for user semantic. The WispTask and WispThread
+     * thread object should be same and reflect coroutine running/park status.
+     * Their thread object is created by WispTask and updated to WispThread.
+     *
+     * @param threadObject thread object oop or null.
+     */
+    public void updateThreadObjectForWispThread(Object threadObject) {
+        updateThreadObjectForWispThread(nativeCoroutine, threadObject);
+    }
+
+    /**
      * get StackTrace element for coroutine
      * @return StackTraceElement
      */
@@ -186,4 +204,6 @@ public class Coroutine extends CoroutineBase {
     private static native void registerNatives();
 
     private static native void setWispTask(long coroutine, int id, Object task, Object engine);
+
+    private static native void updateThreadObjectForWispThread(long coroutine, Object threadObject);
 }

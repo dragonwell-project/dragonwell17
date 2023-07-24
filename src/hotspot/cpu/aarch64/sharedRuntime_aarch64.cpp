@@ -1909,7 +1909,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   Label reguard;
   Label reguard_done;
   __ ldrb(rscratch1, Address(rthread, JavaThread::stack_guard_state_offset()));
-  __ cmpw(rscratch1, StackOverflow::stack_guard_yellow_reserved_disabled);
+  __ cmpw(rscratch1, static_cast<int>(StackOverflow::stack_guard_yellow_reserved_disabled));
   __ br(Assembler::EQ, reguard);
   __ bind(reguard_done);
 
@@ -2058,6 +2058,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ ldr(r19, Address(rthread, in_bytes(Thread::pending_exception_offset())));
     __ str(zr, Address(rthread, in_bytes(Thread::pending_exception_offset())));
 
+    // TODO WispMonitor yield
     rt_call(masm, CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_unlocking_C));
 
 #ifdef ASSERT
@@ -3298,7 +3299,7 @@ void NativeInvokerGenerator::generate() {
   Label L_reguard;
   Label L_after_reguard;
   __ ldrb(rscratch1, Address(rthread, JavaThread::stack_guard_state_offset()));
-  __ cmpw(rscratch1, StackOverflow::stack_guard_yellow_reserved_disabled);
+  __ cmpw(rscratch1, static_cast<int>(StackOverflow::stack_guard_yellow_reserved_disabled));
   __ br(Assembler::EQ, L_reguard);
   __ bind(L_after_reguard);
 

@@ -3878,6 +3878,16 @@ JVM_ENTRY(void, JVM_SetWispTask(JNIEnv* env, jclass klass, jlong coroutinePtr, j
   coro->set_wisp_task(JNIHandles::resolve_non_null(task));
 JVM_END
 
+JVM_ENTRY(void, JVM_UpdateThreadObjectForWispThread(JNIEnv* env, jclass klass, jlong coroutinePtr, jobject threadObject))
+  assert(EnableCoroutine, "Coroutine is disabled");
+  if (UseWispMonitor) {
+    Coroutine* coro = (Coroutine*)coroutinePtr;
+    WispThread* wt = coro->wisp_thread();
+    assert(wt != NULL, "Sanity check");
+    wt->set_threadObj(JNIHandles::resolve(threadObject));
+  }
+JVM_END
+
 JVM_ENTRY(jint, JVM_GetProxyUnpark(JNIEnv* env, jclass klass, jintArray res))
   assert(EnableCoroutine, "Coroutine is disabled");
   return WispThread::get_proxy_unpark(res);

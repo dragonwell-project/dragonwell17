@@ -753,12 +753,7 @@ JRT_LEAF(void, Runtime1::monitorexit(JavaThread* current, BasicObjectLock* lock)
   assert(current->last_Java_sp(), "last_Java_sp must be set");
   oop obj = lock->obj();
   assert(oopDesc::is_oop(obj), "must be NULL or an object");
-  if (UseWispMonitor) {
-    HandleMarkCleaner __hm(current);
-    SharedRuntime::monitor_exit_helper(obj, lock->lock(), current);
-  } else {
-    SharedRuntime::monitor_exit_helper(obj, lock->lock(), current);
-  }
+  SharedRuntime::monitor_exit_helper<oopDesc*>(obj, lock->lock(), current);
 JRT_END
 
 // Cf. OptoRuntime::deoptimize_caller_frame

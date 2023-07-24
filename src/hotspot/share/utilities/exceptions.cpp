@@ -182,9 +182,6 @@ void Exceptions::_throw(JavaThread* thread, const char* file, int line, Handle h
 
 void Exceptions::_throw_msg(JavaThread* thread, const char* file, int line, Symbol* name, const char* message,
                             Handle h_loader, Handle h_protection_domain) {
-  if (UseWispMonitor && thread->is_Wisp_thread()) {
-    thread = ((WispThread*) thread)->thread();
-  }
   // Check for special boot-strapping/compiler-thread handling
   if (special_exception(thread, file, line, name, message)) return;
   // Create and throw exception
@@ -228,6 +225,9 @@ void Exceptions::_throw_msg_cause(JavaThread* thread, const char* file, int line
   _throw_msg_cause(thread, file, line, name, message, h_cause, Handle(thread, NULL), Handle(thread, NULL));
 }
 void Exceptions::_throw_msg(JavaThread* thread, const char* file, int line, Symbol* name, const char* message) {
+  if (UseWispMonitor && thread->is_Wisp_thread()) {
+    thread = ((WispThread*) thread)->thread();
+  }
   _throw_msg(thread, file, line, name, message, Handle(thread, NULL), Handle(thread, NULL));
 }
 void Exceptions::_throw_cause(JavaThread* thread, const char* file, int line, Symbol* name, Handle h_cause) {

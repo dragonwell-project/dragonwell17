@@ -194,6 +194,7 @@ JVM_SetNativeThreadName
 JVM_SetPrimitiveArrayElement
 JVM_SetThreadPriority
 JVM_SetWispTask
+JVM_UpdateThreadObjectForWispThread
 JVM_Sleep
 JVM_StartThread
 JVM_StopThread

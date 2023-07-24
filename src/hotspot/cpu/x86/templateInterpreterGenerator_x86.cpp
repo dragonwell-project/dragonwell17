@@ -1141,7 +1141,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   {
     Label no_reguard;
     __ cmpl(Address(thread, JavaThread::stack_guard_state_offset()),
-            StackOverflow::stack_guard_yellow_reserved_disabled);
+            static_cast<int32_t>(StackOverflow::stack_guard_yellow_reserved_disabled));
     __ jcc(Assembler::notEqual, no_reguard);
 
     __ pusha(); // XXX only save smashed registers

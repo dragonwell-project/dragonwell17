@@ -211,7 +211,7 @@ public:
 
   bool is_disposable();
 
-  oop print_stack_header_on(outputStream* st);
+  void print_stack_header_on(outputStream* st);
   void print_stack_on(outputStream* st);
 
   bool is_coroutine_frame(vframe* f);
@@ -264,10 +264,10 @@ private:
   ReservedSpace   _reserved_space;
   VirtualSpace    _virtual_space;
 
-  address         _stack_base;
+  StackOverflow   _stack_overflow_state;
   intptr_t        _stack_size;
-  bool            _default_size;
 
+  bool            _default_size;
   address         _last_sp;
 
   // objects of this type can only be created via static functions
@@ -283,11 +283,12 @@ public:
 
   JavaThread* thread() const                { return _thread; }
   bool is_thread_stack() const              { return _is_thread_stack; }
+  StackOverflow* stack_overflow_state()     { return &_stack_overflow_state; }
 
   address last_sp() const                   { return _last_sp; }
   void set_last_sp(address x)               { _last_sp = x; }
 
-  address stack_base() const                { return _stack_base; }
+  address stack_base() const                { return _stack_overflow_state.stack_base(); }
   intptr_t stack_size() const               { return _stack_size; }
   bool is_default_size() const              { return _default_size; }
 
@@ -296,7 +297,22 @@ public:
   // GC support
   void frames_do(FrameClosure* fc);
 
-  static ByteSize stack_base_offset()         { return byte_offset_of(CoroutineStack, _stack_base); }
+  static ByteSize stack_base_offset()  {
+    return byte_offset_of(CoroutineStack, _stack_overflow_state._stack_base);
+  }
+  static ByteSize stack_end_offset() {
+    return byte_offset_of(CoroutineStack, _stack_overflow_state._stack_end);
+  }
+  static ByteSize stack_guard_state_offset() {
+    return byte_offset_of(CoroutineStack, _stack_overflow_state._stack_guard_state);
+  }
+  static ByteSize stack_overflow_limit_offset() {
+    return byte_offset_of(CoroutineStack, _stack_overflow_state._stack_overflow_limit);
+  }
+  static ByteSize reserved_stack_activation_offset() {
+    return byte_offset_of(CoroutineStack, _stack_overflow_state._reserved_stack_activation);
+  }
+
   static ByteSize stack_size_offset()         { return byte_offset_of(CoroutineStack, _stack_size); }
   static ByteSize last_sp_offset()            { return byte_offset_of(CoroutineStack, _last_sp); }
 };
