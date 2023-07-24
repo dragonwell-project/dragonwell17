@@ -52,6 +52,7 @@ public class CDSDumperHelper {
                 Path.of(jdkHome, "lib", QuickStart.getServerlessAdapter()).toString(),
                 "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED",
                 "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
+                "--add-opens=java.base/java.util.jar=ALL-UNNAMED",
                 cdsDumper,                                              // invoke CDSDumper
                 QuickStart.cachePath(),                                 // arg[0]: String dirPath
                 info.originClassListName,                               // arg[1]: String originClassListName
