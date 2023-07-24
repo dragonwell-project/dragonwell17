@@ -773,6 +773,34 @@ JRT_LEAF(void, InterpreterRuntime::monitorexit(BasicObjectLock* elem))
   elem->set_obj(NULL);
 JRT_END
 
+// monitorexit may call Java methods, so it must be a JRT_ENTRY
+// (not a JRT_LEAF, JRT_LEAF don't allow to call Java methods or break safepoint)
+JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorexit_wisp(JavaThread* current, BasicObjectLock* elem))
+#ifdef ASSERT
+  current->last_frame().interpreter_frame_verify_monitor(elem);
+#endif
+  Handle h_obj(current, elem->obj());
+  assert(Universe::heap()->is_in(h_obj()), "must be an object");
+  // The object could become unlocked through a JNI call,
+  // which we have no other checks for.
+  // Give a fatal message if CheckJNICalls. Otherwise we ignore it.
+  if (h_obj()->is_unlocked()) {
+    if (CheckJNICalls) {
+      fatal("Object has been unlocked by JNI");
+    }
+    return;
+  }
+  // It's safer to use handle to do exit. obj maybe moved by GC.
+  // Maybe we use obj do something after exit in future code.
+  ObjectSynchronizer::exit(h_obj, elem->lock(), current);
+  // Free entry. This must be done here, since a pending exception might be installed on
+  // exit. If it is not cleared, the exception handling code will try to unlock the monitor again.
+  elem->set_obj(NULL);
+#ifdef ASSERT
+  current->last_frame().interpreter_frame_verify_monitor(elem);
+#endif
+JRT_END
+
 
 JRT_ENTRY(void, InterpreterRuntime::throw_illegal_monitor_state_exception(JavaThread* current))
   THROW(vmSymbols::java_lang_IllegalMonitorStateException());

@@ -1091,6 +1091,11 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // refer to the JVM book page 47 for description of steps
   // Step 1
   {
+    JavaThread* current = jt;
+    if (UseWispMonitor) {
+      current = WispThread::current(current);
+    }
+
     Handle h_init_lock(THREAD, init_lock());
     ObjectLocker ol(h_init_lock, jt);
 
@@ -1098,15 +1103,18 @@ void InstanceKlass::initialize_impl(TRAPS) {
     // If we were to use wait() instead of waitInterruptibly() then
     // we might end up throwing IE from link/symbol resolution sites
     // that aren't expected to throw.  This would wreak havoc.  See 6320309.
-    while (is_being_initialized() && !is_reentrant_initialization(jt)) {
+    while (is_being_initialized() && !is_reentrant_initialization(current)) {
       wait = true;
-      jt->set_class_to_be_initialized(this);
+      assert(current == Thread::current() ||
+             current == WispThread::current(Thread::current()),
+             "Only the current thread can set this field");
+      current->set_class_to_be_initialized(this);
       ol.wait_uninterruptibly(jt);
-      jt->set_class_to_be_initialized(NULL);
+      current->set_class_to_be_initialized(NULL);
     }
 
     // Step 3
-    if (is_being_initialized() && is_reentrant_initialization(jt)) {
+    if (is_being_initialized() && is_reentrant_initialization(current)) {
       DTRACE_CLASSINIT_PROBE_WAIT(recursive, -1, wait);
       return;
     }

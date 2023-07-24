@@ -400,6 +400,12 @@ public class CoroutineSupport {
      */
     private static native void markThreadCoroutine(long coroPtr, CoroutineBase threadCoroutine);
 
+    /**
+     * print info by native method, without synchronize
+     * @param info info to be printed in Java
+     */
+    public static native void printlnLockFree(String info);
+
     @IntrinsicCandidate
 	private static native void switchTo(CoroutineBase current, CoroutineBase target);
 

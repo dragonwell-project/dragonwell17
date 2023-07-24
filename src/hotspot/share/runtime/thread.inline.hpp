@@ -206,7 +206,6 @@ inline void JavaThread::set_terminated(TerminatedTypes t) {
 inline void JavaThread::set_class_to_be_initialized(InstanceKlass* k) {
   assert((k == NULL && _class_to_be_initialized != NULL) ||
          (k != NULL && _class_to_be_initialized == NULL), "incorrect usage");
-  assert(this == Thread::current(), "Only the current thread can set this field");
   _class_to_be_initialized = k;
 }
 

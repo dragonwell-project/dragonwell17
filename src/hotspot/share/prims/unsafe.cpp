@@ -1019,6 +1019,16 @@ JVM_ENTRY (void, CoroutineSupport_checkAndThrowException0(JNIEnv* env, jclass kl
   }
 JVM_END
 
+JVM_ENTRY (void, CoroutineSupport_printlnLockFree(JNIEnv* env, jclass klass, jstring info))
+  assert(EnableCoroutine, "pre-condition");
+  ResourceMark rm(THREAD);
+
+  Handle h_info (THREAD, JNIHandles::resolve_non_null(info));
+  char* str = java_lang_String::as_utf8_string(h_info());
+  fprintf(stdout, "%s\n", str);
+  fflush(stdout);
+JVM_END
+
 JVM_ENTRY (jobjectArray, CoroutineSupport_getCoroutineStack(JNIEnv* env, jclass klass, jlong coroPtr))
   assert(EnableCoroutine, "pre-condition");
 
@@ -1132,6 +1142,7 @@ JNINativeMethod coroutine_support_methods[] = {
     {CC"markThreadCoroutine",     CC "(J" COBA ")V",     FN_PTR(CoroutineSupport_markThreadCoroutine)},
     {CC"getCoroutineStack",       CC "(J)[" STE,         FN_PTR(CoroutineSupport_getCoroutineStack)},
     {CC"checkAndThrowException0", CC "(J)V",             FN_PTR(CoroutineSupport_checkAndThrowException0)},
+    {CC"printlnLockFree",         CC "(" LANG "String;)V", FN_PTR(CoroutineSupport_printlnLockFree)},
 };
 
 #define COMPILE_CORO_METHODS_BEFORE (3)

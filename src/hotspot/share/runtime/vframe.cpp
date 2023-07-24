@@ -218,7 +218,11 @@ void javaVFrame::print_lock_info_on(outputStream* st, int frame_count) {
     else if (thread()->osthread()->get_state() == OBJECT_WAIT) {
       // We are waiting on an Object monitor but Object.wait() isn't the
       // top-frame, so we should be waiting on a Class initialization monitor.
-      InstanceKlass* k = thread()->class_to_be_initialized();
+      JavaThread* jt = thread();
+      if (UseWispMonitor) {
+        jt = WispThread::current(jt);
+      }
+      InstanceKlass* k = jt->class_to_be_initialized();
       if (k != NULL) {
         st->print_cr("\t- waiting on the Class initialization monitor for %s", k->external_name());
       }

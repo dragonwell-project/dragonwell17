@@ -388,6 +388,7 @@ class JVMCIRuntime: public CHeapObj<mtJVMCI> {
   static address exception_handler_for_pc(JavaThread* current);
   static void monitorenter(JavaThread* current, oopDesc* obj, BasicLock* lock);
   static void monitorexit (JavaThread* current, oopDesc* obj, BasicLock* lock);
+  static void monitorexit_wisp (JavaThread* current, oopDesc* obj, BasicLock* lock);
   static jboolean object_notify(JavaThread* current, oopDesc* obj);
   static jboolean object_notifyAll(JavaThread* current, oopDesc* obj);
   static void vm_error(JavaThread* current, jlong where, jlong format, jlong value);

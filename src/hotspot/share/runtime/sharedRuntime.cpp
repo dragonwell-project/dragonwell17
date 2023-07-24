@@ -2152,66 +2152,25 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::complete_monitor_locking_C(oopDesc* obj, Ba
   SharedRuntime::monitor_enter_helper(obj, lock, current);
 JRT_END
 
-JRT_ENTRY_NO_ASYNC(void, SharedRuntime::complete_wisp_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current))
-  assert(EnableCoroutine, "Coroutine is disabled");
-  JavaThread* cur_thread = JavaThread::current();
-  // I'm not convinced we need the code contained by MIGHT_HAVE_PENDING anymore
-  // testing was unable to ever fire the assert that guarded it so I have removed it.
-  assert(!HAS_PENDING_EXCEPTION, "Do we need code below anymore?");
-#undef MIGHT_HAVE_PENDING
-#ifdef MIGHT_HAVE_PENDING
-  // Save and restore any pending_exception around the exception mark.
-  // While the slow_exit must not throw an exception, we could come into
-  // this routine with one set.
-  oop pending_excep = NULL;
-  const char* pending_file;
-  int pending_line;
-  if (HAS_PENDING_EXCEPTION) {
-    pending_excep = PENDING_EXCEPTION;
-    pending_file  = cur_thread->exception_file();
-    pending_line  = cur_thread->exception_line();
-    CLEAR_PENDING_EXCEPTION;
-  }
-#endif /* MIGHT_HAVE_PENDING */
-
-  // Use handle to access objects since we will call java code
-  Handle h_obj(current, obj);
-  {
-    EXCEPTION_MARK;
-    ObjectSynchronizer::exit(h_obj, lock, cur_thread);
-  }
-
-#ifdef MIGHT_HAVE_PENDING
-  if (pending_excep != NULL) {
-    cur_thread->set_pending_exception(pending_excep, pending_file, pending_line);
-  }
-#endif /* MIGHT_HAVE_PENDING */
-JRT_END
-
-void SharedRuntime::monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* current) {
+template<typename OopRef>
+void SharedRuntime::monitor_exit_helper(OopRef obj, BasicLock* lock, JavaThread* current) {
   assert(JavaThread::current() == current, "invariant");
   // Exit must be non-blocking, and therefore no exceptions can be thrown.
   ExceptionMark em(current);
-  // The object could become unlocked through a JNI call, which we have no other checks for.
-  // Give a fatal message if CheckJNICalls. Otherwise we ignore it.
-  if (obj->is_unlocked()) {
-    if (CheckJNICalls) {
-      fatal("Object has been unlocked by JNI");
-    }
-    return;
-  }
-  if (UseWispMonitor) {
-      HandleMarkCleaner __hm(current);
-      Handle h_obj(current, obj);
-      ObjectSynchronizer::exit(h_obj, lock, current);
-    } else {
-      ObjectSynchronizer::exit(obj, lock, current);
-    }
+  ObjectSynchronizer::exit(obj, lock, current);
 }
+template void SharedRuntime::monitor_exit_helper<oopDesc*>(oopDesc* obj, BasicLock* lock, JavaThread* current);
+template void SharedRuntime::monitor_exit_helper<Handle>(Handle obj, BasicLock* lock, JavaThread* current);
 
 // Handles the uncommon cases of monitor unlocking in compiled code
 JRT_LEAF(void, SharedRuntime::complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current))
-  SharedRuntime::monitor_exit_helper(obj, lock, current);
+  SharedRuntime::monitor_exit_helper<oopDesc*>(obj, lock, current);
+JRT_END
+
+JRT_ENTRY_NO_ASYNC(void, SharedRuntime::complete_wisp_monitor_unlocking_C(JavaThread* current, oopDesc* obj, BasicLock* lock))
+  assert(EnableCoroutine, "Coroutine is disabled");
+  Handle h_obj(current, obj);
+  SharedRuntime::monitor_exit_helper<Handle>(h_obj, lock, current);
 JRT_END
 
 #ifndef PRODUCT

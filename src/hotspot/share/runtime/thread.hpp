@@ -1338,14 +1338,20 @@ class JavaThread: public Thread {
   static ByteSize is_method_handle_return_offset() { return byte_offset_of(JavaThread, _is_method_handle_return); }
 
   // StackOverflow offsets
-  static ByteSize stack_overflow_limit_offset()  {
+  static ByteSize stack_overflow_limit_offset()      {
     return byte_offset_of(JavaThread, _stack_overflow_state._stack_overflow_limit);
   }
-  static ByteSize stack_guard_state_offset()     {
+  static ByteSize stack_guard_state_offset()         {
     return byte_offset_of(JavaThread, _stack_overflow_state._stack_guard_state);
   }
   static ByteSize reserved_stack_activation_offset() {
     return byte_offset_of(JavaThread, _stack_overflow_state._reserved_stack_activation);
+  }
+  static ByteSize stack_base_offset()                {
+    return byte_offset_of(JavaThread, _stack_overflow_state._stack_base);
+  }
+  static ByteSize stack_end_offset()                 {
+    return byte_offset_of(JavaThread, _stack_overflow_state._stack_end);
   }
 
   static ByteSize suspend_flags_offset()         { return byte_offset_of(JavaThread, _suspend_flags); }

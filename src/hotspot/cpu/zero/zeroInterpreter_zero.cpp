@@ -483,7 +483,12 @@ int ZeroInterpreter::native_entry(Method* method, intptr_t UNUSED, TRAPS) {
       markWord old_header = markWord::encode(lock);
       if (rcvr->cas_set_mark(header, old_header) != old_header) {
         monitor->set_obj(rcvr);
-        InterpreterRuntime::monitorexit(monitor);
+        if (UseWispMonitor) {
+          HandleMark hm(thread);
+          CALL_VM_NOCHECK(InterpreterRuntime::monitorexit_wisp(thread, monitor));
+        } else {
+          InterpreterRuntime::monitorexit(monitor);
+        }
       }
     }
   }

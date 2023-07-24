@@ -407,8 +407,8 @@ CoroutineStack* CoroutineStack::create_thread_stack(JavaThread* thread) {
 
   stack->_thread = thread;
   stack->_is_thread_stack = true;
-  stack->_stack_base = thread->stack_base();
   stack->_stack_size = thread->stack_size();
+  StackOverflow::copy(stack->stack_overflow_state(), thread->stack_overflow_state());
   stack->_last_sp = NULL;
   stack->_default_size = false;
   return stack;
@@ -436,26 +436,17 @@ CoroutineStack* CoroutineStack::create_stack(JavaThread* thread, intptr_t size/*
 
   stack->_thread = thread;
   stack->_is_thread_stack = false;
-  stack->_stack_base = (address)stack->_virtual_space.high();
+  address stack_base = (address)stack->_virtual_space.high();
   stack->_stack_size = stack->_virtual_space.committed_size();
+  address stack_end = stack_base - stack->_stack_size;
+  stack->_stack_overflow_state.initialize(stack_base, stack_end);
   stack->_last_sp = NULL;
   stack->_default_size = default_size;
+  stack->_stack_overflow_state.create_stack_guard_pages();
 
-  if (os::uses_stack_guard_pages()) {
-    address low_addr = stack->stack_base() - stack->stack_size();
-    size_t len = (StackYellowPages + StackRedPages + StackReservedPages) * os::vm_page_size();
-
-    bool allocate = os::must_commit_stack_guard_pages();
-
-    if (!os::guard_memory((char *) low_addr, len)) {
-      warning("Attempt to protect stack guard pages failed.");
-      if (os::uncommit_memory((char *) low_addr, len)) {
-        warning("Attempt to deallocate stack guard pages failed.");
-      }
-    }
-  }
-
-  DEBUG_CORO_ONLY(tty->print("created coroutine stack at %08x with stack size %i (real size: %i)\n", stack->_stack_base, size, stack->_stack_size));
+  DEBUG_CORO_ONLY(tty->print(
+    "created coroutine stack at %08x with stack size %i (real size: %i)\n",
+    stack->_stack_overflow_state.stack_base(), size, stack->_stack_size));
   return stack;
 }
 
@@ -507,11 +498,15 @@ frame CoroutineStack::last_frame(Coroutine* coro, RegisterMap& map) const {
   return frame(sp, fp, pc);
 }
 
-oop Coroutine::print_stack_header_on(outputStream* st) {
-  oop thread_obj = NULL;
+void Coroutine::print_stack_header_on(outputStream* st) {
   st->print("\n - Coroutine [%p]", this);
   if (_wisp_task != NULL) {
-    thread_obj = com_alibaba_wisp_engine_WispTask::get_threadWrapper(_wisp_task);
+    oop thread_obj = com_alibaba_wisp_engine_WispTask::get_threadWrapper(_wisp_task);
+#ifdef ASSERT
+    if (thread_obj != NULL && UseWispMonitor) {
+      assert(_wisp_thread->threadObj() == thread_obj, "WispThread thread object is not updated from WispTask");
+    }
+#endif
     char buf[128] = "<cached>";
     if (thread_obj != NULL) {
       oop name = java_lang_Thread::name(thread_obj);
@@ -540,12 +535,11 @@ oop Coroutine::print_stack_header_on(outputStream* st) {
       }
     }
   } // else, we're only using the JKU part
-  return thread_obj;
 }
 
 void Coroutine::print_stack_on(outputStream* st) {
   if (_state == Coroutine::_onstack) {
-    oop thread_obj = print_stack_header_on(st);
+    print_stack_header_on(st);
     st->print("\n");
 
     ResourceMark rm;
@@ -560,8 +554,6 @@ void Coroutine::print_stack_on(outputStream* st) {
         java_lang_Throwable::print_stack_element(st, jvf->method(), jvf->bci());
 
         if (UseWispMonitor && JavaMonitorsInStackTrace) {
-          // t is WispThread
-          t->set_threadObj(thread_obj);
           // ensure thread()->current_park_blocker() fetch the correct thread_obj
           jvf->print_lock_info_on(st, count++);
         }

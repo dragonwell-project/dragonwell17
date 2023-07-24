@@ -9,6 +9,7 @@
 
 static JNINativeMethod methods[] = {
   {"setWispTask","(JI"OBJ OBJ")V", (void *)&JVM_SetWispTask},
+  {"updateThreadObjectForWispThread","(J"OBJ")V", (void *)&JVM_UpdateThreadObjectForWispThread},
 };
 
 JNIEXPORT void JNICALL

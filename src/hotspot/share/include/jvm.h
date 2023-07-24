@@ -1052,6 +1052,9 @@ JVM_IsSameClassPackage(JNIEnv *env, jclass class1, jclass class2);
 JNIEXPORT void JNICALL
 JVM_SetWispTask(JNIEnv* env, jclass clz, jlong coroutinePtr, jint task_id, jobject task, jobject engine);
 
+JNIEXPORT void JNICALL
+JVM_UpdateThreadObjectForWispThread(JNIEnv* env, jclass clz, jlong coroutinePtr, jobject threadObject);
+
 JNIEXPORT jint JNICALL
 JVM_GetProxyUnpark(JNIEnv* env, jclass clz, jintArray res);
 
