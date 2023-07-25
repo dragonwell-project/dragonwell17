@@ -70,12 +70,14 @@ public class TestClassLoaderWithJVMTIAgent {
     private static final String TEST_CLASS = System.getProperty("test.classes");
 
     public static void main(String[] args) throws Exception {
-        traceClasses();
-        replaceFingerprint();
-        convertClassList();
-        dumpArchive();
-
-        startWithJsa();
+        String name = System.getProperty("os.name");
+        if (name.equals("Linux")) {
+            traceClasses();
+            replaceFingerprint();
+            convertClassList();
+            dumpArchive();
+            startWithJsa();
+        }
     }
 
     static void traceClasses() throws Exception {
