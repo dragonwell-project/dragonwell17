@@ -23,6 +23,7 @@ import jdk.test.lib.process.ProcessTools;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.io.*;
 
 /**
  * Run by:
@@ -97,8 +98,9 @@ public class TestClassLoaderWithJVMTIAgent {
             TESTJAR,
             TESTNAME);
 
-        OutputAnalyzer output = CDSTestUtils.executeAndLog(pb, "dump-loaded-classes")
-                .shouldHaveExitValue(0);
+        OutputAnalyzer output = CDSTestUtils.executeAndLog(pb, "dump-loaded-classes");
+        System.out.println("==start==\n" + output.getOutput() + "\n ==end==");
+        output.shouldHaveExitValue(0);
     }
 
     private static void replaceFingerprint() {
@@ -132,8 +134,8 @@ public class TestClassLoaderWithJVMTIAgent {
                 CLASSLIST_FILE,
                 CLASSLIST_FILE_2);
 
-        OutputAnalyzer output = CDSTestUtils.executeAndLog(pb, "convert-class-list")
-                .shouldHaveExitValue(0);
+        OutputAnalyzer output = CDSTestUtils.executeAndLog(pb, "convert-class-list");
+        output.shouldHaveExitValue(0);
 
     }
     static void dumpArchive() throws Exception {
@@ -175,8 +177,8 @@ public class TestClassLoaderWithJVMTIAgent {
                 TESTJAR,
                 TESTNAME);
 
-        OutputAnalyzer output = CDSTestUtils.executeAndLog(pb, "start-with-shared-archive")
-                .shouldHaveExitValue(0);
+        OutputAnalyzer output = CDSTestUtils.executeAndLog(pb, "start-with-shared-archive");
+        output.shouldHaveExitValue(0);
         output.shouldNotContain("[CDS load class Failed");
     }
 
