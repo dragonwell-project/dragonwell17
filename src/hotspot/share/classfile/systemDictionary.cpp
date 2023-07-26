@@ -1262,7 +1262,6 @@ void SystemDictionary::dump_class_and_loader_relationship(InstanceKlass* k, Clas
     return;
   }
 
-  MutexLocker mu(THREAD, DumpLoadedClassList_lock);
   ClassListWriter w;
   w.stream()->print("%s klass: " INTPTR_FORMAT, k->name()->as_C_string(), p2i(k));
   w.stream()->print(" defining_loader_hash: %x", hash);

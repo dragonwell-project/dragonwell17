@@ -1488,7 +1488,7 @@ void SystemDictionaryShared::log_not_found_klass(Symbol* class_name, Handle clas
   if (invalid_class_name(name)) {
     return;
   }
-  MutexLocker mu(THREAD, DumpLoadedClassList_lock);
+
   ClassListWriter w;
   w.stream()->print("%s source: %s", name, NOT_FOUND_CLASS);
   w.stream()->print(" initiating_loader_hash: %x", signature);

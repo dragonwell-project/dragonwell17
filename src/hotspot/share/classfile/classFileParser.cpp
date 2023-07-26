@@ -5527,15 +5527,21 @@ void ClassFileParser::log_loaded_klass(InstanceKlass* ik, const ClassFileStream 
   const char *name = ik->name()->as_C_string();
   bool is_builtin = loader_data->is_builtin_class_loader_data();
 
+  uint64_t fingerprint = 0;
+  if(is_builtin && EagerAppCDS) {
+    // in fastdebug mode, `compute_fingerprint`->`ClassLoader::crc32` will acquire Zip_lock
+    // the vm will report possible deadlock if it is used in w.stream()->print()
+    fingerprint = stream->compute_fingerprint();
+  }
+
   ClassListWriter w;
-  MutexLocker mu(THREAD, DumpLoadedClassList_lock);
   if (is_builtin) {
     if (!should_skip_class(loader_data, stream)) {
       w.stream()->print("%s klass: " INTPTR_FORMAT, name, p2i(ik));
       if (EagerAppCDS) {
         w.stream()->print(" super: " INTPTR_FORMAT, p2i(ik->superklass()));
         w.stream()->print(" origin: %s", stream->source());
-        w.stream()->print(" fingerprint: " PTR64_FORMAT, stream->compute_fingerprint());
+        w.stream()->print(" fingerprint: " PTR64_FORMAT, fingerprint);
         Array<InstanceKlass*>* intf = ik->local_interfaces();
         if (intf->length() > 0) {
           w.stream()->print(" interfaces:");
