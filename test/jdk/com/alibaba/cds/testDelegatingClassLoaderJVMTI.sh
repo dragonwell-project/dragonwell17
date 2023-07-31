@@ -1,3 +1,26 @@
+#
+# Copyright (c) 2023, Alibaba Group Holding Limited. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
 #!/usr/bin/env bash
 #
 # @test
@@ -28,12 +51,6 @@ case ${OS} in
     ;;
 esac
 
-if [[ "x$(uname -m)" = "xaarch64" ]];
-then
-  echo "Test only valid for x86"
-  exit 0
-fi
-
 JAVA=${TESTJAVA}${FS}bin${FS}java
 JAVAC=${TESTJAVA}${FS}bin${FS}javac
 TEST_CLASS2=ThrowException
@@ -62,9 +79,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class TestDelegatingClassLoader {
-    private static final String TEST_SRC = System.getProperty("test.src");
-
-    private static final Path SRC_DIR = Paths.get(TEST_SRC, "src");
     private static final Path CLASSES_DIR = Paths.get("classes");
     private static final String THROW_EXCEPTION_CLASS = "ThrowException";
 
@@ -133,16 +147,11 @@ export LD_LIBRARY_PATH=.:${TESTCLASSES}:${LD_LIBRARY_PATH}
 ${JAVA} -cp ${TESTCLASSES} -agentlib:loadclassagent ${TEST_CLASS} > output.txt  2>&1
 cat output.txt
 
-function assert()
-{
-    line=`cat output.txt | grep "LoadClassAgent::HandleLoadClass" | wc -l`
-    echo $line
-    if [[ $line -eq "2" ]]; then
-        echo "success"
-    else
-        echo "failure"
-        exit -1
-    fi
-}
-
-assert
+line=`cat output.txt | grep "LoadClassAgent::HandleLoadClass" | wc -l`
+echo $line
+if [ $line -eq "2" ]; then
+    echo "success"
+else
+    echo "failure"
+    exit -1
+fi

@@ -565,4 +565,6 @@ jdk_core_manual_requires_human_input = \
     com/sun/jndi/dns/Test6991580.java \
     java/util/TimeZone/DefaultTimeZoneTest.java
 
-
+dragonwell_jdk = \
+  :jdk_jfr_sanity \
+  com/alibaba

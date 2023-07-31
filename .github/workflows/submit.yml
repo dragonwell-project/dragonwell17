@@ -282,11 +282,8 @@ jobs:
           - hs/tier1 gc
           - hs/tier1 runtime
           - hs/tier1 serviceability
+          - dragonwell/jdk feature
         include:
-        
-          # - test: dragonwell/jdk feature
-          #   suites: test/jdk/:dragonwell_jdk
-          #   artifact: -debug
 
           - test: jdk/tier1 part 1
             suites: test/jdk/:tier1_part1
@@ -311,6 +308,8 @@ jobs:
           - test: hs/tier1 serviceability
             suites: test/hotspot/jtreg/:tier1_serviceability
             artifact: -debug
+          - test: dragonwell/jdk feature
+            suites: test/jdk/:dragonwell_jdk
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).DEFAULT_VERSION_FEATURE }}.${{ fromJson(needs.prerequisites.outputs.dependencies).DEFAULT_VERSION_INTERIM}}.${{ fromJson(needs.prerequisites.outputs.dependencies).DEFAULT_VERSION_UPDATE }}"
