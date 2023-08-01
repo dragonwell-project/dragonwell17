@@ -69,6 +69,7 @@
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -1304,12 +1305,16 @@ InstanceKlass* SystemDictionary::load_instance_class_impl(Symbol* class_name, Ha
     ResourceMark rm(THREAD);
 
     JavaThread* jt = THREAD;
+    JavaThread* current = jt;
+    if (UseWispMonitor) {
+      current = WispThread::current(current);
+    }
 
     PerfClassTraceTime vmtimer(ClassLoader::perf_app_classload_time(),
                                ClassLoader::perf_app_classload_selftime(),
                                ClassLoader::perf_app_classload_count(),
-                               jt->get_thread_stat()->perf_recursion_counts_addr(),
-                               jt->get_thread_stat()->perf_timers_addr(),
+                               current->get_thread_stat()->perf_recursion_counts_addr(),
+                               current->get_thread_stat()->perf_timers_addr(),
                                PerfClassTraceTime::CLASS_LOAD);
 
     Handle s = java_lang_String::create_from_symbol(class_name, CHECK_NULL);

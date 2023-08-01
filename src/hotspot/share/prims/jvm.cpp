@@ -852,12 +852,16 @@ static jclass jvm_define_class_common(const char *name,
   if (source == NULL)  source = "__JVM_DefineClass__";
 
   JavaThread* jt = THREAD;
+  JavaThread* current = jt;
+  if (UseWispMonitor) {
+    current = WispThread::current(current);
+  }
 
   PerfClassTraceTime vmtimer(ClassLoader::perf_define_appclass_time(),
                              ClassLoader::perf_define_appclass_selftime(),
                              ClassLoader::perf_define_appclasses(),
-                             jt->get_thread_stat()->perf_recursion_counts_addr(),
-                             jt->get_thread_stat()->perf_timers_addr(),
+                             current->get_thread_stat()->perf_recursion_counts_addr(),
+                             current->get_thread_stat()->perf_timers_addr(),
                              PerfClassTraceTime::DEFINE_CLASS);
 
   if (UsePerfData) {

@@ -23,18 +23,19 @@ main()
     vm_args.version = JNI_VERSION_1_6;
     vm_args.nOptions = 4;
     vm_args.options = options;
-    vm_args.ignoreUnrecognized = false;
+    vm_args.ignoreUnrecognized = JNI_FALSE;
     /* load and initialize a Java VM, return a JNI interface
      * pointer in env */
-    if (JNI_CreateJavaVM(&jvm, (void**)&env, &vm_args) != JNI_OK) {
+    if (JNI_CreateJavaVM(&jvm, (void** )&env, &vm_args) != JNI_OK) {
         exit(-1);
     }
 
-    jclass cls = env->FindClass("java/nio/channels/spi/SelectorProvider");
+    jclass cls = (*env)->FindClass(env, "java/nio/file/spi/FileSystemProvider");
     printf("class = %p\n", cls);
-    jfieldID fid = env->GetStaticFieldID(cls, "lock", "Ljava/lang/Object;");
+    jfieldID fid = (*env)->GetStaticFieldID(env, cls, "lock", "Ljava/lang/Object;");
     printf("fid = %p\n", fid);
-    lock = env->GetStaticObjectField(cls, fid);
+    jobject lockObj = (*env)->GetStaticObjectField(env, cls, fid);
+    lock = (*env)->NewGlobalRef(env, lockObj);
     printf("lock = %p\n", lock);
 
     pthread_t tid;
@@ -44,11 +45,11 @@ main()
     while (!fooGotLock)
         ; // wait
 
-    if (env->MonitorEnter(lock) != JNI_OK) {
+    if ((*env)->MonitorEnter(env, lock) != JNI_OK) {
         exit(-1);
     }
 
-    return jvm->DestroyJavaVM() == JNI_OK ? 0 : -1;
+    return (*jvm)->DestroyJavaVM(jvm) == JNI_OK ? 0 : -1;
 }
 
 
@@ -56,11 +57,11 @@ void *foo(void *arg)
 {
 
     JNIEnv *env;
-    if (jvm->AttachCurrentThread((void**)&env, NULL) != JNI_OK) {
+    if ((*jvm)->AttachCurrentThread(jvm, (void** )&env, NULL) != JNI_OK) {
         exit(-1);
     }
 
-    if (env->MonitorEnter(lock) != JNI_OK) {
+    if ((*env)->MonitorEnter(env, lock) != JNI_OK) {
         exit(-1);
     }
 
@@ -68,7 +69,7 @@ void *foo(void *arg)
 
     usleep(100 * 1000); // 100 ms
 
-    if (jvm->DetachCurrentThread() != JNI_OK) { // unpark main thread
+    if ((*jvm)->DetachCurrentThread(jvm) != JNI_OK) { // unpark main thread
         exit(-1);
     }
 

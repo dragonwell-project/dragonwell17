@@ -858,6 +858,10 @@ bool InstanceKlass::link_class_impl(TRAPS) {
   // Timing
   // timer handles recursion
   JavaThread* jt = THREAD;
+  JavaThread* current = jt;
+  if (UseWispMonitor) {
+    current = WispThread::current(current);
+  }
 
   // link super class before linking this class
   Klass* super_klass = super();
@@ -896,8 +900,8 @@ bool InstanceKlass::link_class_impl(TRAPS) {
   PerfClassTraceTime vmtimer(ClassLoader::perf_class_link_time(),
                              ClassLoader::perf_class_link_selftime(),
                              ClassLoader::perf_classes_linked(),
-                             jt->get_thread_stat()->perf_recursion_counts_addr(),
-                             jt->get_thread_stat()->perf_timers_addr(),
+                             current->get_thread_stat()->perf_recursion_counts_addr(),
+                             current->get_thread_stat()->perf_timers_addr(),
                              PerfClassTraceTime::CLASS_LINK);
 
   // verification & rewriting
@@ -1087,15 +1091,14 @@ void InstanceKlass::initialize_impl(TRAPS) {
   bool wait = false;
 
   JavaThread* jt = THREAD;
+  JavaThread* current = jt;
+  if (UseWispMonitor) {
+    current = WispThread::current(current);
+  }
 
   // refer to the JVM book page 47 for description of steps
   // Step 1
   {
-    JavaThread* current = jt;
-    if (UseWispMonitor) {
-      current = WispThread::current(current);
-    }
-
     Handle h_init_lock(THREAD, init_lock());
     ObjectLocker ol(h_init_lock, jt);
 
@@ -1188,8 +1191,8 @@ void InstanceKlass::initialize_impl(TRAPS) {
       PerfClassTraceTime timer(ClassLoader::perf_class_init_time(),
                                ClassLoader::perf_class_init_selftime(),
                                ClassLoader::perf_classes_inited(),
-                               jt->get_thread_stat()->perf_recursion_counts_addr(),
-                               jt->get_thread_stat()->perf_timers_addr(),
+                               current->get_thread_stat()->perf_recursion_counts_addr(),
+                               current->get_thread_stat()->perf_timers_addr(),
                                PerfClassTraceTime::CLASS_CLINIT);
       call_class_initializer(THREAD);
     } else {

@@ -10,10 +10,10 @@
 export LD_LIBRARY_PATH=.:${COMPILEJAVA}/lib/server:/usr/lib:$LD_LIBRARY_PATH
 echo ${COMPILEJAVA}
 echo $LD_LIBRARY_PATH
-g++ -DLINUX -o testJniMonitorExit \
+gcc -DLINUX -o testJniMonitorExit \
     -I${COMPILEJAVA}/include -I${COMPILEJAVA}/include/linux \
     -L${COMPILEJAVA}/lib/server \
-    -ljvm -lpthread ${TESTSRC}/testJniMonitorExit.c
+    ${TESTSRC}/testJniMonitorExit.c -ljvm -lpthread
 
 ./testJniMonitorExit
 exit $?

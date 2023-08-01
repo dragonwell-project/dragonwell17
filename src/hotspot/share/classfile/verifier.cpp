@@ -176,11 +176,16 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
   // Timer includes any side effects of class verification (resolution,
   // etc), but not recursive calls to Verifier::verify().
   JavaThread* jt = THREAD;
+  JavaThread* current = jt;
+  if (UseWispMonitor) {
+    current = WispThread::current(current);
+  }
+
   PerfClassTraceTime timer(ClassLoader::perf_class_verify_time(),
                            ClassLoader::perf_class_verify_selftime(),
                            ClassLoader::perf_classes_verified(),
-                           jt->get_thread_stat()->perf_recursion_counts_addr(),
-                           jt->get_thread_stat()->perf_timers_addr(),
+                           current->get_thread_stat()->perf_recursion_counts_addr(),
+                           current->get_thread_stat()->perf_timers_addr(),
                            PerfClassTraceTime::CLASS_VERIFY);
 
   // If the class should be verified, first see if we can use the split

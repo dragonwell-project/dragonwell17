@@ -9,10 +9,10 @@
 
 export LD_LIBRARY_PATH=.:${COMPILEJAVA}/lib/server:/usr/lib:$LD_LIBRARY_PATH
 
-g++ -DLINUX -o testJniDetachThreadHoldingMonitor \
+gcc -DLINUX -o testJniDetachThreadHoldingMonitor \
     -I${COMPILEJAVA}/include -I${COMPILEJAVA}/include/linux \
     -L${COMPILEJAVA}/lib/server \
-    -ljvm -lpthread ${TESTSRC}/testJniDetachThreadHoldingMonitor.c
+    ${TESTSRC}/testJniDetachThreadHoldingMonitor.c -ljvm -lpthread
 
 ./testJniDetachThreadHoldingMonitor
 exit $?
