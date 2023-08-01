@@ -1536,7 +1536,9 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
   EventJavaMonitorWait event;
 
   // check for a pending interrupt
-  if (interruptible && check_interrupt(current, true) && !HAS_PENDING_EXCEPTION) {
+  if (interruptible && check_interrupt(current, true) &&
+      !(UseWispMonitor ?
+        ((WispThread *)current)->thread()->has_pending_exception() : HAS_PENDING_EXCEPTION)) {
     // post monitor waited event.  Note that this is past-tense, we are done waiting.
     if (JvmtiExport::should_post_monitor_waited()) {
       // Note: 'false' parameter is passed here because the
@@ -1619,7 +1621,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
       // Coroutine work steal support
       WispPostStealHandleUpdateMark w(UseWispMonitor ? ((WispThread*)current)->thread() : current, (ThreadStateTransition &)tbivs);
 
-      if (interrupted || HAS_PENDING_EXCEPTION) {
+      if (interrupted || (UseWispMonitor ? ((WispThread*)current)->thread()->has_pending_exception() : HAS_PENDING_EXCEPTION)) {
         // Intentionally empty
       } else if (node._notified == 0) {
         if (UseWispMonitor) {
@@ -1747,7 +1749,8 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
   if (!WasNotified) {
     // no, it could be timeout or Thread.interrupt() or both
     // check for interrupt event, otherwise it is timeout
-    if (interruptible && check_interrupt(current, true) && !HAS_PENDING_EXCEPTION) {
+    if (interruptible && check_interrupt(current, true) &&
+        !(UseWispMonitor ? ((WispThread *)current)->thread()->has_pending_exception() : HAS_PENDING_EXCEPTION)) {
       THROW(vmSymbols::java_lang_InterruptedException());
     }
   }
