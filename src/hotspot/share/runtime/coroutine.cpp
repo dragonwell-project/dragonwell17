@@ -237,14 +237,10 @@ void Coroutine::frames_do(FrameClosure* fc) {
 }
 
 bool Coroutine::is_coroutine_frame(vframe* f) {
+  ResourceMark resMark;
   javaVFrame* jvf = javaVFrame::cast(f);
-  InstanceKlass* k = jvf->method()->method_holder();
-  return (k == vmClasses::com_alibaba_wisp_engine_WispTask_klass()
-    || k == vmClasses::com_alibaba_wisp_engine_WispEngine_klass()
-    || k->is_subtype_of(vmClasses::com_alibaba_wisp_engine_WispEngine_klass())
-    || k == vmClasses::com_alibaba_wisp_engine_WispEventPump_klass()
-    || k == vmClasses::com_alibaba_wisp_engine_WispTask_CacheableCoroutine_klass()
-    || k == vmClasses::java_dyn_CoroutineBase_klass());
+  const char* k_name = jvf->method()->method_holder()->name()->as_C_string();
+  return strstr(k_name, "com/alibaba/wisp/engine/") != 0 || strstr(k_name, "java/dyn/") != 0;
 }
 
 /* a typical wisp stack looks like:
