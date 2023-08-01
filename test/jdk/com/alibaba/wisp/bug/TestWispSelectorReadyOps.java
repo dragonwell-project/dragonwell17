@@ -2,7 +2,6 @@
  * @test
  * @summary ensure nio program call SelectionKey.is{}able() and got correct result.
  * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true TestWispSelectorReadyOps
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 TestWispSelectorReadyOps
 */
 
 import java.net.InetSocketAddress;

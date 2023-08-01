@@ -10,10 +10,6 @@ public interface WispEngineAccess {
 
     WispTask getCurrentTask();
 
-    void dispatch(Runnable runnable, String name);
-
-    void eventLoop();
-
     void registerEvent(SelectableChannel ch, int events) throws IOException;
 
     void unregisterEvent();
@@ -45,16 +41,7 @@ public interface WispEngineAccess {
 
     void interrupt(WispTask task);
 
-    boolean isInterrupted(WispTask task);
-
     boolean testInterruptedAndClear(WispTask task, boolean clear);
-
-    <T> T runInCritical(CheckedSupplier<T> supplier);
-
-    @FunctionalInterface
-    interface CheckedSupplier<T> {
-        T get() throws Throwable;
-    }
 
     boolean hasMoreTasks();
 
@@ -62,23 +49,14 @@ public interface WispEngineAccess {
 
     boolean usingWispEpoll();
 
-    boolean ifPutToCurrentEngine();
-
-    boolean ifProxySelector();
-
-    boolean ifSpinSelector();
-
-    boolean ifPutToManagedThread();
-
     boolean isAllThreadAsWisp();
-
-    boolean useThreadPoolLimit();
-
-    String getThreadUsage(String threadName);
 
     boolean tryStartThreadAsWisp(Thread thread, Runnable target);
 
     boolean useDirectSelectorWakeup();
 
     boolean enableSocketLock();
+
+    StackTraceElement[] getStackTrace(WispTask task);
+
 }

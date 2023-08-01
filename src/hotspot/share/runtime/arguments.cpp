@@ -444,17 +444,14 @@ void Arguments::init_wisp_system_properties() {
     new SystemProperty("com.alibaba.coroutine.enableCoroutine",
       EnableCoroutine ? "true" : "false",  false));
   if (UseWisp2) {
-    PropertyList_add(&_system_properties,
-      new SystemProperty("com.alibaba.wisp.version",
-        "2",  false));
     // Props set by user -D flags would override those default values.
     PropertyList_add(&_system_properties,
       new SystemProperty("com.alibaba.wisp.transparentWispSwitch",
         "true",  true));
-    PropertyList_add(&_system_properties,
-      new SystemProperty("com.alibaba.wisp.enableThreadAsWisp",
-        "true",  true));
     if (Arguments::get_property("com.alibaba.wisp.allThreadAsWisp") == NULL) {
+      PropertyList_add(&_system_properties,
+        new SystemProperty("com.alibaba.wisp.enableThreadAsWisp",
+          "true",  true));
       PropertyList_add(&_system_properties,
         new SystemProperty("com.alibaba.wisp.allThreadAsWisp",
           "true",  true));
