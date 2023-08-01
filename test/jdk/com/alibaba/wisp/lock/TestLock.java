@@ -1,44 +1,49 @@
 /*
  * @test
+ * @library /test/lib
  * @summary Test ReentrantLock in coroutine environment
  * @modules java.base/jdk.internal.access
- * @run main/othervm  -XX:+EnableCoroutine  -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 TestLock
+ * @run main/othervm  -XX:+EnableCoroutine  -Dcom.alibaba.wisp.transparentWispSwitch=true TestLock
 */
 
 
 import com.alibaba.wisp.engine.WispEngine;
-import com.alibaba.wisp.engine.WispTask;
 import jdk.internal.access.SharedSecrets;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static jdk.test.lib.Asserts.assertTrue;
+
 public class TestLock {
     static Lock lock = new ReentrantLock();
     static Condition cond = lock.newCondition();
+    static CountDownLatch latch = new CountDownLatch(2);
+    static CountDownLatch p1Locked = new CountDownLatch(1);
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         WispEngine.dispatch(TestLock::p1);
         WispEngine.dispatch(TestLock::p2);
 
-        SharedSecrets.getWispEngineAccess().eventLoop();
-
-        System.out.println(lock);
-
-        new Thread(TestLock::p1).start();
-        SharedSecrets.getWispEngineAccess().sleep(1);
-        new Thread(TestLock::p2).start();
+        assertTrue(latch.await(2, TimeUnit.SECONDS));
     }
 
-    public static void assertInterval(long start, int diff, int bias) {
-        if (Math.abs(System.currentTimeMillis() - start - diff) > bias)
+    private static void assertInterval(long start, int diff, int bias) {
+        long cur = System.currentTimeMillis();
+        long v = Math.abs(cur - start - diff);
+        if (v > bias) {
             throw new Error("not wakeup expected");
+        }
     }
 
     private static void p1() {
-
         lock.lock();
+        p1Locked.countDown();
         SharedSecrets.getWispEngineAccess().sleep(100);
         try {
             long start = System.currentTimeMillis();
@@ -51,20 +56,25 @@ public class TestLock {
             lock.unlock();
         }
 
-
+        latch.countDown();
     }
 
     private static void p2() {
-
-        long start = System.currentTimeMillis();
-        lock.lock();
         try {
+            p1Locked.await();
+            long start = System.currentTimeMillis();
+            lock.lock();
+
             assertInterval(start, 100, 5);
             SharedSecrets.getWispEngineAccess().sleep(100);
             cond.signal();
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
             lock.unlock();
         }
+
+        latch.countDown();
     }
 
 

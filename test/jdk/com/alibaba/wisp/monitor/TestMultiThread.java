@@ -3,7 +3,7 @@
  * @library /test/lib
  * @summary Test object lock with coroutine
  * @modules java.base/jdk.internal.access
- * @run main/othervm  -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true -Dcom.alibaba.wisp.version=2 TestMultiThread
+ * @run main/othervm  -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true TestMultiThread
 */
 
 
