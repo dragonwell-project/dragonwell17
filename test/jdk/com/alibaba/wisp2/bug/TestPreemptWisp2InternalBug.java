@@ -24,7 +24,7 @@ public class TestPreemptWisp2InternalBug {
 	        for (int i = 0; i < tasks.length; i++) {
 		        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
 				        "-XX:+UseWisp2", "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerboseWisp", "-XX:-Inline",
-                        "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED",
+                        "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
 				        TestPreemptWisp2InternalBug.class.getName(), tasks[i]);
 		        OutputAnalyzer output = new OutputAnalyzer(pb.start());
 		        output.shouldContain("[WISP] preempt was blocked, because wisp internal method on the stack");
