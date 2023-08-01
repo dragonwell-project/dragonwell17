@@ -23,31 +23,31 @@ main()
     vm_args.version = JNI_VERSION_1_6;
     vm_args.nOptions = 4;
     vm_args.options = options;
-    vm_args.ignoreUnrecognized = false;
+    vm_args.ignoreUnrecognized = JNI_FALSE;
     /* load and initialize a Java VM, return a JNI interface
      * pointer in env */
-    if (JNI_CreateJavaVM(&jvm, (void**)&env, &vm_args) != JNI_OK) {
+    if (JNI_CreateJavaVM(&jvm, (void** )&env, &vm_args) != JNI_OK) {
         exit(-1);
     }
 
-    jclass cls = env->FindClass("java/nio/channels/spi/SelectorProvider");
+    jclass cls = (*env)->FindClass(env, "java/nio/file/spi/FileSystemProvider");
     printf("class = %p\n", cls);
-    jfieldID fid = env->GetStaticFieldID(cls, "lock", "Ljava/lang/Object;");
+    jfieldID fid = (*env)->GetStaticFieldID(env, cls, "lock", "Ljava/lang/Object;");
     printf("fid = %p\n", fid);
-    lock = env->GetStaticObjectField(cls, fid);
+    lock = (*env)->GetStaticObjectField(env, cls, fid);
     printf("lock = %p\n", lock);
 
-    if (env->MonitorEnter(lock) != JNI_OK) {
+    if ((*env)->MonitorEnter(env, lock) != JNI_OK) {
         exit(-1);
     }
 
-    if (env->MonitorExit(lock) != JNI_OK) {
-        if (env->ExceptionOccurred()) {
-          env->ExceptionDescribe(); // print the stack trace          
+    if ((*env)->MonitorExit(env, lock) != JNI_OK) {
+        if ((*env)->ExceptionOccurred(env)) {
+          (*env)->ExceptionDescribe(env); // print the stack trace
         }
         exit(-1);
     }
 
-    return jvm->DestroyJavaVM() == JNI_OK ? 0 : -1;
+    return (*jvm)->DestroyJavaVM(jvm) == JNI_OK ? 0 : -1;
 }
 

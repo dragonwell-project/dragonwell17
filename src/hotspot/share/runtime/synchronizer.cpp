@@ -1635,8 +1635,14 @@ class ReleaseJavaMonitorsClosure: public MonitorClosure {
 void ObjectSynchronizer::release_monitors_owned_by_thread(JavaThread* current) {
   assert(current == JavaThread::current(), "must be current Java thread");
   NoSafepointVerifier nsv;
-  ReleaseJavaMonitorsClosure rjmc(UseWispMonitor ? WispThread::current(current) : current);
-  ObjectSynchronizer::monitors_iterate(&rjmc, current);
+  JavaThread* jt = UseWispMonitor ? WispThread::current(current) : current;
+  ReleaseJavaMonitorsClosure rjmc(jt);
+  if (UseWispMonitor) {
+    PauseNoSafepointVerifier pnsv(&nsv);
+    ObjectSynchronizer::monitors_iterate(&rjmc, jt);
+  } else {
+    ObjectSynchronizer::monitors_iterate(&rjmc, jt);
+  }
   assert(!current->has_pending_exception(), "Should not be possible");
   current->clear_pending_exception();
 }
