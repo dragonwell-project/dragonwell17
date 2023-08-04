@@ -122,6 +122,7 @@ public:
   static bool is_shared_dynamic(void* p) NOT_CDS_RETURN_(false);
 
   static void serialize(SerializeClosure* sc) NOT_CDS_RETURN;
+  static void serialize_well_known_classes(SerializeClosure* soc) NOT_CDS_RETURN;
 
   // JVM/TI RedefineClasses() support:
   // Remap the shared readonly space to shared readwrite, private if

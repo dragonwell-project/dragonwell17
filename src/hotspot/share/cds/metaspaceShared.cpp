@@ -365,6 +365,14 @@ void MetaspaceShared::serialize(SerializeClosure* soc) {
   soc->do_tag(666);
 }
 
+void MetaspaceShared::serialize_well_known_classes(SerializeClosure* soc) {
+  if (EnableCoroutine) {
+    java_dyn_CoroutineBase::serialize(soc);
+    com_alibaba_wisp_engine_WispEngine::serialize(soc);
+    com_alibaba_wisp_engine_WispTask::serialize(soc);
+  }
+}
+
 static void rewrite_nofast_bytecode(const methodHandle& method) {
   BytecodeStream bcs(method);
   while (!bcs.is_last_bytecode()) {
