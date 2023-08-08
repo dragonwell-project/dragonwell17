@@ -175,6 +175,7 @@
   do_klass(com_alibaba_wisp_engine_WispTask_CacheableCoroutine_klass,                                           \
                                                         com_alibaba_wisp_engine_WispTask_CacheableCoroutine   ) \
   do_klass(com_alibaba_wisp_engine_WispEngine_klass,    com_alibaba_wisp_engine_WispEngine                    ) \
+  do_klass(com_alibaba_wisp_engine_WispCarrier_klass,   com_alibaba_wisp_engine_WispCarrier                   ) \
   do_klass(com_alibaba_wisp_engine_WispEventPump_klass, com_alibaba_wisp_engine_WispEventPump                 ) \
                                                                                                                 \
   /* force inline of iterators */                                                                               \

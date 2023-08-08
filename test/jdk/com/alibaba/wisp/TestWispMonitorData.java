@@ -29,9 +29,7 @@ import static jdk.test.lib.Asserts.assertTrue;
 public class TestWispMonitorData {
 
     public static void main(String[] args) throws Exception {
-
         startNetServer();
-
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
         WispCounterMXBean mbean = null;
         try {
@@ -47,7 +45,7 @@ public class TestWispMonitorData {
             // submit task
             es.submit(() -> {
                 // do park/unpark
-                synchronized (TestWispDetailCounter.class) {
+                synchronized (TestWispMonitorData.class) {
                     // do sleep
                     try {
                         Thread.sleep(10L);
@@ -64,14 +62,13 @@ public class TestWispMonitorData {
         Class<?> clazz = Class.forName("com.alibaba.wisp.engine.WispEngine");
         Field field = clazz.getDeclaredField("carrierThreads");
         field.setAccessible(true);
-        Set<Thread> set = (Set<Thread>)field.get(null);
+        Set<Thread> set = (Set<Thread>) field.get(null);
         JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
         for (Thread thread : set) {
-            WispEngine engine = JLA.getWispEngine(thread);
-            WispCounterData wispdata = mbean.getWispCounterData(engine.getId());
+            WispCounter wispdata = WispEngine.getWispCounter(thread.getId());
             if (wispdata != null) {
-                System.out.println("WispTask is " + engine.getId());
+                System.out.println("WispTask is " + thread.getId());
                 System.out.println(wispdata.getCompletedTaskCount());
                 System.out.println(wispdata.getTotalExecutionTime());
                 System.out.println(wispdata.getExecutionCount());
