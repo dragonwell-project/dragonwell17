@@ -492,7 +492,7 @@ public class WispTask implements Comparable<WispTask> {
     }
 
     void setThreadWrapper(Thread thread) {
-        assert threadWrapper == null || thread == null;
+        assert (threadWrapper == null || thread == null) && (threadWrapper != thread);
         threadWrapper = thread;
         if (threadWrapper != null) {
             WispEngine.JLA.setWispTask(threadWrapper, this);
