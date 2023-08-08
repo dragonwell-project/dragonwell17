@@ -536,6 +536,7 @@
   template(object_object_signature,                   "(Ljava/lang/Object;)Ljava/lang/Object;")   \
   template(string_void_signature,                     "(Ljava/lang/String;)V")                    \
   template(string_int_signature,                      "(Ljava/lang/String;)I")                    \
+  template(runnable_void_signature,                   "(Ljava/lang/Runnable;)V")                  \
   template(throwable_signature,                       "Ljava/lang/Throwable;")                    \
   template(throwable_void_signature,                  "(Ljava/lang/Throwable;)V")                 \
   template(void_throwable_signature,                  "()Ljava/lang/Throwable;")                  \
@@ -694,6 +695,7 @@
   template(com_alibaba_wisp_engine_WispTask,           "com/alibaba/wisp/engine/WispTask")                        \
   template(com_alibaba_wisp_engine_WispTask_CacheableCoroutine, "com/alibaba/wisp/engine/WispTask$CacheableCoroutine") \
   template(com_alibaba_wisp_engine_WispEngine,         "com/alibaba/wisp/engine/WispEngine")                      \
+  template(com_alibaba_wisp_engine_WispCarrier,        "com/alibaba/wisp/engine/WispCarrier")                     \
   template(com_alibaba_wisp_engine_WispEventPump,      "com/alibaba/wisp/engine/WispEventPump")                   \
   template(isInCritical_name,                          "isInCritical")                                            \
   template(jdkParkStatus_name,                         "jdkParkStatus")                                           \
@@ -708,6 +710,7 @@
   template(interruptById_name,                         "interruptById")                                           \
   template(interrupted_name,                           "interrupted")                                             \
   template(yield_name,                                 "yield")                                                   \
+  template(runOutsideWisp_name,                        "runOutsideWisp")                                          \
   template(nativeCoroutine_name,                       "nativeCoroutine")                                         \
   template(stack_name,                                 "stack")                                                   \
   template(current_name,                               "current")                                                 \

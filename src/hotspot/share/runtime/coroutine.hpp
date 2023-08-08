@@ -143,6 +143,7 @@ public:
   virtual ~Coroutine();
 
   void run(jobject coroutine);
+  bool is_coroutine_frame(javaVFrame* jvf);
 
   static void initialize_coroutine_support(JavaThread* thread);
   static Coroutine* create_thread_coroutine(JavaThread* thread, CoroutineStack* stack);
@@ -368,6 +369,7 @@ private:
   static bool _wisp_booted;
   static Method* parkMethod;
   static Method* unparkMethod;
+  static Method* runOutsideWispMethod;
   static GrowableArray<int>* _proxy_unpark;
 
   Coroutine*  _coroutine;

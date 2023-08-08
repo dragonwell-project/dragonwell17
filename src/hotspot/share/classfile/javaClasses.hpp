@@ -1811,7 +1811,7 @@ public:
   friend class JavaClasses;
 };
 
-class com_alibaba_wisp_engine_WispEngine: AllStatic {
+class com_alibaba_wisp_engine_WispCarrier: AllStatic {
 private:
   static int _isInCritical_offset;
 public:
