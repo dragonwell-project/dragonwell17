@@ -14,26 +14,45 @@ import java.util.concurrent.FutureTask;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 
-
+/*
+ * The detail test princinple is as same as TestPreemptWispInternalBug.java.
+ */
 public class TestPreemptWisp2InternalBug {
 	private static String[] tasks = new String[] {"toString", "addTimer"};
 
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
-	        for (int i = 0; i < tasks.length; i++) {
-		        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-				        "-XX:+UseWisp2", "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerboseWisp", "-XX:-Inline",
-                        "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
-				        TestPreemptWisp2InternalBug.class.getName(), tasks[i]);
-		        OutputAnalyzer output = new OutputAnalyzer(pb.start());
-		        output.shouldContain("[WISP] preempt was blocked, because wisp internal method on the stack");
-	        }
+            for (int i = 0; i < tasks.length; i++) {
+                ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                        "-XX:+UseWisp2", "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerboseWisp", "-XX:-Inline",
+                        "-Xmn32M", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
+                        TestPreemptWisp2InternalBug.class.getName(), tasks[i]);
+                OutputAnalyzer output = new OutputAnalyzer(pb.start());
+                output.shouldContain("[WISP] preempt was blocked, because wisp internal method on the stack");
+            }
             return;
         }
 
-        FutureTask future = getTask(args[0]);
-        WispEngine.dispatch(future);
-        future.get();
+        FutureTask future1 = getTask(args[0]);
+        // Employ a dedicated wisp task to generate temporary objects
+        // garbage. Hope that it will trigger many GCs and stop the other
+        // wisp task at POLL_AT_RETURN or POLL_AT_LOOP.
+        FutureTask<Void> future2 = triggerContinuousGCsTask();
+
+        WispEngine.dispatch(future1);
+        WispEngine.dispatch(future2);
+        future1.get();
+        future2.get();
+    }
+
+    private static FutureTask triggerContinuousGCsTask() {
+        return new FutureTask<>(() -> {
+            long start = System.currentTimeMillis();
+            while (System.currentTimeMillis() - start < 1000) {
+                new Object[4096].hashCode();
+            }
+            return null;
+        });
     }
 
 	private static FutureTask toStringTask() {
@@ -62,14 +81,14 @@ public class TestPreemptWisp2InternalBug {
 		});
 	}
 
-	private static FutureTask getTask(String taskName) {
+    private static FutureTask getTask(String taskName) {
         switch (taskName) {
-	            case "toString":
-		        return toStringTask();
-                    case "addTimer":
-		        return addTimerTask();
-	            default:
-		        throw new IllegalArgumentException();
-	    }
-	}
+            case "toString":
+                return toStringTask();
+            case "addTimer":
+                return addTimerTask();
+            default:
+                throw new IllegalArgumentException();
+        }
+    }
 }

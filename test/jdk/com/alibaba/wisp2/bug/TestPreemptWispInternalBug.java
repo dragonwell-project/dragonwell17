@@ -61,8 +61,8 @@ public class TestPreemptWispInternalBug {
             return null;
         });
 
-        // Employ another new dedicated wisp task generate temporary objects
-        // garbage. Hope that it will can trigger many GCs and stop the other
+        // Employ another new dedicated wisp task to generate temporary objects
+        // garbage. Hope that it will trigger many GCs and stop the other
         // wisp task at POLL_AT_RETURN or POLL_AT_LOOP.
         FutureTask<Void> future2 = new FutureTask<>(() -> {
             Object task = SharedSecrets.getWispEngineAccess().getCurrentTask();
