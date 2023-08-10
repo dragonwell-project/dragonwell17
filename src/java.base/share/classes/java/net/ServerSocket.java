@@ -108,9 +108,26 @@ public class ServerSocket implements java.io.Closeable {
      * @since 12
      */
     protected ServerSocket(SocketImpl impl) {
+        this(impl, false);
+    }
+
+    /**
+     * Creates a server socket with a user-specified {@code SocketImpl}.
+     *
+     * @param      impl an instance of a SocketImpl to use on the ServerSocket.
+     * @param      dummy tells whether impl is dummy.
+     *
+     * @throws     NullPointerException if impl is {@code null}.
+     *
+     * @throws     SecurityException if a security manager is set and
+     *             its {@code checkPermission} method doesn't allow
+     *             {@code NetPermission("setSocketImpl")}.
+     * @since 12
+     */
+    protected ServerSocket(SocketImpl impl, boolean dummy) {
         Objects.requireNonNull(impl);
         checkPermission();
-        if (WispEngine.transparentWispSwitch()) {
+        if (WispEngine.transparentWispSwitch() && !dummy) {
             throw new UnsupportedOperationException();
         }
         this.impl = impl;

@@ -72,7 +72,7 @@ class ServerSocketAdaptor                        // package-private
     }
 
     private ServerSocketAdaptor(ServerSocketChannelImpl ssc) {
-        super(DummySocketImpl.create());
+        super(DummySocketImpl.create(), true);
         this.ssc = ssc;
     }
 
