@@ -3869,8 +3869,15 @@ encode %{
     //
     // Try to CAS m->owner from NULL to current thread.
     __ add(tmp, disp_hdr, (ObjectMonitor::owner_offset_in_bytes()-markWord::monitor_value));
+    if (UseWispMonitor) {
+      __ ldr (rthread, Address(rthread, JavaThread::current_coroutine_offset()));
+      __ ldr (rthread, Address(rthread, Coroutine::wisp_thread_offset()));
+    }
     __ cmpxchg(tmp, zr, rthread, Assembler::xword, /*acquire*/ true,
                /*release*/ true, /*weak*/ false, rscratch1); // Sets flags for result
+    if (UseWispMonitor) {
+      __ ldr (rthread, Address(rthread, WispThread::thread_offset()));
+    }
 
     // Store a non-null value into the box to avoid looking like a re-entrant
     // lock. The fast-path monitor unlock code checks for
@@ -3881,7 +3888,14 @@ encode %{
 
     __ br(Assembler::EQ, cont); // CAS success means locking succeeded
 
+    if (UseWispMonitor) {
+      __ ldr (rthread, Address(rthread, JavaThread::current_coroutine_offset()));
+      __ ldr (rthread, Address(rthread, Coroutine::wisp_thread_offset()));
+    }
     __ cmp(rscratch1, rthread);
+    if (UseWispMonitor) {
+      __ ldr (rthread, Address(rthread, WispThread::thread_offset()));
+    }
     __ br(Assembler::NE, cont); // Check for recursive locking
 
     // Recursive lock case
@@ -17095,6 +17109,24 @@ instruct tlsLoadP(thread_RegP dst)
   size(0);
 
   ins_encode( /*empty*/ );
+
+  ins_pipe(pipe_class_empty);
+%}
+
+// Thread refetch:
+// take two main arguments:
+// 1. register @rthread
+// 2. one register which contains the `Coroutine *`
+// and move Coroutine->_thread to @rthread
+instruct tlsRefetchP(thread_RegP dst, iRegP src)
+%{
+  match(Set dst (ThreadRefetch src));
+
+  format %{ "Refetch the rthread register" %}
+
+  ins_encode %{
+  __ ldr(rthread, Address($src$$Register, Coroutine::thread_offset()));
+  %}
 
   ins_pipe(pipe_class_empty);
 %}
