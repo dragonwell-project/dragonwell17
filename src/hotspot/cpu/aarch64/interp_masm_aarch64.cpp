@@ -442,11 +442,11 @@ void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register 
     cbzw(rscratch1, run_compiled_code);
     if (EnableCoroutine) {
       ldrh(rscratch1, Address(method, Method::intrinsic_id_offset_in_bytes()));
-      cmp(rscratch1, vmIntrinsics::_switchTo);
+      subs(zr, rscratch1, static_cast<int>(vmIntrinsics::_switchTo));
       br(Assembler::EQ, coroutine_skip_interpret);
-      cmp(rscratch1, vmIntrinsics::_switchToAndExit);
+      subs(zr, rscratch1, static_cast<int>(vmIntrinsics::_switchToAndExit));
       br(Assembler::EQ, coroutine_skip_interpret);
-      cmp(rscratch1, vmIntrinsics::_switchToAndTerminate);
+      subs(zr, rscratch1, static_cast<int>(vmIntrinsics::_switchToAndTerminate));
       br(Assembler::EQ, coroutine_skip_interpret);
     }
     ldr(rscratch1, Address(method, Method::interpreter_entry_offset()));

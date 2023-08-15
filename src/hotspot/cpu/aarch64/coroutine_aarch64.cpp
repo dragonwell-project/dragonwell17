@@ -21,7 +21,8 @@
  */
 
 #include "precompiled.hpp"
-#include "prims/privilegedStack.hpp"
+#include "asm/assembler.hpp"
+#include "code/vmreg.hpp"
 #include "runtime/coroutine.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
