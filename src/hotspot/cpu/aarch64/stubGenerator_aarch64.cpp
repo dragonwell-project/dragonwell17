@@ -41,6 +41,7 @@
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/coroutine.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"

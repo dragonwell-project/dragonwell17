@@ -3173,7 +3173,7 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
   Register thread = rthread;
   Register target_coroutine = j_rarg1;
   // check that we're dealing with sane objects...
-  __ ldr(target_coroutine, Address(target_coroutine, java_dyn_CoroutineBase::get_data_offset()));
+  __ ldr(target_coroutine, Address(target_coroutine, java_dyn_CoroutineBase::get_native_coroutine_offset()));
 
   Register temp = r4;
   Register temp2 = r5;
@@ -3188,7 +3188,7 @@ void create_switchTo_contents(MacroAssembler *masm, int start, OopMapSet* oop_ma
     Register old_stack = r6;
 
     // check that we're dealing with sane objects...
-    __ ldr(old_coroutine, Address(old_coroutine_obj, java_dyn_CoroutineBase::get_data_offset()));
+    __ ldr(old_coroutine, Address(old_coroutine_obj, java_dyn_CoroutineBase::get_native_coroutine_offset()));
 
     __ movw(temp, Coroutine::_onstack);
     __ strw(temp, Address(old_coroutine, Coroutine::state_offset()));

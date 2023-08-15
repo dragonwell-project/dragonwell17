@@ -1330,7 +1330,15 @@ void MacroAssembler::clinit_barrier(Register klass, Register scratch, Label* L_f
 
   // Fast path check: current thread is initializer thread
   ldr(scratch, Address(klass, InstanceKlass::init_thread_offset()));
+
+  if (UseWispMonitor) {
+    ldr(rthread, Address(rthread, JavaThread::current_coroutine_offset()));
+    ldr(rthread, Address(rthread, Coroutine::wisp_thread_offset()));
+  }
   cmp(rthread, scratch);
+  if (UseWispMonitor) {
+    ldr(rthread, Address(rthread, WispThread::thread_offset()));
+  }
 
   if (L_slow_path == &L_fallthrough) {
     br(Assembler::EQ, *L_fast_path);
