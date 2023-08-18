@@ -1,5 +1,6 @@
 package com.alibaba.wisp.engine;
 
+import com.alibaba.rcm.ResourceContainer;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.UnsafeAccess;
 
@@ -12,6 +13,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.*;
+
 
 /**
  * {@link WispTask} provides high-level semantics of {link @Coroutine}
@@ -101,7 +103,6 @@ public class WispTask implements Comparable<WispTask> {
     TimeOut timeOut;                    // related timer
     ClassLoader ctxClassLoader;
 
-    WispTask parent;
     private final boolean isThreadTask;
     private boolean isThreadAsWisp;
 
@@ -122,6 +123,7 @@ public class WispTask implements Comparable<WispTask> {
     int stealCount;
     int stealFailureCount;
     private int preemptCount;
+    long ttr;
     // perf monitor
     private long enqueueTime;
     private long parkTime;
@@ -132,6 +134,9 @@ public class WispTask implements Comparable<WispTask> {
     private volatile long epollArray;
     private volatile int epollEventNum;
     int epollArraySize;
+
+    WispControlGroup controlGroup;
+    long enterTs;
 
     WispTask(WispCarrier carrier, Coroutine ctx, boolean isRealTask, boolean isThreadTask) {
         this.isThreadTask = isThreadTask;
@@ -146,12 +151,12 @@ public class WispTask implements Comparable<WispTask> {
         resumeEntry = isThreadTask ? null : carrier.createResumeEntry(this);
     }
 
-    void reset(Runnable runnable, WispTask parent, String name, Thread thread, ClassLoader ctxLoader) {
+    void reset(Runnable runnable, String name, Thread thread, ClassLoader ctxLoader) {
         assert ctx != null;
         this.status       = Status.ALIVE;
         this.runnable     = runnable;
-        this.parent       = parent;
         this.name         = name;
+        this.controlGroup = null;
         interrupted       = 0;
         ctxClassLoader    = ctxLoader;
         ch                = null;
@@ -217,11 +222,12 @@ public class WispTask implements Comparable<WispTask> {
                 if (runnable != null) {
                     Throwable throwable = null;
                     try {
-                        runOutsideWisp(runnable);
+                        runCommand();
                     } catch (Throwable t) {
                         throwable = t;
                     } finally {
                         assert timeOut == null;
+                        assert controlGroup == null; // detached
                         runnable = null;
                         WispEngine.JLA.setWispAlive(threadWrapper, false);
                         if (isThreadAsWisp) {
@@ -239,14 +245,27 @@ public class WispTask implements Comparable<WispTask> {
         }
     }
 
+    private void runCommand() {
+        ResourceContainer irc = WispEngine.JLA.getInheritedResourceContainer(threadWrapper);
+        if (irc != ResourceContainer.root()) {
+            irc.run(wrapRunOutsideWisp(runnable));
+        } else {
+            runOutsideWisp(runnable);
+        }
+    }
+
     /**
      * Mark if wisp is running internal scheduling code or user code, this would
      * be used in preempt to identify if it's okay to preempt
      * Modify Coroutine::is_usermark_frame accordingly if you need to change this
      * method, because it's name and sig are used
      */
-    private static void runOutsideWisp(Runnable runnable) {
+    static void runOutsideWisp(Runnable runnable) {
         runnable.run();
+    }
+
+    static Runnable wrapRunOutsideWisp(Runnable runnable) {
+        return () -> runOutsideWisp(runnable);
     }
 
     /**
@@ -356,7 +375,8 @@ public class WispTask implements Comparable<WispTask> {
                     // current task is put to unpark queue,
                     // and will wake up eventually
                     if (WispEngine.runningAsCoroutine(threadWrapper) && timeoutNano > 0) {
-                        carrier.addTimer(timeoutNano + System.nanoTime(), fromJvm);
+                        carrier.addTimer(timeoutNano + System.nanoTime(),
+                                fromJvm ? TimeOut.Action.JVM_UNPARK : TimeOut.Action.JDK_UNPARK);
                     }
                     carrier.isInCritical = isInCritical0;
                     try {

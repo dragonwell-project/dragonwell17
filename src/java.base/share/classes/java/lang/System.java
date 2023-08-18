@@ -66,6 +66,8 @@ import java.util.WeakHashMap;
 import java.util.function.Supplier;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
+
+import com.alibaba.rcm.internal.AbstractResourceContainer;
 import com.alibaba.wisp.engine.WispEngine;
 import com.alibaba.wisp.engine.WispTask;
 import jdk.internal.misc.Unsafe;
@@ -2492,6 +2494,22 @@ public final class System {
             @Override
             public void wispBooted() {
                 Thread.wispBooted();
+            }
+
+
+            @Override
+            public void setResourceContainer(Thread thread, AbstractResourceContainer container) {
+                thread.resourceContainer = container;
+            }
+
+            @Override
+            public AbstractResourceContainer getResourceContainer(Thread thread) {
+                return thread.resourceContainer;
+            }
+
+            @Override
+            public AbstractResourceContainer getInheritedResourceContainer(Thread thread) {
+                return thread.inheritedResourceContainer;
             }
         });
     }

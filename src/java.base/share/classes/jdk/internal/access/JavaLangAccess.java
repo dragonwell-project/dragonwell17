@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
+import com.alibaba.rcm.internal.AbstractResourceContainer;
 import com.alibaba.wisp.engine.WispTask;
 import jdk.internal.module.ServicesCatalog;
 import jdk.internal.reflect.ConstantPool;
@@ -430,4 +431,21 @@ public interface JavaLangAccess {
     void threadExit(Thread thread);
 
     void wispBooted();
+
+    /**
+     * Set the value of {@code thread.resourceContainer}
+     *
+     * @param thread target thread to be modified
+     */
+    void setResourceContainer(Thread thread, AbstractResourceContainer container);
+
+    /**
+     * Get the reference to the thread attached {@code ResourceContainer}
+     */
+    AbstractResourceContainer getResourceContainer(Thread thread);
+
+    /**
+     * Get the reference to the thread's inherited {@code ResourceContainer}
+     */
+    AbstractResourceContainer getInheritedResourceContainer(Thread thread);
 }
