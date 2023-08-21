@@ -227,7 +227,7 @@ public class WispTask implements Comparable<WispTask> {
                         throwable = t;
                     } finally {
                         assert timeOut == null;
-                        assert controlGroup == null; // detached
+                        assert controlGroup == null; // terminated
                         runnable = null;
                         WispEngine.JLA.setWispAlive(threadWrapper, false);
                         if (isThreadAsWisp) {
@@ -492,6 +492,10 @@ public class WispTask implements Comparable<WispTask> {
         }
         // return old interrupt status.
         return res;
+    }
+
+    boolean inDestoryedGroup() {
+        return controlGroup != null && controlGroup.destroyed;
     }
 
     @Override
