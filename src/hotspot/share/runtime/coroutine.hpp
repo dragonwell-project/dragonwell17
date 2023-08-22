@@ -491,6 +491,40 @@ public:
   ~EnableStealMark();
 };
 
+// Spin lock for cocurrent coroutine support.
+// It is useless at safepoint.
+class CoroutineSupportLocker : public StackObj {
+private:
+  volatile long* _lock;
+  bool           _needs_locking;
+
+public:
+  CoroutineSupportLocker(JavaThread* carrier) {
+    assert(carrier != NULL, "sanity check");
+    Thread* current = Thread::current();
+    jlong tid = (jlong)current->osthread()->thread_id();
+    assert(tid != 0, "sanity check");
+    jlong lock_owner = (jlong) carrier->coroutine_support_lock_owner();
+    _needs_locking = !SafepointSynchronize::is_at_safepoint() && (tid != lock_owner);
+
+    if (_needs_locking) {
+      _lock = carrier->coroutine_support_lock();
+      Thread::SpinAcquireLongValue(_lock, "couroutine_support_lock", tid);
+    }
+  }
+
+  ~CoroutineSupportLocker() {
+    if (_needs_locking) {
+      Thread::SpinReleaseLong(_lock);
+    }
+  }
+
+  static bool is_locked_by(JavaThread* carrier, Thread* lock_owner) {
+    return (jlong) carrier->coroutine_support_lock_owner() ==
+      (jlong) lock_owner->osthread()->thread_id();
+  }
+};
+
 struct WispStealCandidate {
 private:
   Symbol *_holder;

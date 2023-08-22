@@ -1103,10 +1103,10 @@ JavaThread::JavaThread() :
   _frames_to_pop_failed_realloc(0),
 
   // coroutine support
+  _coroutine_support_lock(0),
   _coroutine_list(nullptr),
   _current_coroutine(nullptr),
   _wisp_preempted(false),
-  _coroutine_temp(0),
 
   _handshake(this),
 
@@ -1323,7 +1323,7 @@ void JavaThread::run() {
   record_stack_base_and_size();
 
   if (EnableCoroutine) {
-    initialize_coroutine_support();
+    initialize_thread_coroutine();
   }
 
   _stack_overflow_state.create_stack_guard_pages();
@@ -2084,6 +2084,7 @@ void JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
   }
 
   if (EnableCoroutine) {
+    CoroutineSupportLocker csl(this);
     Coroutine* current = _coroutine_list;
     do {
       current->oops_do(f, cf);
@@ -2148,23 +2149,26 @@ void JavaThread::nmethods_do(CodeBlobClosure* cf) {
   }
 
   if (EnableCoroutine) {
+    CoroutineSupportLocker csl(this);
     Coroutine* current = _coroutine_list;
     do {
       current->nmethods_do(cf);
       current = current->next();
     } while (current != _coroutine_list);
-  }
 
-  if (jvmti_thread_state() != NULL) {
-    jvmti_thread_state()->nmethods_do(cf);
-  }
+    if (jvmti_thread_state() != NULL) {
+      jvmti_thread_state()->nmethods_do(cf);
+    }
 
-  if (EnableCoroutine) {
-    Coroutine* current = _coroutine_list;
+    current = _coroutine_list;
     do {
       current->compiledMethods_do(cf);
       current = current->next();
     } while (current != _coroutine_list);
+  } else {
+    if (jvmti_thread_state() != NULL) {
+      jvmti_thread_state()->nmethods_do(cf);
+    }
   }
 }
 
@@ -2186,6 +2190,7 @@ void JavaThread::metadata_do(MetadataClosure* f) {
     }
   }
   if (EnableCoroutine) {
+    CoroutineSupportLocker csl(this);
     Coroutine* current = _coroutine_list;
     do {
       current->metadata_do(f);
@@ -2289,6 +2294,7 @@ void JavaThread::frames_do(void f(frame*, const RegisterMap* map)) {
     f(fr, fst.register_map());
   }
   if (EnableCoroutine) {
+    CoroutineSupportLocker csl(this);
     // traverse the coroutine stack frames
     Coroutine* current = _coroutine_list;
     do {
@@ -2998,7 +3004,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   main_thread->record_stack_base_and_size();
   main_thread->register_thread_stack_with_NMT();
   if (EnableCoroutine) {
-    main_thread->initialize_coroutine_support();
+    main_thread->initialize_thread_coroutine();
   }
 
   main_thread->set_active_handles(JNIHandleBlock::allocate_block());
@@ -3862,6 +3868,7 @@ JavaThread *Threads::owning_thread_from_monitor_owner(ThreadsList * t_list,
     // first, see if owner is the address of a Java thread
     if (UseWispMonitor) {
       if (p->coroutine_list()) {
+        CoroutineSupportLocker csl(p);
         Coroutine* c = p->coroutine_list();
         do {
           if ((address) c->wisp_thread() == owner) {
@@ -3888,6 +3895,7 @@ JavaThread *Threads::owning_thread_from_monitor_owner(ThreadsList * t_list,
   DO_JAVA_THREADS(t_list, q) {
     if (UseWispMonitor) {
       if (q->coroutine_list()) {
+        CoroutineSupportLocker csl(q);
         Coroutine* c = q->coroutine_list();
         do {
           if (c->wisp_thread()->is_lock_owned(owner)) {
@@ -3961,6 +3969,7 @@ void Threads::print_on(outputStream* st, bool print_stacks,
             p->current_coroutine()->print_stack_header_on(st);
             st->print("\n");
           }
+          CoroutineSupportLocker csl(p);
           Coroutine* c = p->coroutine_list();
           do {
             c->print_stack_on(st);
@@ -4097,8 +4106,9 @@ void Threads::print_threads_compiling(outputStream* st, char* buf, int buflen, b
 
 typedef volatile int SpinLockT;
 
-void Thread::SpinAcquire(volatile int * adr, const char * LockName) {
-  if (Atomic::cmpxchg(adr, 0, 1) == 0) {
+template<typename D>
+static inline void SpinAcquireValue(volatile D * adr, const char * LockName, D lockVal) {
+  if (Atomic::cmpxchg(adr, (D) 0, lockVal) == 0) {
     return;   // normal fast-path return
   }
 
@@ -4119,11 +4129,12 @@ void Thread::SpinAcquire(volatile int * adr, const char * LockName) {
         SpinPause();
       }
     }
-    if (Atomic::cmpxchg(adr, 0, 1) == 0) return;
+    if (Atomic::cmpxchg(adr, (D)0, lockVal) == 0) return;
   }
 }
 
-void Thread::SpinRelease(volatile int * adr) {
+template<typename D>
+static inline void SpinReleaseValue(volatile D * adr, D lockValue) {
   assert(*adr != 0, "invariant");
   OrderAccess::fence();      // guarantee at least release consistency.
   // Roach-motel semantics.
@@ -4136,9 +4147,24 @@ void Thread::SpinRelease(volatile int * adr) {
   // Conceptually we need a #loadstore|#storestore "release" MEMBAR before
   // the ST of 0 into the lock-word which releases the lock, so fence
   // more than covers this on all platforms.
-  *adr = 0;
+  *adr = lockValue;
 }
 
+void Thread::SpinAcquire(volatile int * adr, const char * Name) {
+  SpinAcquireValue<int>(adr, Name, 1);
+}
+
+void Thread::SpinRelease(volatile int * adr) {
+  SpinReleaseValue<int>(adr, 0);
+}
+
+void Thread::SpinAcquireLongValue(volatile long * adr, const char * LockName, long value) {
+  SpinAcquireValue<long>(adr, LockName, value);
+}
+
+void Thread::SpinReleaseLong(volatile long * adr) {
+  SpinReleaseValue<long>(adr, 0);
+}
 
 void Threads::verify() {
   ALL_JAVA_THREADS(p) {
@@ -4148,8 +4174,9 @@ void Threads::verify() {
   if (thread != NULL) thread->verify();
 }
 
-void JavaThread::initialize_coroutine_support() {
+void JavaThread::initialize_thread_coroutine() {
   assert(EnableCoroutine, "EnableCoroutine isn't enable");
+  // Here we create thread coroutine, there won't be stealed by other, so don't need to add lock protection.
   Coroutine::create_thread_coroutine(this, CoroutineStack::create_thread_stack(this))->insert_into_list(_coroutine_list);
 }
 

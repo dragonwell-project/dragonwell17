@@ -304,9 +304,9 @@ public class Thread implements Runnable {
     /**
      * initialize the coroutine support of the thread
      */
-    private void initializeCoroutineSupport() {
+    private void initializeCoroutineSupport(long nativeThreadId, long lockOwnerAddress) {
         if (coroutineSupport == null) {
-            coroutineSupport = new CoroutineSupport(this);
+            coroutineSupport = new CoroutineSupport(this, nativeThreadId, lockOwnerAddress);
         }
     }
 

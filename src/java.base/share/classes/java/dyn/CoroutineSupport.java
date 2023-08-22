@@ -27,11 +27,12 @@ package java.dyn;
 
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.Contended;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
  * Jvm entry of coroutine APIs.
@@ -41,6 +42,7 @@ public class CoroutineSupport {
 
     private static final boolean CHECK_LOCK = true;
     private static final int SPIN_BACKOFF_LIMIT = 2 << 8;
+    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
     private static AtomicInteger idGen = new AtomicInteger();
 
@@ -48,11 +50,13 @@ public class CoroutineSupport {
     private final Thread thread;
     // The initial coroutine of the Thread
     private final Coroutine threadCoroutine;
+    // The thread's native thread id
+    private final long nativeThreadId;
 
     // The currently executing coroutine
     private Coroutine currentCoroutine;
 
-    private volatile Thread lockOwner = null; // also protect double link list of JavaThread->coroutine_list()
+    private long lockOwnerAddress; // also protect double link list of JavaThread->coroutine_list()
     private int lockRecursive; // volatile is not need
 
     private final int id;
@@ -64,9 +68,11 @@ public class CoroutineSupport {
 
     /**
      * Allocates a new {@code CoroutineSupport} object.
-     * @param thread the Thread
+     * @param thread the thread
+     * @param nativeThreadId the thread native thread id
+     * @param lockOwnerAddress the native coroutine supprt lock address
      */
-    public CoroutineSupport(Thread thread) {
+    public CoroutineSupport(Thread thread, long nativeThreadId, long lockOwnerAddress) {
         if (thread.getCoroutineSupport() != null) {
             throw new IllegalArgumentException("Cannot instantiate CoroutineThreadSupport for existing Thread");
         }
@@ -75,6 +81,8 @@ public class CoroutineSupport {
         threadCoroutine = new Coroutine(this, getNativeThreadCoroutine());
         markThreadCoroutine(threadCoroutine.nativeCoroutine, threadCoroutine);
         currentCoroutine = threadCoroutine;
+        this.nativeThreadId = nativeThreadId;
+        this.lockOwnerAddress = lockOwnerAddress;
     }
 
     /**
@@ -143,7 +151,7 @@ public class CoroutineSupport {
         } catch (Throwable t) {
             t.printStackTrace();
         } finally {
-            assert lockOwner == thread && lockRecursive == 0;
+            assert lockOwner() == nativeThreadId && lockRecursive == 0;
             terminated = true;
             unlock();
         }
@@ -304,6 +312,14 @@ public class CoroutineSupport {
         next.needsUnlock = true;
     }
 
+    private long lockOwner() {
+        return UNSAFE.getLongAcquire(null, lockOwnerAddress);
+    }
+
+    private void clearLockOwner() {
+        UNSAFE.putLongRelease(null, lockOwnerAddress, 0);
+    }
+
     private void lock() {
         boolean success = lockInternal(false);
         assert success;
@@ -311,12 +327,14 @@ public class CoroutineSupport {
 
     private boolean lockInternal(boolean tryingLock) {
         final Thread th = SharedSecrets.getJavaLangAccess().currentThread0();
-        if (lockOwner == th) {
+        final long tid = th.getCoroutineSupport().nativeThreadId;
+        if (lockOwner() == tid) {
             lockRecursive++;
             return true;
         }
         for (int spin = 1; ; ) {
-            if (lockOwner == null && LOCK_UPDATER.compareAndSet(this, null, th)) {
+            if (lockOwner() == 0 &&
+                UNSAFE.compareAndSetLong(null, lockOwnerAddress, 0, tid)) {
                 return true;
             }
             for (int i = 0; i < spin; ) {
@@ -334,21 +352,17 @@ public class CoroutineSupport {
     }
 
     private void unlock() {
-        if (CHECK_LOCK && SharedSecrets.getJavaLangAccess().currentThread0() != lockOwner) {
+        if (CHECK_LOCK &&
+            SharedSecrets.getJavaLangAccess().currentThread0()
+            .getCoroutineSupport().nativeThreadId != lockOwner()) {
             throw new InternalError("unlock from non-owner thread");
         }
         if (lockRecursive > 0) {
             lockRecursive--;
         } else {
-            LOCK_UPDATER.lazySet(this, null);
+            UNSAFE.putLongRelease(null, lockOwnerAddress, 0);
         }
     }
-
-    private static final AtomicReferenceFieldUpdater<CoroutineSupport, Thread> LOCK_UPDATER;
-
-    static {
-        LOCK_UPDATER = AtomicReferenceFieldUpdater.newUpdater(CoroutineSupport.class, Thread.class, "lockOwner");
-    }	
 
     /**
      * @param coroutine the coroutine

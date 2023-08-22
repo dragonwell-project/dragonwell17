@@ -3814,7 +3814,7 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
   thread->record_stack_base_and_size();
   thread->register_thread_stack_with_NMT();
   if (EnableCoroutine) {
-    thread->initialize_coroutine_support();
+    thread->initialize_thread_coroutine();
   }
   thread->initialize_thread_current();
   MACOS_AARCH64_ONLY(thread->init_wx());
