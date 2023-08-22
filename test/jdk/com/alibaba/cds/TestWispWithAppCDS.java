@@ -9,7 +9,7 @@
  * @modules java.base/com.alibaba.util:+open
  * @build TestSimpleWispUsage
  * @build Classes4CDS
- * @run driver ClassFileInstaller  -jar test.jar TestSimpleWispUsage
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller  -jar test.jar TestSimpleWispUsage
  * @run main/othervm TestWispWithAppCDS
  */
 

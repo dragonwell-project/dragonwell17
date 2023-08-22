@@ -10,7 +10,7 @@
  * @build Classes4CDS
  * @build TestSimple
  * @build TestClassLoaderWithSignature
- * @run driver ClassFileInstaller -jar test.jar TestClassLoaderWithSignature
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar test.jar TestClassLoaderWithSignature
  * @run main/othervm -XX:+UnlockExperimentalVMOptions TestDumpAndLoadClassWithWisp
  */
 
