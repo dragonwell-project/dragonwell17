@@ -74,6 +74,10 @@ class JfrConditionalFlushWithStacktrace : public JfrConditionalFlush<Event> {
       jfr_clear_stacktrace(_t);
     }
   }
+  // only for wisp
+  Thread *& thread_ref() {
+    return _t;
+  }
 };
 
 #endif // SHARE_JFR_SUPPORT_JFRFLUSH_HPP
