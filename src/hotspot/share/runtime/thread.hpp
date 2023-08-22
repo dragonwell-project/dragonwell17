@@ -650,8 +650,13 @@ protected:
 
   // Low-level leaf-lock primitives used to implement synchronization.
   // Not for general synchronization use.
+
+  // Default lock is int.
   static void SpinAcquire(volatile int * Lock, const char * Name);
   static void SpinRelease(volatile int * Lock);
+
+  static void SpinAcquireLongValue(volatile long * Lock, const char * Name, long value);
+  static void SpinReleaseLong(volatile long * Lock);
 
 #if defined(__APPLE__) && defined(AARCH64)
  private:
@@ -1038,22 +1043,25 @@ class JavaThread: public Thread {
   int _frames_to_pop_failed_realloc;
 
   // coroutine support
+  volatile long     _coroutine_support_lock;
   Coroutine*        _coroutine_list;
+
   Coroutine*        _current_coroutine;
   bool              _wisp_preempted;
 
-  intptr_t          _coroutine_temp;
-
  public:
+  volatile long* const coroutine_support_lock()  { return &_coroutine_support_lock; }
+  // coroutine_support_lock_owner is only used in if-else.
+  // So there is no need for load_acquire semantic.
+  volatile long coroutine_support_lock_owner()   { return _coroutine_support_lock; }
   Coroutine*& coroutine_list()                   { return _coroutine_list; }
   Coroutine* current_coroutine()                 { return _current_coroutine; }
   void set_current_coroutine(Coroutine *coro)    { _current_coroutine = coro; }
   bool wisp_preempted() const                    { return _wisp_preempted; }
-  void set_wisp_preempted(bool b)                  { _wisp_preempted = b; }
+  void set_wisp_preempted(bool b)                { _wisp_preempted = b; }
 
-  static ByteSize coroutine_temp_offset()        { return byte_offset_of(JavaThread, _coroutine_temp); }
   static ByteSize current_coroutine_offset()     { return byte_offset_of(JavaThread, _current_coroutine); }
-  void initialize_coroutine_support();
+  void initialize_thread_coroutine();
 
   bool is_expected_thread_entry(ThreadFunction entry_point) { return _entry_point == entry_point; }
  private:
