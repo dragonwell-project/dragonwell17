@@ -2167,6 +2167,13 @@ JRT_LEAF(void, SharedRuntime::complete_monitor_unlocking_C(oopDesc* obj, BasicLo
   SharedRuntime::monitor_exit_helper<oopDesc*>(obj, lock, current);
 JRT_END
 
+JRT_LEAF(void, SharedRuntime::complete_wisp_proxy_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current))
+  WispThread* wisp_thread = WispThread::current(current);
+  wisp_thread->set_proxy_unpark_flag();
+  SharedRuntime::monitor_exit_helper(obj, lock, current);
+  wisp_thread->clear_proxy_unpark_flag();
+JRT_END
+
 JRT_ENTRY_NO_ASYNC(void, SharedRuntime::complete_wisp_monitor_unlocking_C(JavaThread* current, oopDesc* obj, BasicLock* lock))
   assert(EnableCoroutine, "Coroutine is disabled");
   Handle h_obj(current, obj);

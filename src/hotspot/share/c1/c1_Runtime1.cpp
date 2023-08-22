@@ -744,6 +744,9 @@ JRT_LEAF(void, Runtime1::monitorexit_wisp_proxy(JavaThread* current, BasicObject
   wisp_thread->set_proxy_unpark_flag();
   // When using fast locking, the compiled code has already tried the fast case
   ObjectSynchronizer::exit(obj, lock->lock(), THREAD);
+  // proxy_unpark flag may get uncleared here. we need to force clear it
+  // to prevent disturbances from the monitorenter next time.
+  wisp_thread->clear_proxy_unpark_flag();
 JRT_END
 
 

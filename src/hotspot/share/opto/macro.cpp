@@ -2432,8 +2432,12 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   Node *thread = transform_later(new ThreadLocalNode());
 
   CallNode *call;
-  if (UseWispMonitor && ((CallNode *)unlock->jvms() != NULL) && ((CallNode *)unlock->jvms()->has_method())) {
-    call = make_slow_call( (CallNode *) unlock, OptoRuntime::complete_monitor_exit_Type(), OptoRuntime::complete_wisp_monitor_unlocking_Java(), NULL, slow_path, thread, obj, box);
+  if (UseWispMonitor) {
+    if (((CallNode *) unlock->jvms() != NULL) && ((CallNode *) unlock->jvms()->has_method()) && !unlock->at_method_return()) {
+      call = make_slow_call( (CallNode *) unlock, OptoRuntime::complete_wisp_monitor_exit_Type(), OptoRuntime::complete_wisp_monitor_unlocking_Java(), NULL, slow_path, obj, box, NULL);
+    } else {
+      call = make_slow_call( (CallNode *) unlock, OptoRuntime::complete_monitor_exit_Type(), CAST_FROM_FN_PTR(address, SharedRuntime::complete_wisp_proxy_monitor_unlocking_C), "complete_wisp_proxy_monitor_unlocking_C", slow_path, obj, box, thread);
+    }
   } else {
     call = make_slow_call( (CallNode *) unlock, OptoRuntime::complete_monitor_exit_Type(), CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_unlocking_C), "complete_monitor_unlocking_C", slow_path, obj, box, thread);
   }
