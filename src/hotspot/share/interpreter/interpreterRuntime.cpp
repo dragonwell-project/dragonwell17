@@ -1191,6 +1191,9 @@ JRT_ENTRY(void, InterpreterRuntime::at_safepoint(JavaThread* current))
     LastFrameAccessor last_frame(current);
     JvmtiExport::at_single_stepping_point(current, last_frame.method(), last_frame.bcp());
   }
+  if (EnableCoroutine) {
+    Coroutine::after_safepoint(current);
+  }
 JRT_END
 
 JRT_LEAF(void, InterpreterRuntime::at_unwind(JavaThread* current))
