@@ -388,7 +388,8 @@ bool ObjectMonitor::enter(JavaThread* current) {
     return false;
   }
 
-  JFR_ONLY(JfrConditionalFlushWithStacktrace<EventJavaMonitorEnter> flush(current);)
+  JFR_ONLY(JfrConditionalFlushWithStacktrace<EventJavaMonitorEnter> flush(UseWispMonitor ? ((WispThread*)current)->thread() : current);)
+  JFR_ONLY(WispPostStealHandleUpdateMark w(flush.thread_ref());)
   EventJavaMonitorEnter event;
   if (event.is_started()) {
     event.set_monitorClass(object()->klass());
