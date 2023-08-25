@@ -797,7 +797,7 @@ public class ServerSocket implements java.io.Closeable {
      * @since 1.4
      */
     public ServerSocketChannel getChannel() {
-        return WispEngine.transparentWispSwitch() ? asyncImpl.getChannel() : null;
+        return null;
     }
 
     /**
