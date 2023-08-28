@@ -26,12 +26,15 @@
 package java.nio;
 
 import java.io.FileDescriptor;
+import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.ref.Reference;
 import java.util.Objects;
 
+
 import jdk.internal.access.foreign.MemorySegmentProxy;
 import jdk.internal.access.foreign.UnmapperProxy;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.ScopedMemoryAccess;
 import jdk.internal.misc.Unsafe;
 
@@ -247,9 +250,24 @@ public abstract class MappedByteBuffer
         }
         int capacity = capacity();
         if (isSync || ((address != 0) && (capacity != 0))) {
-            return force(0, capacity);
+            if (SharedSecrets.getWispFileSyncIOAccess() != null && SharedSecrets.getWispFileSyncIOAccess().usingAsyncFileIO()) {
+                return asynchronousForce(this);
+            } else {
+                return force(0, capacity);
+            }
         }
         return this;
+    }
+
+    private static MappedByteBuffer asynchronousForce(MappedByteBuffer mapBuf) {
+        try {
+            SharedSecrets.getWispFileSyncIOAccess().executeAsAsyncFileIO(() -> {
+                return mapBuf.force(0, mapBuf.capacity());
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return mapBuf;
     }
 
     /**

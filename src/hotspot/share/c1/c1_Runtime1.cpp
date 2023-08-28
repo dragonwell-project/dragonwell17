@@ -498,7 +498,8 @@ JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* c
   // Reset method handle flag.
   current->set_is_method_handle_return(false);
 
-  Handle exception(current, ex);
+  Handle exception(current, WispThread::is_current_death_pending(current) ?
+                      (oopDesc*)Universe::wisp_thread_death_exception() : ex);
 
   // This function is called when we are about to throw an exception. Therefore,
   // we have to poll the stack watermark barrier to make sure that not yet safe
@@ -707,7 +708,7 @@ JRT_BLOCK_ENTRY(void, Runtime1::monitorenter(JavaThread* current, oopDesc* obj, 
     lock->set_obj(obj);
   }
   assert(obj == lock->obj(), "must match");
-  WispPostStealHandleUpdateMark w(__hm);
+  WispPostStealHandleUpdateMark w(current, __hm);
   SharedRuntime::monitor_enter_helper(obj, lock->lock(), current);
 JRT_END
 

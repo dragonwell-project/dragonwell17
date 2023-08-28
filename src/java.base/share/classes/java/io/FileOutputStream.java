@@ -26,6 +26,7 @@
 package java.io;
 
 import java.nio.channels.FileChannel;
+
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.JavaIOFileDescriptorAccess;
 import sun.nio.ch.FileChannelImpl;
@@ -322,8 +323,19 @@ public class FileOutputStream extends OutputStream
      *     end of file
      * @throws    IOException If an I/O error has occurred.
      */
-    private native void writeBytes(byte b[], int off, int len, boolean append)
+    private native void writeBytes0(byte b[], int off, int len, boolean append)
         throws IOException;
+
+    private void writeBytes(byte b[], int off, int len, boolean append) throws IOException {
+        if (SharedSecrets.getWispFileSyncIOAccess() != null && SharedSecrets.getWispFileSyncIOAccess().usingAsyncFileIO()) {
+            SharedSecrets.getWispFileSyncIOAccess().executeAsAsyncFileIO(() -> {
+                writeBytes0(b, off, len, append);
+                return 0;
+            });
+        } else {
+            writeBytes0(b, off, len, append);
+        }
+    }
 
     /**
      * Writes {@code b.length} bytes from the specified byte array

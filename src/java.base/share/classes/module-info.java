@@ -368,6 +368,8 @@ module java.base {
         jdk.localedata;
     exports jdk.internal.invoke to
         jdk.incubator.foreign;
+    exports com.alibaba.rcm.internal to
+        jdk.management;
 
     // the service types defined by the APIs in this module
 
