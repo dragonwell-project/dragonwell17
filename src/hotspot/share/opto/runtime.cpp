@@ -1284,7 +1284,8 @@ JRT_ENTRY_NO_ASYNC(address, OptoRuntime::handle_exception_C_helper(JavaThread* c
   assert(current->exception_oop() != NULL, "exception oop is found");
   address handler_address = NULL;
 
-  Handle exception(current, current->exception_oop());
+  Handle exception(current, WispThread::is_current_death_pending(current) ?
+    Universe::wisp_thread_death_exception() : current->exception_oop());
   address pc = current->exception_pc();
 
   // Clear out the exception oop and pc since looking up an

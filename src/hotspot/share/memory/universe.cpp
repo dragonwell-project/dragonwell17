@@ -105,6 +105,7 @@ enum OutOfMemoryInstance { _oom_java_heap,
                            _oom_count };
 
 OopHandle Universe::_out_of_memory_errors;
+OopHandle Universe::_wisp_thread_death_exception;
 OopHandle Universe::_delayed_stack_overflow_error_message;
 OopHandle Universe::_preallocated_out_of_memory_error_array;
 volatile jint Universe::_preallocated_out_of_memory_error_avail_count = 0;
@@ -577,6 +578,7 @@ oop Universe::out_of_memory_error_realloc_objects() {
 
 // Throw default _out_of_memory_error_retry object as it will never propagate out of the VM
 oop Universe::out_of_memory_error_retry()              { return out_of_memory_errors()->obj_at(_oom_retry);  }
+oop Universe::wisp_thread_death_exception()            { return _wisp_thread_death_exception.resolve(); }
 oop Universe::delayed_stack_overflow_error_message()   { return _delayed_stack_overflow_error_message.resolve(); }
 
 
@@ -952,6 +954,14 @@ bool universe_post_init() {
   Universe::create_preallocated_out_of_memory_errors(CHECK_false);
 
   oop instance;
+  Klass* k;
+  if (EnableCoroutine && Wisp2ThreadStop) {
+    // Create the special exception used to kill thread
+    k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_ThreadDeath(), true, CHECK_false);
+    assert(NULL != k, "pre-condition");
+    instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
+    Universe::_wisp_thread_death_exception = OopHandle(Universe::vm_global(), instance);
+  }
   // Setup preallocated cause message for delayed StackOverflowError
   if (StackReservedPages > 0) {
     instance = java_lang_String::create_oop_from_str("Delayed StackOverflowError due to ReservedStackAccess annotated method", CHECK_false);
@@ -960,7 +970,7 @@ bool universe_post_init() {
 
   // Setup preallocated NullPointerException
   // (this is currently used for a cheap & dirty solution in compiler exception handling)
-  Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_NullPointerException(), true, CHECK_false);
+  k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_NullPointerException(), true, CHECK_false);
   instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
   Universe::_null_ptr_exception_instance = OopHandle(Universe::vm_global(), instance);
 

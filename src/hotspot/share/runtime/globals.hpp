@@ -2100,6 +2100,9 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, UseWisp2, false,                                            \
           "Enable Wisp2")                                                   \
                                                                             \
+  product(bool, Wisp2ThreadStop, false,                                     \
+          "ThreadDeath cannot be catched")                                  \
+                                                                            \
   product(bool, PrintThreadCoroutineInfo, false, MANAGEABLE,                \
           "print the park/unpark information for thread coroutine")         \
                                                                             \

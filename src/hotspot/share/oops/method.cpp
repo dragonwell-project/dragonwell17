@@ -235,6 +235,9 @@ int Method::fast_exception_handler_bci_for(const methodHandle& mh, Klass* ex_kla
   // access exception table
   ExceptionTable table(mh());
   int length = table.length();
+  bool is_force_thread_death_exception = (EnableCoroutine && Wisp2ThreadStop
+      && (ex_klass == vmClasses::ThreadDeath_klass()
+      || ex_klass->is_subtype_of(vmClasses::ThreadDeath_klass())));
   // iterate through all entries sequentially
   constantPoolHandle pool(THREAD, mh->constants());
   for (int i = 0; i < length; i ++) {
@@ -287,6 +290,9 @@ int Method::fast_exception_handler_bci_for(const methodHandle& mh, Klass* ex_kla
         }
         assert(k != NULL, "klass not loaded");
         if (ex_klass->is_subtype_of(k)) {
+          if (is_force_thread_death_exception) {
+            continue;
+          }
           if (log_is_enabled(Info, exceptions)) {
             ResourceMark rm(THREAD);
             log_info(exceptions)("Found matching handler for exception of type \"%s\" in method \"%s\" at BCI: %d",

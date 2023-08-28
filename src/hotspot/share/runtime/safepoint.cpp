@@ -747,6 +747,10 @@ void SafepointSynchronize::block(JavaThread *thread) {
   guarantee(thread->safepoint_state()->get_safepoint_id() == InactiveSafepointCounter,
             "The safepoint id should be set only in block path");
 
+  if (EnableCoroutine) {
+    Coroutine::after_safepoint(thread);
+  }
+
   // cross_modify_fence is done by SafepointMechanism::process_if_requested
   // which is the only caller here.
 }

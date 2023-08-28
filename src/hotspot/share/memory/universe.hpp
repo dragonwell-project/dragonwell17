@@ -108,6 +108,7 @@ class Universe: AllStatic {
 
   // preallocated error objects (no backtrace)
   static OopHandle    _out_of_memory_errors;
+  static OopHandle    _wisp_thread_death_exception;
 
   // preallocated cause message for delayed StackOverflowError
   static OopHandle    _delayed_stack_overflow_error_message;
@@ -296,6 +297,7 @@ class Universe: AllStatic {
   // Throw default _out_of_memory_error_retry object as it will never propagate out of the VM
   static oop out_of_memory_error_retry();
   static oop delayed_stack_overflow_error_message();
+  static oop wisp_thread_death_exception();
 
   // The particular choice of collected heap.
   static CollectedHeap* heap() { return _collectedHeap; }
