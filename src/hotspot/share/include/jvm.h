@@ -1059,7 +1059,7 @@ JNIEXPORT jint JNICALL
 JVM_GetProxyUnpark(JNIEnv* env, jclass clz, jintArray res);
 
 JNIEXPORT void JNICALL
-JVM_MarkPreempted(JNIEnv* env, jclass clz, jobject thread, jboolean force);
+JVM_MarkPreempted(JNIEnv* env, jclass clz, jobject thread);
 
 /*************************************************************************
  PART 3: I/O and Network Support
