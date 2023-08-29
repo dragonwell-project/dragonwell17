@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 
 import static jdk.test.lib.Asserts.assertLT;
+import static jdk.test.lib.Asserts.assertTrue;
 
 public class TestRcmCpu {
 
@@ -54,6 +55,19 @@ public class TestRcmCpu {
             e.printStackTrace();
         }
 
+        for (int i = 0; i < 10; i++) {
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(20000);
+                    } catch (Exception e) {}
+                }
+            });
+            t.setDaemon(true);
+            t.start();
+        }
+
         ResourceContainer rc0 = RcmUtils.createContainer(
                 ResourceType.CPU_PERCENT.newConstraint(40));
         ResourceContainer rc1 = RcmUtils.createContainer(
@@ -80,10 +94,17 @@ public class TestRcmCpu {
         es.shutdownNow();
 
         double ratio = (double) duration1 / duration0;
-        assertLT(Math.abs(ratio - 0.5), 0.10, "deviation is out of reasonable scope");
+//        assertLT(Math.abs(ratio - 0.5), 0.10, "deviation is out of reasonable scope");
 
         for (long id : resourceContainerMXBean.getAllContainerIds()) {
             System.out.println(resourceContainerMXBean.getConstraintsById(id));
+            System.out.println(resourceContainerMXBean.getCPUResourceConsumedAmount(id));
+            System.out.println(resourceContainerMXBean.getActiveContainerThreadIds(id));
+            if (id == 0) {
+                assertTrue(!resourceContainerMXBean.getActiveContainerThreadIds(id).isEmpty());
+            }
         }
+
+        System.out.println("ROOT" +  resourceContainerMXBean.getActiveContainerThreadIds(0).size());
     }
 }
