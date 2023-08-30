@@ -2,7 +2,7 @@
  * @test
  * @summary test basic coroutine steal mechanism
  * @library /test/lib
- * @run main/othervm -XX:+EnableCoroutine TestBasicSteal
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine TestBasicSteal
  */
 
 import java.dyn.Coroutine;

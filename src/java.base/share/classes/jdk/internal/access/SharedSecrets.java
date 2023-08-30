@@ -26,7 +26,6 @@
 package jdk.internal.access;
 
 import com.alibaba.wisp.engine.WispEngine;
-import sun.nio.ch.EpollAccess;
 
 import javax.crypto.SealedObject;
 import javax.crypto.spec.SecretKeySpec;
@@ -88,7 +87,7 @@ public class SharedSecrets {
     private static JavaxCryptoSealedObjectAccess javaxCryptoSealedObjectAccess;
     private static JavaxCryptoSpecAccess javaxCryptoSpecAccess;
     private static WispEngineAccess wispEngineAccess;
-    private static EpollAccess epollAccess;
+    private static IOEventAccess ioEventAccess;
     private static RCMAccesss rcmAccesss;
     private static WispFileSyncIOAccess wispFileSyncIOAccess;
 
@@ -478,15 +477,15 @@ public class SharedSecrets {
         return Unsafe.access;
     }
 
-    public static EpollAccess getEpollAccess() {
-        if (epollAccess == null) {
-            EpollAccess.initializeEpoll();
+    public static IOEventAccess getIOEventAccess() {
+        if (ioEventAccess == null) {
+            IOEventAccess.initializeEvent();
         }
-        return epollAccess;
+        return ioEventAccess;
     }
 
-    public static void setEpollAccess(EpollAccess epollAccess) {
-        SharedSecrets.epollAccess = epollAccess;
+    public static void setIOEventAccess(IOEventAccess ioEventAccess) {
+        SharedSecrets.ioEventAccess = ioEventAccess;
     }
 
     public static RCMAccesss getRCMAccess() {

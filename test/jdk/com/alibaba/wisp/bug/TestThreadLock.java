@@ -2,7 +2,8 @@
  * @test
  * @summary Test fix of WispEngine block on Thread.class lock
  * @modules java.base/java.lang:+open
- * @run main/othervm -XX:-UseBiasedLocking -XX:+EnableCoroutine -XX:+UseWispMonitor -XX:+UnlockExperimentalVMOptions -Dcom.alibaba.wisp.transparentWispSwitch=true TestThreadLock
+ * @requires os.family == "linux"
+ * @run main/othervm -XX:-UseBiasedLocking -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -XX:+UseWispMonitor -Dcom.alibaba.wisp.transparentWispSwitch=true TestThreadLock
  */
 
 import com.alibaba.wisp.engine.WispEngine;

@@ -5,8 +5,9 @@
  * @library /test/lib
  * @build sun.hotspot.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:TieredStopAtLevel=1 -XX:CompileCommand=compileonly,TestMonitorExitDeopt::wrapper -XX:+PrintDeoptimizationDetails -XX:+IgnoreUnrecognizedVMOptions -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:+UseWisp2 TestMonitorExitDeopt
- * @run main/othervm -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestMonitorExitDeopt::wrapper -XX:+PrintDeoptimizationDetails -XX:+IgnoreUnrecognizedVMOptions -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:+UseWisp2 TestMonitorExitDeopt
+ * @requires os.family == "linux"
+ * @run main/othervm -XX:TieredStopAtLevel=1 -XX:CompileCommand=compileonly,TestMonitorExitDeopt::wrapper -XX:+PrintDeoptimizationDetails -XX:+IgnoreUnrecognizedVMOptions -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 TestMonitorExitDeopt
+ * @run main/othervm -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestMonitorExitDeopt::wrapper -XX:+PrintDeoptimizationDetails -XX:+IgnoreUnrecognizedVMOptions -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:+UnlockExperimentalVMOptions -XX:+UseWisp2 TestMonitorExitDeopt
  */
 
 import sun.hotspot.WhiteBox;

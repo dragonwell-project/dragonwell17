@@ -3,6 +3,7 @@
  * @summary Verify wisp internal logic can not be preempted
  * @library /test/lib
  * @modules java.base/jdk.internal.access
+ * @requires os.family == "linux"
  * @run main TestPreemptWisp2InternalBug
  */
 
@@ -24,6 +25,7 @@ public class TestPreemptWisp2InternalBug {
         if (args.length == 0) {
             for (int i = 0; i < tasks.length; i++) {
                 ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                        "-XX:+UnlockExperimentalVMOptions",
                         "-XX:+UseWisp2", "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerboseWisp", "-XX:-Inline",
                         "-Xmn32M", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
                         TestPreemptWisp2InternalBug.class.getName(), tasks[i]);
