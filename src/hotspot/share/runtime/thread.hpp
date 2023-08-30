@@ -1643,6 +1643,9 @@ class JavaThread: public Thread {
   bool has_attached_via_jni() const { return is_attaching_via_jni() || _jni_attach_state == _attached_via_jni; }
   inline void set_done_attaching_via_jni();
 
+  bool has_aync_thread_death_exception();
+  void clear_aync_thread_death_exception();
+
   // Stack dump assistance:
   // Track the class we want to initialize but for which we have to wait
   // on its init_lock() because it is already being initialized.
