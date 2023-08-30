@@ -1652,6 +1652,21 @@ JavaThread* JavaThread::active() {
   }
 }
 
+bool JavaThread::has_aync_thread_death_exception() {
+  assert(EnableCoroutine && Wisp2ThreadStop, "pre-condition");
+  return _pending_async_exception == Universe::wisp_thread_death_exception();
+}
+
+void JavaThread::clear_aync_thread_death_exception() {
+  assert(UseWisp2 && Wisp2ThreadStop, "pre-condition");
+  if (_pending_async_exception != NULL
+      && _pending_async_exception == Universe::wisp_thread_death_exception()) {
+    _pending_async_exception = NULL;
+    set_async_exception_condition(_no_async_condition);
+    clear_suspend_flag(_has_async_exception);
+  }
+}
+
 bool JavaThread::is_lock_owned(address adr) const {
   if (Thread::is_lock_owned(adr)) return true;
 
