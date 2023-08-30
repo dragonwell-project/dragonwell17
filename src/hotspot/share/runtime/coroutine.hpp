@@ -352,8 +352,7 @@ template<class T> void DoublyLinkedList<T>::insert_into_list(pointer& list) {
   }
 }
 
-template<class T> void DoublyLinkedList<T>::move(DoublyLinkedList<T>::pointer &coro,
-                                                 DoublyLinkedList<T>::pointer &target) {
+template<class T> void DoublyLinkedList<T>::move(pointer &coro, pointer &target) {
   assert(coro != NULL, "coroutine can't be null");
   assert(target != NULL, "target can't be null");
 
@@ -703,5 +702,6 @@ public:
   // do nothing
   }
 };
+
 
 #endif // SHARE_VM_RUNTIME_COROUTINE_HPP

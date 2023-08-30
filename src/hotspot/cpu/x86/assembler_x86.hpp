@@ -872,7 +872,9 @@ private:
 
   // End avoid using directly
 
-
+#ifdef _WINDOWS
+  public:
+#endif
   // Instruction prefixes
   void prefix(Prefix p);
 

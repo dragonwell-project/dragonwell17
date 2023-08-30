@@ -2088,19 +2088,19 @@ const intx ObjectAlignmentInBytes = 8;
                 "Trace optimized upcall stub generation")                   \
                                                                             \
   /* Wisp2 */                                                               \
-  product(bool, EnableCoroutine, false,                                     \
+  product(bool, EnableCoroutine, false, EXPERIMENTAL,                       \
           "Enable coroutine support")                                       \
                                                                             \
   product(uintx, DefaultCoroutineStackSize, 128*K,                          \
           "Default size of stack that is associated with new coroutine")    \
                                                                             \
-  product(bool, UseWispMonitor, false,                                      \
+  product(bool, UseWispMonitor, false, EXPERIMENTAL,                        \
           "yields to next coroutine when ObjectMonitor is contended")       \
                                                                             \
-  product(bool, UseWisp2, false,                                            \
+  product(bool, UseWisp2, false, EXPERIMENTAL,                              \
           "Enable Wisp2")                                                   \
                                                                             \
-  product(bool, Wisp2ThreadStop, false,                                     \
+  product(bool, Wisp2ThreadStop, false, EXPERIMENTAL,                       \
           "ThreadDeath cannot be catched")                                  \
                                                                             \
   product(bool, PrintThreadCoroutineInfo, false, MANAGEABLE,                \
