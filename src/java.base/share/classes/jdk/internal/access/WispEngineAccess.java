@@ -59,4 +59,7 @@ public interface WispEngineAccess {
 
     StackTraceElement[] getStackTrace(WispTask task);
 
+    WispTask getWispTaskById(long id);
+
+    Thread.State getState(Thread thread);
 }

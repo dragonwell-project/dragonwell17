@@ -2033,6 +2033,9 @@ public class Thread implements Runnable {
      * @since 1.5
      */
     public State getState() {
+        if (WEA != null) {
+            return WEA.getState(this);
+        }
         // get current thread state
         return jdk.internal.misc.VM.toThreadState(threadStatus);
     }
