@@ -3,7 +3,8 @@
  * @library /test/lib
  * @summary Test for Global Poller
  * @modules java.base/jdk.internal.access
- * @modules java.base/sun.nio.ch
+ * @modules java.base/sun.nio.ch:+open
+ * @modules java.base/java.net:+open
  * @modules java.base/com.alibaba.wisp.engine:+open
  * @requires os.family == "linux"
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.transparentAsync=true TestGlobalPoller
