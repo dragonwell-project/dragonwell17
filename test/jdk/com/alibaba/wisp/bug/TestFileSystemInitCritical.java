@@ -3,7 +3,7 @@
  * @library /test/lib
  * @modules java.base/java.nio.file.spi:+open
  * @summary Test the fix to NPE issue caused by unexpected co-routine yielding on synchronized(lock) in FileSystems.getDefault().provider() during initialization of WispEngine
- * @run main/othervm -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -XX:+UseWispMonitor TestFileSystemInitCritical
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableCoroutine -Dcom.alibaba.wisp.transparentWispSwitch=true -XX:+UseWispMonitor TestFileSystemInitCritical
 */
 
 

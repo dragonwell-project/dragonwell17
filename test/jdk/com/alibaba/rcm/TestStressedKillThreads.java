@@ -1,6 +1,6 @@
 /*
  * @test
- * @library /lib/testlibrary
+ * @library /test/lib
  * @build TestKillThreads RcmUtils
  * @summary test RCM TestKillThreads
  * @modules java.base/com.alibaba.wisp.engine:+open
@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static jdk.testlibrary.Asserts.assertTrue;
-import static jdk.testlibrary.Asserts.assertFalse;
-import static jdk.testlibrary.Asserts.fail;
+import static jdk.test.lib.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.assertFalse;
+import static jdk.test.lib.Asserts.fail;
 
 public class TestStressedKillThreads {
 
