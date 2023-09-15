@@ -172,12 +172,8 @@ class OptoRuntime : public AllStatic {
 
 public:
   // Slow-path Locking and Unlocking
-  static void complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
-  static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
-  static void complete_wisp_monitor_unlocking_C(JavaThread* thread, oopDesc* obj, BasicLock* lock);
-  static void complete_wisp_proxy_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
+  static void complete_wisp_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
 
-  static void complete_wisp_monitor_unlocking_C_opt(oopDesc* obj, BasicLock* lock, JavaThread* current);
   static void monitor_notify_C(oopDesc* obj, JavaThread* current);
   static void monitor_notifyAll_C(oopDesc* obj, JavaThread* current);
 

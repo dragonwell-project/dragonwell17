@@ -497,6 +497,7 @@ class SharedRuntime: AllStatic {
   // Slow-path Locking and Unlocking
   static void complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
   static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
+  // complete_wisp_monitor_unlocking_C is for call_VM. It is not for opto.
   static void complete_wisp_monitor_unlocking_C(JavaThread* current, oopDesc* obj, BasicLock* lock);
   static void complete_wisp_proxy_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
 
