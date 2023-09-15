@@ -27,6 +27,7 @@ package sun.nio.ch;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
@@ -81,6 +82,11 @@ class SourceChannelImpl
         super(sp);
         this.fd = fd;
         this.fdVal = IOUtil.fdVal(fd);
+        try {
+            configureAsNonBlockingForWisp(fd);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Unexpected error at configureAsNonBlockingForWisp", e);
+        }
     }
 
     /**

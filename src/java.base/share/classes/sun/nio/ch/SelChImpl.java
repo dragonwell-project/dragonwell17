@@ -26,8 +26,13 @@
 package sun.nio.ch;
 
 import java.nio.channels.Channel;
+import java.nio.channels.SelectableChannel;
 import java.io.FileDescriptor;
 import java.io.IOException;
+
+import com.alibaba.wisp.engine.WispEngine;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.access.WispEngineAccess;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -38,6 +43,8 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  */
 
 public interface SelChImpl extends Channel {
+
+    static final WispEngineAccess WEA = SharedSecrets.getWispEngineAccess();
 
     FileDescriptor getFD();
 
@@ -89,7 +96,11 @@ public interface SelChImpl extends Channel {
         } else {
             millis = NANOSECONDS.toMillis(nanos);
         }
-        Net.poll(getFD(), event, millis);
+        if (WispEngine.transparentWispSwitch() && !(this instanceof DatagramChannelImpl)) {
+            WEA.poll((SelectableChannel)this, event, millis);
+        } else {
+            Net.poll(getFD(), event, millis);
+        }
     }
 
     /**
