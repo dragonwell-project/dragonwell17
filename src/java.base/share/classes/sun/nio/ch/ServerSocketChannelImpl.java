@@ -133,6 +133,7 @@ class ServerSocketChannelImpl
             this.fd = Net.serverSocket(family, true);
         }
         this.fdVal = IOUtil.fdVal(fd);
+        configureAsNonBlockingForWisp(fd);
     }
 
     ServerSocketChannelImpl(SelectorProvider sp,
@@ -160,6 +161,7 @@ class ServerSocketChannelImpl
                 }
             }
         }
+        configureAsNonBlockingForWisp(fd);
     }
 
     /**
@@ -391,29 +393,16 @@ class ServerSocketChannelImpl
         acceptLock.lock();
         try {
             boolean blocking = isBlocking();
-            final boolean wispAndBlocking = WispEngine.transparentWispSwitch() && blocking &&
-                                            WEA.usingWispEpoll();
             try {
                 begin(blocking);
-                if (wispAndBlocking) {
-                    IOUtil.configureBlocking(fd, false);
-                }
                 n = implAccept(this.fd, newfd, saa);
                 if (blocking) {
                     while (IOStatus.okayToRetry(n) && isOpen()) {
-                        if (wispAndBlocking && n < 0) {
-                            WEA.registerEvent(this, SelectionKey.OP_ACCEPT);
-                            WEA.park(-1);
-                        } else {
-                            park(Net.POLLIN);
-                        }
+                        park(Net.POLLIN);
                         n = implAccept(this.fd, newfd, saa);
                     }
                 }
             } finally {
-                if (wispAndBlocking) {
-                    IOUtil.configureBlocking(fd, true);
-                }
                 end(blocking, n > 0);
                 assert IOStatus.check(n);
             }
@@ -503,7 +492,7 @@ class ServerSocketChannelImpl
     {
         try {
             // newly accepted socket is initially in blocking mode
-            IOUtil.configureBlocking(newfd, true);
+            configureAsNonBlockingForWisp(newfd);
 
             // check permitted to accept connections from the remote address
             if (isNetSocket()) {

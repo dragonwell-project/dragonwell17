@@ -146,6 +146,7 @@ class SocketChannelImpl
             this.fd = Net.socket(family, true);
         }
         this.fdVal = IOUtil.fdVal(fd);
+        configureAsNonBlockingForWisp(fd);
     }
 
     // Constructor for sockets obtained from server sockets
@@ -169,6 +170,7 @@ class SocketChannelImpl
             this.remoteAddress = remoteAddress;
             this.state = ST_CONNECTED;
         }
+        configureAsNonBlockingForWisp(fd);
     }
 
     /**
@@ -590,9 +592,11 @@ class SocketChannelImpl
             try {
                 beginWrite(blocking);
                 if (blocking) {
-                    do {
+                    n = Net.sendOOB(fd, b);
+                    while (n == IOStatus.INTERRUPTED && isOpen()) {
+                        park(Net.POLLOUT);
                         n = Net.sendOOB(fd, b);
-                    } while (n == IOStatus.INTERRUPTED && isOpen());
+                    }
                 } else {
                     n = Net.sendOOB(fd, b);
                 }
