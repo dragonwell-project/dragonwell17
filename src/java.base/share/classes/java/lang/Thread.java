@@ -923,7 +923,7 @@ public class Thread implements Runnable {
         boolean started = false;
         try {
             if (!(WEA != null && WispEngine.enableThreadAsWisp() &&
-                    WEA.tryStartThreadAsWisp(this, target))) {
+                    WEA.tryStartThreadAsWisp(this, target, this.stackSize))) {
                 start0();
             }
             started = true;
