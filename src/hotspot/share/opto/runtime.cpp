@@ -146,7 +146,7 @@ bool OptoRuntime::generate(ciEnv* env) {
   gen(env, _multianewarray5_Java           , multianewarray5_Type         , multianewarray5_C               ,    0 , true, false);
   gen(env, _multianewarrayN_Java           , multianewarrayN_Type         , multianewarrayN_C               ,    0 , true, false);
   gen(env, _complete_monitor_locking_Java  , complete_monitor_enter_Type  , SharedRuntime::complete_monitor_locking_C, 0, false, false);
-  gen(env, _complete_wisp_monitor_unlocking_Java  , complete_wisp_monitor_exit_Type  , complete_wisp_monitor_unlocking_C_opt, 0, false, false);
+  gen(env, _complete_wisp_monitor_unlocking_Java  , complete_wisp_monitor_exit_Type  , OptoRuntime::complete_wisp_monitor_unlocking_C, 0, false, false);
   gen(env, _monitor_notify_Java            , monitor_notify_Type          , monitor_notify_C                ,    0 , false, false);
   gen(env, _monitor_notifyAll_Java         , monitor_notify_Type          , monitor_notifyAll_C             ,    0 , false, false);
   gen(env, _rethrow_Java                   , rethrow_Type                 , rethrow_C                       ,    2 , true , true );
@@ -409,7 +409,7 @@ JRT_ENTRY(void, OptoRuntime::multianewarrayN_C(Klass* elem_type, arrayOopDesc* d
   current->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY_NO_ASYNC(void, OptoRuntime::complete_wisp_monitor_unlocking_C_opt(oopDesc* obj, BasicLock* lock, JavaThread* current))
+JRT_ENTRY_NO_ASYNC(void, OptoRuntime::complete_wisp_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current))
   assert(EnableCoroutine, "Coroutine is disabled");
   Handle h_obj(current, obj);
   SharedRuntime::monitor_exit_helper(h_obj, lock, current);
