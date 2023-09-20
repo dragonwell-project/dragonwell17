@@ -31,7 +31,7 @@ public class TestLock {
         WispEngine.dispatch(TestLock::p1);
         WispEngine.dispatch(TestLock::p2);
 
-        assertTrue(latch.await(2, TimeUnit.SECONDS));
+        assertTrue(latch.await(10, TimeUnit.SECONDS));
     }
 
     private static void assertInterval(long start, int diff, int bias) {

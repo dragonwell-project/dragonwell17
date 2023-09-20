@@ -26,7 +26,7 @@
  * @summary Expect ConnectException for all non-security related connect errors
  * @bug 8204864
  * @run testng/othervm -Djdk.net.hosts.file=HostFileDoesNotExist ConnectExceptionTest
- * @run testng/othervm/java.security.policy=noPermissions.policy ConnectExceptionTest
+ * @run testng/othervm/java.security.policy=ConnectExceptionTest.policy ConnectExceptionTest
  */
 
 import java.io.IOException;

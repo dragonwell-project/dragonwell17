@@ -666,12 +666,12 @@ VirtualSpace::VirtualSpace() {
 }
 
 
-bool VirtualSpace::initialize(ReservedSpace rs, size_t committed_size) {
+bool VirtualSpace::initialize(ReservedSpace rs, size_t committed_size, bool force_ignore_pretouch) {
   const size_t max_commit_granularity = os::page_size_for_region_unaligned(rs.size(), 1);
-  return initialize_with_granularity(rs, committed_size, max_commit_granularity);
+  return initialize_with_granularity(rs, committed_size, max_commit_granularity, force_ignore_pretouch);
 }
 
-bool VirtualSpace::initialize_with_granularity(ReservedSpace rs, size_t committed_size, size_t max_commit_granularity) {
+bool VirtualSpace::initialize_with_granularity(ReservedSpace rs, size_t committed_size, size_t max_commit_granularity, bool force_ignore_pretouch) {
   if(!rs.is_reserved()) return false;  // allocation failed.
   assert(_low_boundary == NULL, "VirtualSpace already initialized");
   assert(max_commit_granularity > 0, "Granularity must be non-zero.");
@@ -711,7 +711,7 @@ bool VirtualSpace::initialize_with_granularity(ReservedSpace rs, size_t committe
 
   // commit to initial size
   if (committed_size > 0) {
-    if (!expand_by(committed_size)) {
+    if (!expand_by(committed_size, false, force_ignore_pretouch)) {
       return false;
     }
   }
@@ -807,9 +807,9 @@ static void pretouch_expanded_memory(void* start, void* end) {
   os::pretouch_memory(start, end);
 }
 
-static bool commit_expanded(char* start, size_t size, size_t alignment, bool pre_touch, bool executable) {
+static bool commit_expanded(char* start, size_t size, size_t alignment, bool pre_touch, bool executable, bool force_ignore_pretouch) {
   if (os::commit_memory(start, size, alignment, executable)) {
-    if (pre_touch || AlwaysPreTouch) {
+    if ((pre_touch || AlwaysPreTouch) && !force_ignore_pretouch) {
       pretouch_expanded_memory(start, start + size);
     }
     return true;
@@ -835,7 +835,7 @@ static bool commit_expanded(char* start, size_t size, size_t alignment, bool pre
    page address and the pages after the last large page address must be
    allocated with default pages.
 */
-bool VirtualSpace::expand_by(size_t bytes, bool pre_touch) {
+bool VirtualSpace::expand_by(size_t bytes, bool pre_touch, bool force_ignore_pretouch) {
   if (uncommitted_size() < bytes) {
     return false;
   }
@@ -897,7 +897,7 @@ bool VirtualSpace::expand_by(size_t bytes, bool pre_touch) {
   // Commit regions
   if (lower_needs > 0) {
     assert(lower_high() + lower_needs <= lower_high_boundary(), "must not expand beyond region");
-    if (!commit_expanded(lower_high(), lower_needs, _lower_alignment, pre_touch, _executable)) {
+    if (!commit_expanded(lower_high(), lower_needs, _lower_alignment, pre_touch, _executable, force_ignore_pretouch)) {
       return false;
     }
     _lower_high += lower_needs;
@@ -905,7 +905,7 @@ bool VirtualSpace::expand_by(size_t bytes, bool pre_touch) {
 
   if (middle_needs > 0) {
     assert(middle_high() + middle_needs <= middle_high_boundary(), "must not expand beyond region");
-    if (!commit_expanded(middle_high(), middle_needs, _middle_alignment, pre_touch, _executable)) {
+    if (!commit_expanded(middle_high(), middle_needs, _middle_alignment, pre_touch, _executable, force_ignore_pretouch)) {
       return false;
     }
     _middle_high += middle_needs;
@@ -913,7 +913,7 @@ bool VirtualSpace::expand_by(size_t bytes, bool pre_touch) {
 
   if (upper_needs > 0) {
     assert(upper_high() + upper_needs <= upper_high_boundary(), "must not expand beyond region");
-    if (!commit_expanded(upper_high(), upper_needs, _upper_alignment, pre_touch, _executable)) {
+    if (!commit_expanded(upper_high(), upper_needs, _upper_alignment, pre_touch, _executable, force_ignore_pretouch)) {
       return false;
     }
     _upper_high += upper_needs;

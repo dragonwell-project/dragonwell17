@@ -1043,17 +1043,13 @@ class JavaThread: public Thread {
   int _frames_to_pop_failed_realloc;
 
   // coroutine support
-  volatile long     _coroutine_support_lock;
+  volatile int      _coroutine_list_lock;
   Coroutine*        _coroutine_list;
-
   Coroutine*        _current_coroutine;
   bool              _wisp_preempted;
 
  public:
-  volatile long* const coroutine_support_lock()  { return &_coroutine_support_lock; }
-  // coroutine_support_lock_owner is only used in if-else.
-  // So there is no need for load_acquire semantic.
-  volatile long coroutine_support_lock_owner()   { return _coroutine_support_lock; }
+  volatile int* const coroutine_list_lock()      { return &_coroutine_list_lock; }
   Coroutine*& coroutine_list()                   { return _coroutine_list; }
   Coroutine* current_coroutine()                 { return _current_coroutine; }
   void set_current_coroutine(Coroutine *coro)    { _current_coroutine = coro; }

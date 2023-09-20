@@ -188,7 +188,10 @@ Coroutine* Coroutine::create_coroutine(JavaThread* thread, CoroutineStack* stack
 }
 
 Coroutine::~Coroutine() {
-  remove_from_list(_thread->coroutine_list());
+  {
+    CoroutineListLocker cll(_thread);
+    remove_from_list(_thread->coroutine_list());
+  }
   if (_wisp_thread != NULL) {
     delete _wisp_thread;
   }
@@ -415,7 +418,7 @@ CoroutineStack* CoroutineStack::create_stack(JavaThread* thread, intptr_t size/*
   CoroutineStack* stack = new CoroutineStack(reserved_size);
   if (stack == NULL)
     return NULL;
-  if (!stack->_virtual_space.initialize(stack->_reserved_space, real_stack_size)) {
+  if (!stack->_virtual_space.initialize(stack->_reserved_space, real_stack_size, /* force_ignore_pretouch */true)) {
     stack->_reserved_space.release();
     delete stack;
     return NULL;
@@ -1290,17 +1293,13 @@ void Coroutine::initialize_coroutine_support(JavaThread* thread) {
   HandleMark hm(thread);
   Handle obj(thread, thread->threadObj());
   JavaValue result(T_VOID);
-  JavaCallArguments args;
-  args.set_receiver(obj);
-  args.push_long((jlong)thread->osthread()->thread_id());
-  args.push_long((jlong)thread->coroutine_support_lock());
 
   JavaCalls::call_virtual(&result,
-      vmClasses::Thread_klass(),
-      vmSymbols::initializeCoroutineSupport_method_name(),
-      vmSymbols::long_long_void_signature(),
-      &args,
-      thread);
+    obj,
+    vmClasses::Thread_klass(),
+    vmSymbols::initializeCoroutineSupport_method_name(),
+    vmSymbols::void_method_signature(),
+    thread);
 }
 
 WispClinitCounterMark::WispClinitCounterMark(Thread* th) {
