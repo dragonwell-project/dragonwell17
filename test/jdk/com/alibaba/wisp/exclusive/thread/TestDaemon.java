@@ -34,7 +34,7 @@ public class TestDaemon {
                 System.out.println("thread started..");
                 if (!daemon) {
                     try {
-                        Thread.sleep(2000);
+                        Thread.sleep(4000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -50,7 +50,7 @@ public class TestDaemon {
         // we can not use jdk.testlibrary.ProcessTools here, because we need to analyse stdout of a unfinished process
         Process process = new ProcessBuilder(System.getProperty("java.home") + "/bin/java", "-XX:+UnlockExperimentalVMOptions",
                 "-XX:+UseWisp2", "-cp", System.getProperty("java.class.path"), TestDaemon.class.getName(), Boolean.toString(daemon)).start();
-        Thread.sleep(2000);
+        Thread.sleep(4000);
         byte[] buffer = new byte[1024];
         int n = process.getInputStream().read(buffer);
         String s = new String(buffer, 0, n);

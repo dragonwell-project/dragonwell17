@@ -2170,7 +2170,7 @@ JRT_END
 JRT_LEAF(void, SharedRuntime::complete_wisp_proxy_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current))
   WispThread* wisp_thread = WispThread::current(current);
   wisp_thread->set_proxy_unpark_flag();
-  SharedRuntime::monitor_exit_helper(obj, lock, current);
+  SharedRuntime::monitor_exit_helper<oopDesc*>(obj, lock, current);
   wisp_thread->clear_proxy_unpark_flag();
 JRT_END
 

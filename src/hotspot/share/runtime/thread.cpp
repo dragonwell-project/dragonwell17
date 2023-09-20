@@ -832,8 +832,8 @@ oop  JavaThread::threadObj() const    {
 
 void JavaThread::set_threadObj(oop p) {
   assert(_thread_oop_storage != NULL, "not yet initialized");
-  if (UseWispMonitor && NULL == p) {
-    _threadObj = OopHandle();
+  if (!_threadObj.is_empty()) {
+    _threadObj.replace(p);
   } else {
     _threadObj = OopHandle(_thread_oop_storage, p);
   }
@@ -1103,7 +1103,7 @@ JavaThread::JavaThread() :
   _frames_to_pop_failed_realloc(0),
 
   // coroutine support
-  _coroutine_support_lock(0),
+  _coroutine_list_lock(0),
   _coroutine_list(nullptr),
   _current_coroutine(nullptr),
   _wisp_preempted(false),
@@ -2097,7 +2097,7 @@ void JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
   }
 
   if (EnableCoroutine) {
-    CoroutineSupportLocker csl(this);
+    CoroutineListLocker cll(this);
     Coroutine* current = _coroutine_list;
     do {
       current->oops_do(f, cf);
@@ -2162,7 +2162,7 @@ void JavaThread::nmethods_do(CodeBlobClosure* cf) {
   }
 
   if (EnableCoroutine) {
-    CoroutineSupportLocker csl(this);
+    CoroutineListLocker cll(this);
     Coroutine* current = _coroutine_list;
     do {
       current->nmethods_do(cf);
@@ -2203,7 +2203,7 @@ void JavaThread::metadata_do(MetadataClosure* f) {
     }
   }
   if (EnableCoroutine) {
-    CoroutineSupportLocker csl(this);
+    CoroutineListLocker cll(this);
     Coroutine* current = _coroutine_list;
     do {
       current->metadata_do(f);
@@ -2307,7 +2307,7 @@ void JavaThread::frames_do(void f(frame*, const RegisterMap* map)) {
     f(fr, fst.register_map());
   }
   if (EnableCoroutine) {
-    CoroutineSupportLocker csl(this);
+    CoroutineListLocker cll(this);
     // traverse the coroutine stack frames
     Coroutine* current = _coroutine_list;
     do {
@@ -3885,7 +3885,7 @@ JavaThread *Threads::owning_thread_from_monitor_owner(ThreadsList * t_list,
     // first, see if owner is the address of a Java thread
     if (UseWispMonitor) {
       if (p->coroutine_list()) {
-        CoroutineSupportLocker csl(p);
+        CoroutineListLocker cll(p);
         Coroutine* c = p->coroutine_list();
         do {
           if ((address) c->wisp_thread() == owner) {
@@ -3912,7 +3912,7 @@ JavaThread *Threads::owning_thread_from_monitor_owner(ThreadsList * t_list,
   DO_JAVA_THREADS(t_list, q) {
     if (UseWispMonitor) {
       if (q->coroutine_list()) {
-        CoroutineSupportLocker csl(q);
+        CoroutineListLocker cll(q);
         Coroutine* c = q->coroutine_list();
         do {
           if (c->wisp_thread()->is_lock_owned(owner)) {
@@ -3986,7 +3986,7 @@ void Threads::print_on(outputStream* st, bool print_stacks,
             p->current_coroutine()->print_stack_header_on(st);
             st->print("\n");
           }
-          CoroutineSupportLocker csl(p);
+          CoroutineListLocker cll(p);
           Coroutine* c = p->coroutine_list();
           do {
             c->print_stack_on(st);

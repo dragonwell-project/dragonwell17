@@ -214,8 +214,8 @@ class VirtualSpace {
  public:
   // Initialization
   VirtualSpace();
-  bool initialize_with_granularity(ReservedSpace rs, size_t committed_byte_size, size_t max_commit_ganularity);
-  bool initialize(ReservedSpace rs, size_t committed_byte_size);
+  bool initialize_with_granularity(ReservedSpace rs, size_t committed_byte_size, size_t max_commit_ganularity, bool force_ignore_pretouch = false);
+  bool initialize(ReservedSpace rs, size_t committed_byte_size, bool force_ignore_pretouch = false);
 
   // Destruction
   ~VirtualSpace();
@@ -233,7 +233,7 @@ class VirtualSpace {
 
   // Operations
   // returns true on success, false otherwise
-  bool expand_by(size_t bytes, bool pre_touch = false);
+  bool expand_by(size_t bytes, bool pre_touch = false, bool force_ignore_pretouch = false);
   void shrink_by(size_t bytes);
   void release();
 

@@ -412,7 +412,7 @@ JRT_END
 JRT_ENTRY_NO_ASYNC(void, OptoRuntime::complete_wisp_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current))
   assert(EnableCoroutine, "Coroutine is disabled");
   Handle h_obj(current, obj);
-  SharedRuntime::monitor_exit_helper(h_obj, lock, current);
+  SharedRuntime::monitor_exit_helper<Handle>(h_obj, lock, current);
 JRT_END
 
 JRT_BLOCK_ENTRY(void, OptoRuntime::monitor_notify_C(oopDesc* obj, JavaThread* current))
