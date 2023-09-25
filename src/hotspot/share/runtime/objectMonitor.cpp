@@ -1201,6 +1201,14 @@ void ObjectMonitor::exit(JavaThread* current, bool not_suspended) {
                     " is exiting an ObjectMonitor it does not own.", p2i(current));
       lsh.print_cr("The imbalance is possibly caused by JNI locking.");
       print_debug_style_on(&lsh);
+      if (UseWispMonitor) {
+        JavaThread *pt = ((WispThread*)current)->thread();
+        tty->print_cr("[Wisp] Fatal IMSX: this=%p, pt=%p, current_coroutine=%p, self=%p (stack: %p - %p), _owner=%p, _owner->coro=%p",
+                this, pt, ((JavaThread*)pt)->current_coroutine(), current,
+                ((WispThread*)current)->coroutine()->stack()->stack_base(),
+                ((WispThread*)current)->coroutine()->stack()->stack_base() - ((WispThread*)current)->coroutine()->stack()->stack_size(),
+                _owner, ((WispThread*)_owner)->coroutine());
+      }
       assert(false, "Non-balanced monitor enter/exit!");
 #endif
       return;
