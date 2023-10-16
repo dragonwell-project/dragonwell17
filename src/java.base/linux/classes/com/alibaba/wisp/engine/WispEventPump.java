@@ -181,7 +181,11 @@ class WispEventPump {
         if (fd < LOW_FD_BOUND) {
             getFd2TaskLow(events)[fd] = task;
         } else {
+            WispCarrier carrier = WispCarrier.current();
+            final boolean isInCritical0 = carrier.isInCritical;
+            carrier.isInCritical = true;
             getFd2TaskHigh(events).put(fd, task);
+            carrier.isInCritical = isInCritical0;
         }
     }
 
@@ -192,7 +196,11 @@ class WispEventPump {
             task = fd2TaskLow[fd];
             fd2TaskLow[fd] = null;
         } else {
+            WispCarrier carrier = WispCarrier.current();
+            final boolean isInCritical0 = carrier.isInCritical;
+            carrier.isInCritical = true;
             task = getFd2TaskHigh(events).remove(fd);
+            carrier.isInCritical = isInCritical0;
         }
         return task;
     }
