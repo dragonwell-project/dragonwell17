@@ -148,8 +148,8 @@ public class B8209178 {
     private void callHttpsServerThroughProxy(URI uri, Proxy p) throws IOException {
         HttpsURLConnection urlConnection = (HttpsURLConnection) uri.toURL().openConnection(p);
 
-        urlConnection.setConnectTimeout(1000);
-        urlConnection.setReadTimeout(3000);
+        urlConnection.setConnectTimeout(10000);
+        urlConnection.setReadTimeout(30000);
         urlConnection.setDoInput(true);
         urlConnection.setDoOutput(true);
         urlConnection.setRequestMethod("POST");
