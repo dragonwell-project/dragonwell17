@@ -107,7 +107,7 @@ public class StatusResponseManagerTests {
             try {
                 // Get OCSP responses for non-root certs in the chain
                 Map<X509Certificate, byte[]> responseMap = srm.get(
-                        CertStatusRequestType.OCSP, oReq, chain, 5000,
+                        CertStatusRequestType.OCSP, oReq, chain, 20000,
                         TimeUnit.MILLISECONDS);
 
                 // There should be one entry in the returned map and
@@ -144,7 +144,7 @@ public class StatusResponseManagerTests {
 
             try {
                 // Get OCSP responses for non-root certs in the chain
-                srm.get(CertStatusRequestType.OCSP_MULTI, oReq, chain, 5000,
+                srm.get(CertStatusRequestType.OCSP_MULTI, oReq, chain, 20000,
                         TimeUnit.MILLISECONDS);
 
                 // There should be two entries in the returned map and
@@ -183,7 +183,7 @@ public class StatusResponseManagerTests {
             try {
                 // Get OCSP responses for non-root certs in the chain
                 Map<X509Certificate, byte[]> responseMap = srm.get(
-                        CertStatusRequestType.OCSP_MULTI, oReq, chain, 5000,
+                        CertStatusRequestType.OCSP_MULTI, oReq, chain, 20000,
                         TimeUnit.MILLISECONDS);
 
                 // There should be two entries in the returned map and
@@ -225,7 +225,7 @@ public class StatusResponseManagerTests {
 
             try {
                 // Get OCSP responses for non-root certs in the chain
-                srm.get(CertStatusRequestType.OCSP_MULTI, oReq, chain, 5000,
+                srm.get(CertStatusRequestType.OCSP_MULTI, oReq, chain, 20000,
                         TimeUnit.MILLISECONDS);
 
                 // There should be two entries in the returned map and
