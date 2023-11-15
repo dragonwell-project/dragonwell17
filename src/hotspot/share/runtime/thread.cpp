@@ -1107,6 +1107,7 @@ JavaThread::JavaThread() :
   _coroutine_list(nullptr),
   _current_coroutine(nullptr),
   _wisp_preempted(false),
+  _nmethod_traversals(0),
 
   _handshake(this),
 

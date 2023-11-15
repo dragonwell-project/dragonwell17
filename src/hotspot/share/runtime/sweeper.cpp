@@ -159,6 +159,9 @@ public:
   void do_thread(Thread* thread) {
     if (thread->is_Java_thread() && ! thread->is_Code_cache_sweeper_thread()) {
       thread->as_Java_thread()->nmethods_do(_cl);
+      if (EnableCoroutine) {
+        thread->as_Java_thread()->set_nmethod_traversals(NMethodSweeper::traversal_count());
+      }
     }
   }
 };
