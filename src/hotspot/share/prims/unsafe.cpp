@@ -1000,6 +1000,11 @@ JVM_ENTRY(jboolean, CoroutineSupport_stealCoroutine(JNIEnv* env, jclass klass, j
   assert(coro->state() != Coroutine::_current, "running");
 
   CoroutineListLocker cll(coro->thread(), thread);
+  // check if the source thread and the target thread has been scanned or not
+  // only if hold the CoroutineListLocker, and has the same scanned state, then we can steal
+  if (coro->thread()->nmethod_traversals() != thread->nmethod_traversals()) {
+    return false;
+  }
   coro->remove_from_list(coro->thread()->coroutine_list());
   coro->insert_into_list(thread->coroutine_list());
   // change thread logic

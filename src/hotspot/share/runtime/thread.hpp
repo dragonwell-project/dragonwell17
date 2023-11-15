@@ -1047,6 +1047,7 @@ class JavaThread: public Thread {
   Coroutine*        _coroutine_list;
   Coroutine*        _current_coroutine;
   bool              _wisp_preempted;
+  volatile long     _nmethod_traversals;
 
  public:
   volatile int* const coroutine_list_lock()      { return &_coroutine_list_lock; }
@@ -1055,6 +1056,8 @@ class JavaThread: public Thread {
   void set_current_coroutine(Coroutine *coro)    { _current_coroutine = coro; }
   bool wisp_preempted() const                    { return _wisp_preempted; }
   void set_wisp_preempted(bool b)                { _wisp_preempted = b; }
+  void set_nmethod_traversals(long n)            { Atomic::release_store(&_nmethod_traversals, n); }
+  long nmethod_traversals() const                { return Atomic::load_acquire(&_nmethod_traversals); }
 
   static ByteSize monitor_chunks_offset()        { return byte_offset_of(JavaThread, _monitor_chunks); }
   static ByteSize current_coroutine_offset()     { return byte_offset_of(JavaThread, _current_coroutine); }
