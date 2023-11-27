@@ -3774,9 +3774,20 @@ static os::PageSizes scan_multiple_page_support() {
   while ((entry = readdir(dir)) != NULL) {
     if (entry->d_type == DT_DIR &&
         sscanf(entry->d_name, "hugepages-%zukB", &page_size) == 1) {
-      // The kernel is using kB, hotspot uses bytes
-      // Add each found Large Page Size to page_sizes
-      page_sizes.add(page_size * K);
+      FILE *fp = fopen(entry->d_name, "r");
+      if (fp) {
+        int x = 0;
+        if (fscanf(fp, "%d", &x) == 1) {
+          if (x > 0) {
+            // The kernel is using kB, hotspot uses bytes
+            // Add each found Large Page Size to page_sizes
+            page_sizes.add(page_size * K);
+          }
+          // If hugepages-%zukB/nr_hugepages is 0,
+          // it's not necessary to add to page_sizes.
+        }
+        fclose(fp);
+      }
     }
   }
   closedir(dir);
