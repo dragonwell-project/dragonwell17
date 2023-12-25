@@ -368,4 +368,10 @@ void ArrayCopyStub::emit_code(LIR_Assembler* ce) {
   __ b(_continuation);
 }
 
+void SlowFarJumpStub::emit_code(LIR_Assembler* ce) {
+  __ bind(_entry);
+  __ far_jump(_addr);
+  __ b(_continuation);
+}
+
 #undef __

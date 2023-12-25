@@ -561,4 +561,20 @@ class ArrayCopyStub: public CodeStub {
 #endif // PRODUCT
 };
 
+class SlowFarJumpStub: public CodeStub {
+ private:
+  Address _addr;
+ public:
+  SlowFarJumpStub(Address addr): _addr(addr) {}
+
+  virtual void emit_code(LIR_Assembler* e);
+  virtual void visit(LIR_OpVisitState* visitor) {
+    // don't pass in the code emit info since it's processed in the fast path
+    visitor->do_slow_case();
+  }
+#ifndef PRODUCT
+  virtual void print_name(outputStream* out) const { out->print("SlowFarJumpStub"); }
+#endif // PRODUCT
+};
+
 #endif // SHARE_C1_C1_CODESTUBS_HPP

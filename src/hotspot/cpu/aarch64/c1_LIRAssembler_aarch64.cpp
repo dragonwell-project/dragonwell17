@@ -295,13 +295,13 @@ int LIR_Assembler::check_icache() {
   Register receiver = FrameMap::receiver_opr->as_register();
   Register ic_klass = IC_Klass;
   int start_offset = __ offset();
+  const Address get_ic_miss_stub_address = RuntimeAddress(SharedRuntime::get_ic_miss_stub());
+  SlowFarJumpStub *far_stub = new SlowFarJumpStub(get_ic_miss_stub_address);
   __ inline_cache_check(receiver, ic_klass);
 
   // if icache check fails, then jump to runtime routine
   // Note: RECEIVER must still contain the receiver!
-  Label dont;
-  __ br(Assembler::EQ, dont);
-  __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+  __ br(Assembler::NE, *far_stub->entry());
 
   // We align the verified entry point unless the method body
   // (including its inline cache check) will fit in a single 64-byte
@@ -310,8 +310,9 @@ int LIR_Assembler::check_icache() {
     // force alignment after the cache check.
     __ align(CodeEntryAlignment);
   }
+  __ bind(*far_stub->continuation());
+  append_code_stub(far_stub);
 
-  __ bind(dont);
   return start_offset;
 }
 
