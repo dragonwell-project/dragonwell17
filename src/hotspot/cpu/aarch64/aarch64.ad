@@ -1244,6 +1244,7 @@ source_hpp %{
 #include "gc/shared/collectedHeap.hpp"
 #include "opto/addnode.hpp"
 #include "opto/convertnode.hpp"
+#include "opto/c2_CodeStubs.hpp"
 #include "runtime/objectMonitor.hpp"
 
 extern RegMask _ANY_REG32_mask;
@@ -2303,14 +2304,15 @@ void MachUEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
   // This is the unverified entry point.
   C2_MacroAssembler _masm(&cbuf);
+  //Compile* C = ra_->C;
+  Compile* const C = Compile::current();
+
+  C2SlowFarJumpStub* stub = new (C->comp_arena()) C2SlowFarJumpStub();
+  C->output()->add_stub(stub);
 
   __ cmp_klass(j_rarg0, rscratch2, rscratch1);
-  Label skip;
-  // TODO
-  // can we avoid this skip and still use a reloc?
-  __ br(Assembler::EQ, skip);
-  __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-  __ bind(skip);
+  __ br(Assembler::NE, stub->entry());
+  __ bind(stub->continuation());
 }
 
 uint MachUEPNode::size(PhaseRegAlloc* ra_) const

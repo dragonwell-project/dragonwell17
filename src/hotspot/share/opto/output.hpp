@@ -29,6 +29,7 @@
 #include "code/exceptionHandlerTable.hpp"
 #include "metaprogramming/enableIf.hpp"
 #include "opto/ad.hpp"
+#include "opto/c2_CodeStubs.hpp"
 #include "opto/constantTable.hpp"
 #include "opto/phase.hpp"
 #include "runtime/vm_version.hpp"
@@ -122,6 +123,7 @@ private:
   ExceptionHandlerTable  _handler_table;         // Table of native-code exception handlers
   ImplicitExceptionTable _inc_table;             // Table of implicit null checks in native code
   C2SafepointPollStubTable _safepoint_poll_table;// Table for safepoint polls
+  C2CodeStubList          _stub_list;            // List of code stubs
   OopMapSet*             _oop_map_set;           // Table of oop maps (one for each safepoint location)
   BufferBlob*            _scratch_buffer_blob;   // For temporary code buffers.
   relocInfo*             _scratch_locs_memory;   // For temporary code buffers.
@@ -171,6 +173,9 @@ public:
 
   // Safepoint poll table
   C2SafepointPollStubTable* safepoint_poll_table() { return &_safepoint_poll_table; }
+
+  // Code stubs list
+  void add_stub(C2CodeStub* stub) { _stub_list.add_stub(stub); }
 
   // Code emission iterator
   Block* block()   { return _block; }

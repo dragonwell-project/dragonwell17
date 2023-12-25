@@ -298,6 +298,7 @@ PhaseOutput::PhaseOutput()
     _first_block_size(0),
     _handler_table(),
     _inc_table(),
+    _stub_list(),
     _oop_map_set(nullptr),
     _scratch_buffer_blob(nullptr),
     _scratch_locs_memory(nullptr),
@@ -1822,6 +1823,8 @@ void PhaseOutput::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
 
   // Fill in stubs for calling the runtime from safepoint polls.
   safepoint_poll_table()->emit(*cb);
+  // Fill in stubs.
+  _stub_list.emit(*cb);
   if (C->failing())  return;
 
 #ifndef PRODUCT
