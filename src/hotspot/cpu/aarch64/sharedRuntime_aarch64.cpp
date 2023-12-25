@@ -711,8 +711,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   address c2i_unverified_entry = __ pc();
   Label skip_fixup;
 
-  Label ok;
-
   Register holder = rscratch2;
   Register receiver = j_rarg0;
   Register tmp = r10;  // A call-clobbered register not used for arg passing
@@ -727,21 +725,37 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   // compiled code, which relys solely on SP and not FP, get sick).
 
   {
+    Label get_ic_miss_stub_far_jump1;
+    Label get_ic_miss_stub_far_jump1_ret;
+
+    __ bind(get_ic_miss_stub_far_jump1);
+    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+    __ b(get_ic_miss_stub_far_jump1_ret);
+
+    Label get_ic_miss_stub_far_jump2;
+    Label get_ic_miss_stub_far_jump2_ret;
+
+    __ bind(get_ic_miss_stub_far_jump2);
+    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+    __ b(get_ic_miss_stub_far_jump2_ret);
+
+    c2i_unverified_entry = __ pc();
     __ block_comment("c2i_unverified_entry {");
     __ load_klass(rscratch1, receiver);
     __ ldr(tmp, Address(holder, CompiledICHolder::holder_klass_offset()));
     __ cmp(rscratch1, tmp);
     __ ldr(rmethod, Address(holder, CompiledICHolder::holder_metadata_offset()));
-    __ br(Assembler::EQ, ok);
-    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+    __ br(Assembler::NE, get_ic_miss_stub_far_jump1);
 
-    __ bind(ok);
+    __ bind(get_ic_miss_stub_far_jump1_ret);
     // Method might have been compiled since the call site was patched to
     // interpreted; if that is the case treat it as a miss so we can get
     // the call site corrected.
     __ ldr(rscratch1, Address(rmethod, in_bytes(Method::code_offset())));
-    __ cbz(rscratch1, skip_fixup);
-    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+    __ cbnz(rscratch1, get_ic_miss_stub_far_jump2);
+    __ b(skip_fixup);
+    __ bind(get_ic_miss_stub_far_jump2_ret);
+
     __ block_comment("} c2i_unverified_entry");
   }
 
@@ -1497,20 +1511,18 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   const Register ic_reg = rscratch2;
   const Register receiver = j_rarg0;
 
-  Label hit;
   Label exception_pending;
+  Label get_ic_miss_stub_far_jump, get_ic_miss_stub_far_jump_ret;
 
   assert_different_registers(ic_reg, receiver, rscratch1);
   __ verify_oop(receiver);
   __ cmp_klass(receiver, ic_reg, rscratch1);
-  __ br(Assembler::EQ, hit);
-
-  __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+  __ br(Assembler::NE, get_ic_miss_stub_far_jump);
 
   // Verified entry point must be aligned
   __ align(8);
 
-  __ bind(hit);
+  __ bind(get_ic_miss_stub_far_jump_ret);
 
   int vep_offset = ((intptr_t)__ pc()) - start;
 
@@ -2141,6 +2153,14 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     restore_native_result(masm, ret_type, stack_slots);
     __ b(dtrace_method_exit_done);
     __ block_comment("} dtrace exit");
+  }
+
+  {
+    __ block_comment("get_ic_miss_stub {");
+    __ bind(get_ic_miss_stub_far_jump);
+    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+    __ b(get_ic_miss_stub_far_jump_ret);
+    __ block_comment("get_ic_miss_stub }");
   }
 
 
