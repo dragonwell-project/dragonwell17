@@ -126,7 +126,7 @@ ciMethod::ciMethod(const methodHandle& h_m, ciInstanceKlass* holder) :
 
   // Adjust the definition of this condition to be more useful:
   // %%% take these conditions into account in vtable generation
-  if (!_can_be_statically_bound && h_m->is_private())
+  if (!_can_be_statically_bound && (h_m->is_private() || h_m->is_final_method()))
     _can_be_statically_bound = true;
   if (_can_be_statically_bound && h_m->is_abstract())
     _can_be_statically_bound = false;
