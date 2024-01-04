@@ -159,9 +159,6 @@ public:
   void do_thread(Thread* thread) {
     if (thread->is_Java_thread() && ! thread->is_Code_cache_sweeper_thread()) {
       thread->as_Java_thread()->nmethods_do(_cl);
-      if (EnableCoroutine) {
-        thread->as_Java_thread()->set_nmethod_traversals(NMethodSweeper::traversal_count());
-      }
     }
   }
 };
@@ -192,6 +189,10 @@ CodeBlobClosure* NMethodSweeper::prepare_mark_active_nmethods() {
   if (PrintMethodFlushing) {
     tty->print_cr("### Sweep: stack traversal %ld", _traversals);
   }
+  return &mark_activation_closure;
+}
+
+CodeBlobClosure* NMethodSweeper::mark_active_closure() {
   return &mark_activation_closure;
 }
 

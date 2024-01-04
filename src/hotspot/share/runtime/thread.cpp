@@ -106,6 +106,7 @@
 #include "runtime/stackFrameStream.inline.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/statSampler.hpp"
+#include "runtime/sweeper.hpp"
 #include "runtime/task.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadCritical.hpp"
@@ -2179,6 +2180,11 @@ void JavaThread::nmethods_do(CodeBlobClosure* cf) {
       current->compiledMethods_do(cf);
       current = current->next();
     } while (current != _coroutine_list);
+
+    if (NMethodSweeper::mark_active_closure() == cf) {
+      // mark for current thread has been scanned.
+      set_nmethod_traversals(NMethodSweeper::traversal_count());
+    }
   } else {
     if (jvmti_thread_state() != NULL) {
       jvmti_thread_state()->nmethods_do(cf);

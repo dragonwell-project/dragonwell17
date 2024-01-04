@@ -112,6 +112,7 @@ class NMethodSweeper : public AllStatic {
 #endif
 
   static CodeBlobClosure* prepare_mark_active_nmethods();
+  static CodeBlobClosure* mark_active_closure();
   static void sweeper_loop();
   static bool should_start_aggressive_sweep();
   static void force_sweep();

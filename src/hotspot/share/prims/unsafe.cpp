@@ -968,14 +968,6 @@ JVM_ENTRY (jobject, CoroutineSupport_getNextCoroutine(JNIEnv* env, jclass klass,
   return JNIHandles::make_local(THREAD, coro->next()->coroutine());
 JVM_END
 
-JVM_ENTRY (void, CoroutineSupport_moveCoroutine(JNIEnv* env, jclass klass, jlong coroPtr, jlong targetPtr))
-  assert(EnableCoroutine, "pre-condition");
-  Coroutine* coro = (Coroutine*)coroPtr;
-  Coroutine* target = (Coroutine*)targetPtr;
-  CoroutineListLocker cll(coro->thread());
-  Coroutine::move(coro, target);
-JVM_END
-
 JVM_ENTRY (void, CoroutineSupport_markThreadCoroutine(JNIEnv* env, jclass klass, jlong coroPtr, jobject coroObj))
   assert(EnableCoroutine, "pre-condition");
   Coroutine* coro = (Coroutine*)coroPtr;
@@ -999,14 +991,16 @@ JVM_ENTRY(jboolean, CoroutineSupport_stealCoroutine(JNIEnv* env, jclass klass, j
   assert(coro->thread() != thread, "steal from self");
   assert(coro->state() != Coroutine::_current, "running");
 
-  CoroutineListLocker cll(coro->thread(), thread);
-  // check if the source thread and the target thread has been scanned or not
-  // only if hold the CoroutineListLocker, and has the same scanned state, then we can steal
-  if (coro->thread()->nmethod_traversals() != thread->nmethod_traversals()) {
-    return false;
+  {
+    CoroutineListLocker cll(coro->thread(), thread);
+    // check if the source thread and the target thread has been scanned or not
+    // only if hold the CoroutineListLocker, and has the same scanned state, then we can steal
+    if (coro->thread()->nmethod_traversals() < thread->nmethod_traversals()) {
+      return false;
+    }
+    coro->remove_from_list(coro->thread()->coroutine_list());
+    coro->insert_into_list(thread->coroutine_list());
   }
-  coro->remove_from_list(coro->thread()->coroutine_list());
-  coro->insert_into_list(thread->coroutine_list());
   // change thread logic
   if (coro->last_handle_mark() != NULL) {
     coro->last_handle_mark()->change_thread_for_wisp(thread);
@@ -1148,7 +1142,6 @@ JNINativeMethod coroutine_support_methods[] = {
     {CC"setWispBooted",           CC "()V",              FN_PTR(CoroutineSupport_setWispBooted)},
     {CC"stealCoroutine",          CC "(J)Z",             FN_PTR(CoroutineSupport_stealCoroutine)},
     {CC"getNextCoroutine",        CC "(J)" COR,          FN_PTR(CoroutineSupport_getNextCoroutine)},
-    {CC"moveCoroutine",           CC "(JJ)V",            FN_PTR(CoroutineSupport_moveCoroutine)},
     {CC"markThreadCoroutine",     CC "(J" COBA ")V",     FN_PTR(CoroutineSupport_markThreadCoroutine)},
     {CC"getCoroutineStack",       CC "(J)[" STE,         FN_PTR(CoroutineSupport_getCoroutineStack)},
     {CC"shouldThrowException0",   CC "(J)Z",             FN_PTR(CoroutineSupport_shouldThrowException0)},
