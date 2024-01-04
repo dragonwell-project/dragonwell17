@@ -31,7 +31,6 @@ import jdk.internal.vm.annotation.Contended;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import com.alibaba.wisp.engine.WispTask;
 
@@ -40,9 +39,6 @@ import com.alibaba.wisp.engine.WispTask;
  */
 @Contended
 public class CoroutineSupport {
-
-    private static final boolean CHECK_LOCK = true;
-    private static final int SPIN_BACKOFF_LIMIT = 2 << 8;
 
     private static AtomicInteger idGen = new AtomicInteger();
 
@@ -53,12 +49,6 @@ public class CoroutineSupport {
 
     // The currently executing coroutine
     private Coroutine currentCoroutine;
-
-    // protect the coroutine support
-    // double link list of JavaThread->coroutine_list() is protected by CoroutineListLock
-    private volatile Thread lockOwner = null;
-
-    private int lockRecursive; // volatile is not need
 
     private final int id;
     private boolean terminated = false;
@@ -92,12 +82,7 @@ public class CoroutineSupport {
 
     void addCoroutine(Coroutine coroutine, long stacksize) {
         assert currentCoroutine != null;
-        lock();
-        try {
-            coroutine.nativeCoroutine = createCoroutine(coroutine, stacksize);
-        } finally {
-            unlock();
-        }
+        coroutine.nativeCoroutine = createCoroutine(coroutine, stacksize);
     }
 
     Thread getThread() {
@@ -132,7 +117,6 @@ public class CoroutineSupport {
             throw new IllegalArgumentException("Cannot drain another threads CoroutineThreadSupport");
         }
 
-        lock();
         try {
             // drain all coroutines
             Coroutine next = null;
@@ -148,9 +132,7 @@ public class CoroutineSupport {
         } catch (Throwable t) {
             t.printStackTrace();
         } finally {
-            assert lockOwner == thread && lockRecursive == 0;
             terminated = true;
-            unlock();
         }
     }
 
@@ -171,8 +153,6 @@ public class CoroutineSupport {
         final Coroutine current = currentCoroutine;
         currentCoroutine = target;
         switchTo(current, target);
-        //check if locked by exiting coroutine
-        beforeResume(current);
     }
 
     /**
@@ -180,13 +160,9 @@ public class CoroutineSupport {
      * @param target coroutine
      */
     public void symmetricYieldTo(Coroutine target) {
-        lock();
         if (target.threadSupport != this) {
-            unlock();
             return;
         }
-        moveCoroutine(currentCoroutine.nativeCoroutine, target.nativeCoroutine);
-        unlockLater(target);
         unsafeSymmetricYieldTo(target);
     }
 
@@ -195,19 +171,11 @@ public class CoroutineSupport {
      * @param target coroutine
      */
     public void symmetricStopCoroutine(Coroutine target) {
-        Coroutine current;
-        lock();
-        try {
-            if (target.threadSupport != this) {
-                unlock();
-                return;
-            }
-            current = currentCoroutine;
-            currentCoroutine = target;
-            moveCoroutine(current.nativeCoroutine, target.nativeCoroutine);
-        } finally {
-            unlock();
+        if (target.threadSupport != this) {
+            return;
         }
+        Coroutine current = currentCoroutine;
+        currentCoroutine = target;
         switchToAndExit(current, target);
     }
 
@@ -220,31 +188,21 @@ public class CoroutineSupport {
         assert coroutine.threadSupport == this;
 
         if (!testDisposableAndTryReleaseStack(coroutine.nativeCoroutine)) {
-            moveCoroutine(currentCoroutine.nativeCoroutine, coroutine.nativeCoroutine);
-
             final Coroutine current = currentCoroutine;
             currentCoroutine = coroutine;
             switchToAndExit(current, coroutine);
-            beforeResume(current);
         }
     }
 
     /**
      * terminate current coroutine and yield forward
-     * @param  target target
      */
-    public void terminateCoroutine(Coroutine target) {
+    public void terminateCoroutine() {
         assert currentCoroutine != threadCoroutine : "cannot exit thread coroutine";
 
-        lock();
         Coroutine old = currentCoroutine;
-        Coroutine forward = target;
-        if (forward == null) {
-            forward = getNextCoroutine(old.nativeCoroutine);
-        }
-        assert forward == threadCoroutine : "switch to target must be thread coroutine";
+        Coroutine forward = threadCoroutine;
         currentCoroutine = forward;
-        unlockLater(forward);
         switchToAndTerminate(old, forward);
 
         // should never run here.
@@ -267,100 +225,18 @@ public class CoroutineSupport {
             return Coroutine.StealResult.SUCCESS;
         }
 
-        if (source.id < target.id) { // prevent dead lock
-            if (!source.lockInternal(failOnContention)) {
-                return Coroutine.StealResult.FAIL_BY_CONTENTION;
-            }
-            target.lock();
-        } else {
-            target.lock();
-            if (!source.lockInternal(failOnContention)) {
-                target.unlock();
-                return Coroutine.StealResult.FAIL_BY_CONTENTION;
-            }
+        if (source.terminated || coroutine.finished ||
+                coroutine.threadSupport != source || // already been stolen
+                source.currentCoroutine == coroutine) {
+            return Coroutine.StealResult.FAIL_BY_STATUS;
         }
-
-        try {
-            if (source.terminated || coroutine.finished ||
-                    coroutine.threadSupport != source || // already been stolen
-                    source.currentCoroutine == coroutine) {
-                return Coroutine.StealResult.FAIL_BY_STATUS;
-            }
-            if (!stealCoroutine(coroutine.nativeCoroutine)) { // native frame
-                return Coroutine.StealResult.FAIL_BY_NATIVE_FRAME;
-            }
-            coroutine.threadSupport = target;
-        } finally {
-            source.unlock();
-            target.unlock();
+        if (!stealCoroutine(coroutine.nativeCoroutine)) { // native frame
+            return Coroutine.StealResult.FAIL_BY_NATIVE_FRAME;
         }
+        coroutine.threadSupport = target;
 
         return Coroutine.StealResult.SUCCESS;
     }
-
-    /**
-     * Can not be stolen while executing this, because lock is held
-     */
-    void beforeResume(CoroutineBase source) {
-        if (source.needsUnlock) {
-            source.needsUnlock = false;
-            source.threadSupport.unlock();
-        }
-    }
-
-    private void unlockLater(CoroutineBase next) {
-        if (CHECK_LOCK && next.needsUnlock) {
-            throw new InternalError("pending unlock");
-        }
-        next.needsUnlock = true;
-    }
-
-    private void lock() {
-        boolean success = lockInternal(false);
-        assert success;
-    }
-
-    private boolean lockInternal(boolean tryingLock) {
-        final Thread th = SharedSecrets.getJavaLangAccess().currentThread0();
-        if (lockOwner == th) {
-            lockRecursive++;
-            return true;
-        }
-        for (int spin = 1; ; ) {
-            if (lockOwner == null && LOCK_UPDATER.compareAndSet(this, null, th)) {
-                return true;
-            }
-            for (int i = 0; i < spin; ) {
-                i++;
-            }
-            if (spin == SPIN_BACKOFF_LIMIT) {
-                if (tryingLock) {
-                    return false;
-                }
-                SharedSecrets.getJavaLangAccess().yield0(); // yield safepoint
-            } else { // back off
-                spin *= 2;
-            }
-        }
-    }
-
-    private void unlock() {
-        if (CHECK_LOCK && SharedSecrets.getJavaLangAccess().currentThread0() != lockOwner) {
-            throw new InternalError("unlock from non-owner thread");
-        }
-        if (lockRecursive > 0) {
-            lockRecursive--;
-        } else {
-            LOCK_UPDATER.lazySet(this, null);
-        }
-    }
-
-    private static final AtomicReferenceFieldUpdater<CoroutineSupport, Thread> LOCK_UPDATER;
-
-    static {
-        LOCK_UPDATER = AtomicReferenceFieldUpdater.newUpdater(CoroutineSupport.class, Thread.class, "lockOwner");
-    }
-
 
     /**
      * @param coroutine the coroutine
@@ -401,13 +277,6 @@ public class CoroutineSupport {
      * @return java Coroutine
      */
     private static native Coroutine getNextCoroutine(long coroPtr);
-
-    /**
-     * move coroPtr to targetPtr's next field in underlying hotspot coroutine list
-     * @param coroPtr current threadCoroutine
-     * @param targetPtr coroutine that is about to exit
-     */
-    private static native void moveCoroutine(long coroPtr, long targetPtr);
 
     /**
      * track hotspot couroutine with java coroutine.

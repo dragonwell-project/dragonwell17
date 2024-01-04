@@ -335,7 +335,7 @@ public class WispTask implements Comparable<WispTask> {
             // store load barrier is not necessary
         }
         if (terminal == true) {
-            current.carrier.thread.getCoroutineSupport().terminateCoroutine(next.ctx);
+            current.carrier.thread.getCoroutineSupport().terminateCoroutine();
             // should never run here.
             assert false: "should not reach here";
         } else {
