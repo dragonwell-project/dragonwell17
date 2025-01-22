@@ -1897,7 +1897,10 @@ void os::win32::print_windows_version(outputStream* st) {
       // - 2016 GA 10/2016 build: 14393
       // - 2019 GA 11/2018 build: 17763
       // - 2022 GA 08/2021 build: 20348
-      if (build_number > 20347) {
+      // - 2025 Preview build   : 26040
+      if (build_number > 26039) {
+        st->print("Server 2025");
+      } else if (build_number > 20347) {
         st->print("Server 2022");
       } else if (build_number > 17762) {
         st->print("Server 2019");
@@ -3352,7 +3355,8 @@ static char* map_or_reserve_memory_aligned(size_t size, size_t alignment, int fi
                                      os::attempt_reserve_memory_at(aligned_base, size);
   }
 
-  assert(aligned_base != NULL, "Did not manage to re-map after %d attempts?", max_attempts);
+  assert(aligned_base != nullptr,
+      "Did not manage to re-map after %d attempts (size %zu, alignment %zu, file descriptor %d)", max_attempts, size, alignment, file_desc);
 
   return aligned_base;
 }
