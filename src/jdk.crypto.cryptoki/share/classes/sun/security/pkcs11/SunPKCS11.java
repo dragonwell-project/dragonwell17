@@ -1055,25 +1055,6 @@ public final class SunPKCS11 extends AuthProvider {
         }
     }
 
-    private static boolean isLegacy(CK_MECHANISM_INFO mechInfo)
-            throws PKCS11Exception {
-        // assume full support if no mech info available
-        // For vendor-specific mechanisms, often no mech info is provided
-        boolean partialSupport = false;
-
-        if (mechInfo != null) {
-            if ((mechInfo.flags & CKF_DECRYPT) != 0) {
-                // non-legacy cipher mechs should support encryption
-                partialSupport |= ((mechInfo.flags & CKF_ENCRYPT) == 0);
-            }
-            if ((mechInfo.flags & CKF_VERIFY) != 0) {
-                // non-legacy signature mechs should support signing
-                partialSupport |= ((mechInfo.flags & CKF_SIGN) == 0);
-            }
-        }
-        return partialSupport;
-    }
-
     // test if a token is present and initialize this provider for it if so.
     // does nothing if no token is found
     // called from constructor and by poller
@@ -1124,12 +1105,6 @@ public final class SunPKCS11 extends AuthProvider {
                 }
                 continue;
             }
-            if (isLegacy(mechInfo)) {
-                if (showInfo) {
-                    System.out.println("DISABLED due to legacy");
-                }
-                continue;
-            }
 
             // we do not know of mechs with the upper 32 bits set
             if (longMech >>> 32 != 0) {
@@ -1144,9 +1119,25 @@ public final class SunPKCS11 extends AuthProvider {
             if (ds == null) {
                 continue;
             }
+            boolean allowLegacy = config.getAllowLegacy();
             for (Descriptor d : ds) {
                 Integer oldMech = supportedAlgs.get(d);
                 if (oldMech == null) {
+
+                    // assume full support if no mech info available
+                    if (!allowLegacy && mechInfo != null) {
+                        if ((d.type == CIP &&
+                                (mechInfo.flags & CKF_ENCRYPT) == 0) ||
+                                (d.type == SIG &&
+                                (mechInfo.flags & CKF_SIGN) == 0)) {
+                            if (showInfo) {
+                                System.out.println("DISABLED " +  d.type +
+                                        " " + d.algorithm +
+                                        " due to partial support");
+                            }
+                            continue;
+                        }
+                    }
                     supportedAlgs.put(d, integerMech);
                     continue;
                 }
@@ -1721,6 +1712,19 @@ public final class SunPKCS11 extends AuthProvider {
 
     private Object writeReplace() throws ObjectStreamException {
         return new SunPKCS11Rep(this);
+    }
+
+    /**
+     * Restores the state of this object from the stream.
+     *
+     * @param  stream the {@code ObjectInputStream} from which data is read
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if a serialized class cannot be loaded
+     */
+    @java.io.Serial
+    private void readObject(ObjectInputStream stream)
+            throws IOException, ClassNotFoundException {
+        throw new InvalidObjectException("SunPKCS11 not directly deserializable");
     }
 
     /**
