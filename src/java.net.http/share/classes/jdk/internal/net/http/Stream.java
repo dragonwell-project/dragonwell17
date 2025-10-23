@@ -32,6 +32,8 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.net.ProtocolException;
 import java.net.URI;
+import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.ResponseInfo;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,6 +46,8 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscription;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -155,6 +159,9 @@ class Stream<T> extends ExchangeImpl<T> {
 
     // send lock: prevent sending DataFrames after reset occurred.
     private final Object sendLock = new Object();
+    // inputQ lock: methods that take from the inputQ
+    //      must not run concurrently.
+    private final Lock inputQLock = new ReentrantLock();
 
     /**
      * A reference to this Stream's connection Send Window controller. The
@@ -162,7 +169,7 @@ class Stream<T> extends ExchangeImpl<T> {
      * sending any data. Will be null for PushStreams, as they cannot send data.
      */
     private final WindowController windowController;
-    private final WindowUpdateSender windowUpdater;
+    private final WindowUpdateSender streamWindowUpdater;
 
     @Override
     HttpConnection connection() {
@@ -176,25 +183,26 @@ class Stream<T> extends ExchangeImpl<T> {
     private void schedule() {
         boolean onCompleteCalled = false;
         HttpResponse.BodySubscriber<T> subscriber = responseSubscriber;
+        // prevents drainInputQueue() from running concurrently
+        inputQLock.lock();
         try {
             if (subscriber == null) {
                 subscriber = responseSubscriber = pendingResponseSubscriber;
                 if (subscriber == null) {
                     // can't process anything yet
                     return;
-                } else {
-                    if (debug.on()) debug.log("subscribing user subscriber");
-                    subscriber.onSubscribe(userSubscription);
                 }
+                if (debug.on()) debug.log("subscribing user subscriber");
+                subscriber.onSubscribe(userSubscription);
             }
-            while (!inputQ.isEmpty()) {
+            while (!inputQ.isEmpty() && errorRef.get() == null) {
                 Http2Frame frame = inputQ.peek();
-                if (frame instanceof ResetFrame) {
+                if (frame instanceof ResetFrame rf) {
                     inputQ.remove();
-                    handleReset((ResetFrame)frame, subscriber);
+                    handleReset(rf, subscriber);
                     return;
                 }
-                DataFrame df = (DataFrame)frame;
+                DataFrame df = (DataFrame) frame;
                 boolean finished = df.getFlag(DataFrame.END_STREAM);
 
                 List<ByteBuffer> buffers = df.getData();
@@ -202,7 +210,8 @@ class Stream<T> extends ExchangeImpl<T> {
                 int size = Utils.remaining(dsts, Integer.MAX_VALUE);
                 if (size == 0 && finished) {
                     inputQ.remove();
-                    connection.ensureWindowUpdated(df); // must update connection window
+                    // consumed will not be called
+                    connection.releaseUnconsumed(df); // must update connection window
                     Log.logTrace("responseSubscriber.onComplete");
                     if (debug.on()) debug.log("incoming: onComplete");
                     sched.stop();
@@ -218,7 +227,11 @@ class Stream<T> extends ExchangeImpl<T> {
                     try {
                         subscriber.onNext(dsts);
                     } catch (Throwable t) {
-                        connection.dropDataFrame(df); // must update connection window
+                        // Data frames that have been added to the inputQ
+                        // must be released using releaseUnconsumed() to
+                        // account for the amount of unprocessed bytes
+                        // tracked by the connection.windowUpdater.
+                        connection.releaseUnconsumed(df);
                         throw t;
                     }
                     if (consumed(df)) {
@@ -239,6 +252,7 @@ class Stream<T> extends ExchangeImpl<T> {
         } catch (Throwable throwable) {
             errorRef.compareAndSet(null, throwable);
         } finally {
+            inputQLock.unlock();
             if (sched.isStopped()) drainInputQueue();
         }
 
@@ -257,22 +271,36 @@ class Stream<T> extends ExchangeImpl<T> {
             } catch (Throwable x) {
                 Log.logError("Subscriber::onError threw exception: {0}", t);
             } finally {
+                // cancelImpl will eventually call drainInputQueue();
                 cancelImpl(t);
-                drainInputQueue();
             }
         }
     }
 
-    // must only be called from the scheduler schedule() loop.
-    // ensure that all received data frames are accounted for
+    // Called from the scheduler schedule() loop,
+    // or after resetting the stream.
+    // Ensures that all received data frames are accounted for
     // in the connection window flow control if the scheduler
     // is stopped before all the data is consumed.
+    // The inputQLock is used to prevent concurrently taking
+    // from the queue.
     private void drainInputQueue() {
         Http2Frame frame;
-        while ((frame = inputQ.poll()) != null) {
-            if (frame instanceof DataFrame) {
-                connection.dropDataFrame((DataFrame)frame);
+        // will wait until schedule() has finished taking
+        // from the queue, if needed.
+        inputQLock.lock();
+        try {
+            while ((frame = inputQ.poll()) != null) {
+                if (frame instanceof DataFrame df) {
+                    // Data frames that have been added to the inputQ
+                    // must be released using releaseUnconsumed() to
+                    // account for the amount of unprocessed bytes
+                    // tracked by the connection.windowUpdater.
+                    connection.releaseUnconsumed(df);
+                }
             }
+        } finally {
+            inputQLock.unlock();
         }
     }
 
@@ -281,6 +309,7 @@ class Stream<T> extends ExchangeImpl<T> {
         if (debug.on()) debug.log("nullBody: streamid=%d", streamid);
         // We should have an END_STREAM data frame waiting in the inputQ.
         // We need a subscriber to force the scheduler to process it.
+        assert pendingResponseSubscriber == null;
         pendingResponseSubscriber = HttpResponse.BodySubscribers.replacing(null);
         sched.runOrSchedule();
     }
@@ -296,18 +325,29 @@ class Stream<T> extends ExchangeImpl<T> {
         boolean endStream = df.getFlag(DataFrame.END_STREAM);
         if (len == 0) return endStream;
 
-        connection.windowUpdater.update(len);
-
+        connection.windowUpdater.processed(len);
         if (!endStream) {
+            streamWindowUpdater.processed(len);
+        } else {
             // Don't send window update on a stream which is
             // closed or half closed.
-            windowUpdater.update(len);
+            streamWindowUpdater.released(len);
         }
 
         // true: end of stream; false: more data coming
         return endStream;
     }
 
+    @Override
+    void expectContinueFailed(int rcode) {
+        // Have to mark request as sent, due to no request body being sent in the
+        // event of a 417 Expectation Failed or some other non 100 response code
+        requestSent();
+    }
+
+    // This method is called by Http2Connection::decrementStreamCount in order
+    // to make sure that the stream count is decremented only once for
+    // a given stream.
     boolean deRegister() {
         return DEREGISTERED.compareAndSet(this, false, true);
     }
@@ -320,7 +360,8 @@ class Stream<T> extends ExchangeImpl<T> {
         try {
             Log.logTrace("Reading body on stream {0}", streamid);
             debug.log("Getting BodySubscriber for: " + response);
-            BodySubscriber<T> bodySubscriber = handler.apply(new ResponseInfoImpl(response));
+            Http2StreamResponseSubscriber<T> bodySubscriber =
+                    createResponseSubscriber(handler, new ResponseInfoImpl(response));
             CompletableFuture<T> cf = receiveData(bodySubscriber, executor);
 
             PushGroup<?> pg = exchange.getPushGroup();
@@ -337,13 +378,67 @@ class Stream<T> extends ExchangeImpl<T> {
     }
 
     @Override
+    Http2StreamResponseSubscriber<T> createResponseSubscriber(BodyHandler<T> handler, ResponseInfo response) {
+        Http2StreamResponseSubscriber<T> subscriber =
+                new Http2StreamResponseSubscriber<>(handler.apply(response));
+        return subscriber;
+    }
+
+    // The Http2StreamResponseSubscriber is registered with the HttpClient
+    // to ensure that it gets completed if the SelectorManager aborts due
+    // to unexpected exceptions.
+    private boolean registerResponseSubscriber(Http2StreamResponseSubscriber<?> subscriber) {
+        return client().registerSubscriber(subscriber);
+    }
+
+    private boolean unregisterResponseSubscriber(Http2StreamResponseSubscriber<?> subscriber) {
+        return client().unregisterSubscriber(subscriber);
+    }
+
+    @Override
     public String toString() {
         return "streamid: " + streamid;
     }
 
     private void receiveDataFrame(DataFrame df) {
-        inputQ.add(df);
-        sched.runOrSchedule();
+        try {
+            int len = df.payloadLength();
+            if (len > 0) {
+                // we return from here if the connection is being closed.
+                if (!connection.windowUpdater.canBufferUnprocessedBytes(len)) return;
+                // we return from here if the stream is being closed.
+                if (closed || !streamWindowUpdater.canBufferUnprocessedBytes(len)) {
+                    connection.releaseUnconsumed(df);
+                    return;
+                }
+            }
+           pushDataFrame(len, df);
+        } finally {
+            sched.runOrSchedule();
+        }
+    }
+
+    // Ensures that no data frame is pushed on the inputQ
+    // after the stream is closed.
+    // Changes to the `closed` boolean are guarded by the
+    // stateLock. Contention should be low as only one
+    // thread at a time adds to the inputQ, and
+    // we can only contend when closing the stream.
+    // Note that this method can run concurrently with
+    // methods holding the inputQLock: that is OK.
+    // The inputQLock is there to ensure that methods
+    // taking from the queue are not running concurrently
+    // with each others, but concurrently adding at the
+    // end of the queue while peeking/polling at the head
+    // is OK.
+    private void pushDataFrame(int len, DataFrame df) {
+        boolean closed = false;
+        synchronized(this) {
+            if (!(closed = this.closed)) {
+                inputQ.add(df);
+            }
+        }
+        if (closed && len > 0) connection.releaseUnconsumed(df);
     }
 
     /** Handles a RESET frame. RESET is always handled inline in the queue. */
@@ -385,6 +480,10 @@ class Stream<T> extends ExchangeImpl<T> {
     // pushes entire response body into response subscriber
     // blocking when required by local or remote flow control
     CompletableFuture<T> receiveData(BodySubscriber<T> bodySubscriber, Executor executor) {
+        // ensure that the body subscriber will be subscribed and onError() is
+        // invoked
+        pendingResponseSubscriber = bodySubscriber;
+
         // We want to allow the subscriber's getBody() method to block so it
         // can work with InputStreams. So, we offload execution.
         responseBodyCF = ResponseSubscribers.getBodyAsync(executor, bodySubscriber,
@@ -393,10 +492,10 @@ class Stream<T> extends ExchangeImpl<T> {
         if (isCanceled()) {
             Throwable t = getCancelCause();
             responseBodyCF.completeExceptionally(t);
-        } else {
-            pendingResponseSubscriber = bodySubscriber;
-            sched.runOrSchedule(); // in case data waiting already to be processed
         }
+
+        sched.runOrSchedule(); // in case data waiting already to be processed, or error
+
         return responseBodyCF;
     }
 
@@ -417,7 +516,7 @@ class Stream<T> extends ExchangeImpl<T> {
         this.responseHeadersBuilder = new HttpHeadersBuilder();
         this.rspHeadersConsumer = new HeadersConsumer();
         this.requestPseudoHeaders = createPseudoHeaders(request);
-        this.windowUpdater = new StreamWindowUpdateSender(connection);
+        this.streamWindowUpdater = new StreamWindowUpdateSender(connection);
     }
 
     private boolean checkRequestCancelled() {
@@ -437,19 +536,26 @@ class Stream<T> extends ExchangeImpl<T> {
     void incoming(Http2Frame frame) throws IOException {
         if (debug.on()) debug.log("incoming: %s", frame);
         var cancelled = checkRequestCancelled() || closed;
-        if ((frame instanceof HeaderFrame)) {
-            HeaderFrame hframe = (HeaderFrame) frame;
-            if (hframe.endHeaders()) {
+        if ((frame instanceof HeaderFrame hf)) {
+            if (hf.endHeaders()) {
                 Log.logTrace("handling response (streamid={0})", streamid);
-                handleResponse();
+                handleResponse(hf);
             }
-            if (hframe.getFlag(HeaderFrame.END_STREAM)) {
+            if (hf.getFlag(HeaderFrame.END_STREAM)) {
                 if (debug.on()) debug.log("handling END_STREAM: %d", streamid);
                 receiveDataFrame(new DataFrame(streamid, DataFrame.END_STREAM, List.of()));
             }
-        } else if (frame instanceof DataFrame) {
-            if (cancelled) connection.dropDataFrame((DataFrame) frame);
-            else receiveDataFrame((DataFrame) frame);
+        } else if (frame instanceof DataFrame df) {
+            if (cancelled) {
+                if (debug.on()) {
+                    debug.log("request cancelled or stream closed: dropping data frame");
+                }
+                // Data frames that have not been added to the inputQ
+                // can be released using dropDataFrame
+                connection.dropDataFrame(df);
+            } else {
+                receiveDataFrame(df);
+            }
         } else {
             if (!cancelled) otherFrame(frame);
         }
@@ -483,7 +589,7 @@ class Stream<T> extends ExchangeImpl<T> {
         return null;
     }
 
-    protected void handleResponse() throws IOException {
+    protected void handleResponse(HeaderFrame hf) throws IOException {
         HttpHeaders responseHeaders = responseHeadersBuilder.build();
 
         if (!finalResponseCodeReceived) {
@@ -503,6 +609,14 @@ class Stream<T> extends ExchangeImpl<T> {
             // If informational code, response is partially complete
             if (responseCode < 100 || responseCode > 199) {
                 this.finalResponseCodeReceived = true;
+            } else if (hf.getFlag(HeaderFrame.END_STREAM)) {
+                // see RFC 9113 section 8.1:
+                // A HEADERS frame with the END_STREAM flag set that carries an
+                // informational status code is malformed
+                protocolErrorMsg = String.format(
+                        "Stream %s PROTOCOL_ERROR: " +
+                        "HEADERS frame with status %s has END_STREAM flag set",
+                        streamid, responseCode);
             } else {
                 protocolErrorMsg = checkInterimResponseCountExceeded();
             }
@@ -565,10 +679,28 @@ class Stream<T> extends ExchangeImpl<T> {
         } else {
             Flow.Subscriber<?> subscriber =
                     responseSubscriber == null ? pendingResponseSubscriber : responseSubscriber;
-            if (response == null && subscriber == null) {
-                // we haven't receive the headers yet, and won't receive any!
+            if (!requestBodyCF.isDone()) {
+                // If a RST_STREAM is received, complete the requestBody. This will allow the
+                // response to be read before the Reset is handled in the case where the client's
+                // input stream is partially consumed or not consumed at all by the server.
+                if (frame.getErrorCode() != ResetFrame.NO_ERROR) {
+                    if (debug.on()) {
+                        debug.log("completing requestBodyCF exceptionally due to received" +
+                                " RESET(%s) (stream=%s)", frame.getErrorCode(), streamid);
+                    }
+                    requestBodyCF.completeExceptionally(new IOException("RST_STREAM received"));
+                } else {
+                    if (debug.on()) {
+                        debug.log("completing requestBodyCF normally due to received" +
+                                " RESET(NO_ERROR) (stream=%s)", streamid);
+                    }
+                    requestBodyCF.complete(null);
+                }
+            }
+            if ((response == null || !finalResponseCodeReceived) && subscriber == null) {
+                // we haven't received the headers yet, and won't receive any!
                 // handle reset now.
-                handleReset(frame, subscriber);
+                handleReset(frame, null);
             } else {
                 // put it in the input queue in order to read all
                 // pending data frames first. Indeed, a server may send
@@ -595,20 +727,39 @@ class Stream<T> extends ExchangeImpl<T> {
                 closed = true;
             }
             try {
-                int error = frame.getErrorCode();
-                IOException e = new IOException("Received RST_STREAM: "
-                        + ErrorFrame.stringForCode(error));
-                if (errorRef.compareAndSet(null, e)) {
-                    if (subscriber != null) {
-                        subscriber.onError(e);
+                final int error = frame.getErrorCode();
+                // A REFUSED_STREAM error code implies that the stream wasn't processed by the
+                // peer and the client is free to retry the request afresh.
+                if (error == ErrorFrame.REFUSED_STREAM) {
+                    // Here we arrange for the request to be retried. Note that we don't call
+                    // closeAsUnprocessed() method here because the "closed" state is already set
+                    // to true a few lines above and calling close() from within
+                    // closeAsUnprocessed() will end up being a no-op. We instead do the additional
+                    // bookkeeping here.
+                    markUnprocessedByPeer();
+                    errorRef.compareAndSet(null, new IOException("request not processed by peer"));
+                    if (debug.on()) {
+                        debug.log("request unprocessed by peer (REFUSED_STREAM) " + this.request);
+                    }
+                } else {
+                    final String reason = ErrorFrame.stringForCode(error);
+                    final IOException failureCause = new IOException("Received RST_STREAM: " + reason);
+                    if (debug.on()) {
+                        debug.log(streamid + " received RST_STREAM with code: " + reason);
+                    }
+                    if (errorRef.compareAndSet(null, failureCause)) {
+                        if (subscriber != null) {
+                            subscriber.onError(failureCause);
+                        }
                     }
                 }
-                completeResponseExceptionally(e);
+                final Throwable failureCause = errorRef.get();
+                completeResponseExceptionally(failureCause);
                 if (!requestBodyCF.isDone()) {
-                    requestBodyCF.completeExceptionally(errorRef.get()); // we may be sending the body..
+                    requestBodyCF.completeExceptionally(failureCause); // we may be sending the body..
                 }
                 if (responseBodyCF != null) {
-                    responseBodyCF.completeExceptionally(errorRef.get());
+                    responseBodyCF.completeExceptionally(failureCause);
                 }
             } finally {
                 connection.decrementStreamsCount(streamid);
@@ -782,9 +933,14 @@ class Stream<T> extends ExchangeImpl<T> {
         hdrs.setHeader(":method", method);
         URI uri = request.uri();
         hdrs.setHeader(":scheme", uri.getScheme());
-        // TODO: userinfo deprecated. Needs to be removed
-        hdrs.setHeader(":authority", uri.getAuthority());
-        // TODO: ensure header names beginning with : not in user headers
+        String host = uri.getHost();
+        int port = uri.getPort();
+        assert host != null;
+        if (port != -1) {
+            hdrs.setHeader(":authority", host + ":" + port);
+        } else {
+            hdrs.setHeader(":authority", host);
+        }
         String query = uri.getRawQuery();
         String path = uri.getRawPath();
         if (path == null || path.isEmpty()) {
@@ -935,6 +1091,10 @@ class Stream<T> extends ExchangeImpl<T> {
         private void onNextImpl(ByteBuffer item) {
             // Got some more request body bytes to send.
             if (requestBodyCF.isDone()) {
+                if (debug.on()) {
+                    debug.log("RequestSubscriber: requestBodyCf is done: " +
+                            "cancelling subscription");
+                }
                 // stream already cancelled, probably in timeout
                 sendScheduler.stop();
                 subscription.cancel();
@@ -1271,12 +1431,18 @@ class Stream<T> extends ExchangeImpl<T> {
 
     @Override
     void onProtocolError(final IOException cause) {
+        onProtocolError(cause, ResetFrame.PROTOCOL_ERROR);
+    }
+
+    void onProtocolError(final IOException cause, int code) {
         if (debug.on()) {
-            debug.log("cancelling exchange on stream %d due to protocol error: %s", streamid, cause.getMessage());
+            debug.log("cancelling exchange on stream %d due to protocol error [%s]: %s",
+                    streamid, ErrorFrame.stringForCode(code),
+                    cause.getMessage());
         }
         Log.logError("cancelling exchange on stream {0} due to protocol error: {1}\n", streamid, cause);
         // send a RESET frame and close the stream
-        cancelImpl(cause, ResetFrame.PROTOCOL_ERROR);
+        cancelImpl(cause, code);
     }
 
     void connectionClosing(Throwable cause) {
@@ -1311,10 +1477,24 @@ class Stream<T> extends ExchangeImpl<T> {
                 }
             }
         }
+
         if (closing) { // true if the stream has not been closed yet
-            if (responseSubscriber != null || pendingResponseSubscriber != null)
+            if (responseSubscriber != null || pendingResponseSubscriber != null) {
+                if (debug.on())
+                    debug.log("stream %s closing due to %s", streamid, (Object)errorRef.get());
                 sched.runOrSchedule();
+            } else {
+                if (debug.on())
+                    debug.log("stream %s closing due to %s before subscriber registered",
+                        streamid, (Object)errorRef.get());
+            }
+        } else {
+            if (debug.on()) {
+                debug.log("stream %s already closed due to %s",
+                        streamid, (Object)errorRef.get());
+            }
         }
+
         completeResponseExceptionally(e);
         if (!requestBodyCF.isDone()) {
             requestBodyCF.completeExceptionally(errorRef.get()); // we may be sending the body..
@@ -1337,6 +1517,8 @@ class Stream<T> extends ExchangeImpl<T> {
             }
         } catch (Throwable ex) {
             Log.logError(ex);
+        } finally {
+            drainInputQueue();
         }
     }
 
@@ -1358,6 +1540,20 @@ class Stream<T> extends ExchangeImpl<T> {
         if (debug.on()) debug.log("close stream %d", streamid);
         Log.logTrace("Closing stream {0}", streamid);
         connection.closeStream(streamid);
+        var s = responseSubscriber == null
+                ? pendingResponseSubscriber
+                : responseSubscriber;
+        if (debug.on()) debug.log("subscriber is %s", s);
+        if (s instanceof Http2StreamResponseSubscriber<?> sw) {
+            if (debug.on()) debug.log("closing response subscriber stream %s", streamid);
+            // if the subscriber has already completed,
+            // there is nothing to do...
+            if (!sw.completed()) {
+                // otherwise make sure it will be completed
+                var cause = errorRef.get();
+                sw.complete(cause == null ? new IOException("stream closed") : cause);
+            }
+        }
         Log.logTrace("Stream {0} closed", streamid);
     }
 
@@ -1466,7 +1662,7 @@ class Stream<T> extends ExchangeImpl<T> {
 
         // create and return the PushResponseImpl
         @Override
-        protected void handleResponse() {
+        protected void handleResponse(HeaderFrame hf) {
             HttpHeaders responseHeaders = responseHeadersBuilder.build();
 
             if (!finalPushResponseCodeReceived) {
@@ -1544,6 +1740,13 @@ class Stream<T> extends ExchangeImpl<T> {
                 return dbgString = dbg;
             }
         }
+
+        @Override
+        protected boolean windowSizeExceeded(long received) {
+            onProtocolError(new ProtocolException("stream %s flow control window exceeded"
+                        .formatted(streamid)), ResetFrame.FLOW_CONTROL_ERROR);
+            return true;
+        }
     }
 
     /**
@@ -1563,7 +1766,35 @@ class Stream<T> extends ExchangeImpl<T> {
     }
 
     final String dbgString() {
-        return connection.dbgString() + "/Stream("+streamid+")";
+        final int id = streamid;
+        final String sid = id == 0 ? "?" : String.valueOf(id);
+        return connection.dbgString() + "/Stream(" + sid + ")";
+    }
+
+    /**
+     * An unprocessed exchange is one that hasn't been processed by a peer. The local end of the
+     * connection would be notified about such exchanges when it receives a GOAWAY frame with
+     * a stream id that tells which exchanges have been unprocessed.
+     * This method is called on such unprocessed exchanges and the implementation of this method
+     * will arrange for the request, corresponding to this exchange, to be retried afresh on a
+     * new connection.
+     */
+    void closeAsUnprocessed() {
+        try {
+            // We arrange for the request to be retried on a new connection as allowed by the RFC-9113
+            markUnprocessedByPeer();
+            this.errorRef.compareAndSet(null, new IOException("request not processed by peer"));
+            if (debug.on()) {
+                debug.log("closing " + this.request + " as unprocessed by peer");
+            }
+            // close the exchange and complete the response CF exceptionally
+            close();
+            completeResponseExceptionally(this.errorRef.get());
+        } finally {
+            // decrementStreamsCount isn't really needed but we do it to make sure
+            // the log messages, where these counts/states get reported, show the accurate state.
+            connection.decrementStreamsCount(streamid);
+        }
     }
 
     private class HeadersConsumer extends ValidatingHeadersConsumer implements DecodingCallback {
@@ -1623,6 +1854,23 @@ class Stream<T> extends ExchangeImpl<T> {
                 reset();
             }
         }
+    }
+
+    final class Http2StreamResponseSubscriber<U> extends HttpBodySubscriberWrapper<U> {
+        Http2StreamResponseSubscriber(BodySubscriber<U> subscriber) {
+            super(subscriber);
+        }
+
+        @Override
+        protected void register() {
+            registerResponseSubscriber(this);
+        }
+
+        @Override
+        protected void unregister() {
+            unregisterResponseSubscriber(this);
+        }
+
     }
 
     private static final VarHandle STREAM_STATE;
