@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,19 @@ package jdk.httpclient.test.lib.http2;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
+import java.util.function.Predicate;
+
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLServerSocketFactory;
-import javax.net.ssl.SNIServerName;
+
 import jdk.internal.net.http.frame.ErrorFrame;
 
 /**
@@ -47,35 +49,38 @@ import jdk.internal.net.http.frame.ErrorFrame;
  * obtained from the supplied ExecutorService.
  */
 public class Http2TestServer implements AutoCloseable {
+    static final AtomicLong IDS = new AtomicLong();
+    final long id = IDS.incrementAndGet();
     final ServerSocket server;
     final boolean supportsHTTP11;
     volatile boolean secure;
     final ExecutorService exec;
-    volatile boolean stopping = false;
+    private volatile boolean stopping = false;
     final Map<String,Http2Handler> handlers;
     final SSLContext sslContext;
     final String serverName;
-    final HashMap<InetSocketAddress,Http2TestServerConnection> connections;
+    final Set<Http2TestServerConnection> connections;
     final Properties properties;
+    final String name;
+    // request approver which takes the server connection key as the input
+    private volatile Predicate<String> newRequestApprover;
 
-    private static ThreadFactory defaultThreadFac =
-        (Runnable r) -> {
+    private static ExecutorService createExecutor(String name) {
+        String threadNamePrefix = "%s-pool".formatted(name);
+        ThreadFactory threadFactory = (Runnable r) -> {
             Thread t = new Thread(r);
-            t.setName("Test-server-pool");
+            t.setName(threadNamePrefix);
             return t;
         };
-
-
-    private static ExecutorService getDefaultExecutor() {
-        return Executors.newCachedThreadPool(defaultThreadFac);
+        return Executors.newCachedThreadPool(threadFactory);
     }
 
     public Http2TestServer(String serverName, boolean secure, int port) throws Exception {
-        this(serverName, secure, port, getDefaultExecutor(), 50, null, null);
+        this(serverName, secure, port, null, 50, null, null);
     }
 
     public Http2TestServer(boolean secure, int port) throws Exception {
-        this(null, secure, port, getDefaultExecutor(), 50, null, null);
+        this(null, secure, port, null, 50, null, null);
     }
 
     public InetSocketAddress getAddress() {
@@ -177,6 +182,7 @@ public class Http2TestServer implements AutoCloseable {
                            boolean supportsHTTP11)
         throws Exception
     {
+        this.name = "TestServer(%d)".formatted(id);
         this.serverName = serverName;
         this.supportsHTTP11 = supportsHTTP11;
         if (secure) {
@@ -190,10 +196,10 @@ public class Http2TestServer implements AutoCloseable {
             server = initPlaintext(port, backlog);
         }
         this.secure = secure;
-        this.exec = exec == null ? getDefaultExecutor() : exec;
+        this.exec = exec == null ? createExecutor(name) : exec;
         this.handlers = Collections.synchronizedMap(new HashMap<>());
         this.properties = properties == null ? new Properties() : properties;
-        this.connections = new HashMap<>();
+        this.connections = ConcurrentHashMap.newKeySet();
     }
 
     /**
@@ -232,7 +238,7 @@ public class Http2TestServer implements AutoCloseable {
         Http2Handler handler = href.get();
         if (handler == null)
             throw new RuntimeException("No handler found for path " + path);
-        System.err.println("Using handler for: " + bestMatch.get());
+        System.err.println(name + ": Using handler for: " + bestMatch.get());
         return handler;
     }
 
@@ -246,8 +252,8 @@ public class Http2TestServer implements AutoCloseable {
     public synchronized void stop() {
         // TODO: clean shutdown GoAway
         stopping = true;
-        System.err.printf("Server stopping %d connections\n", connections.size());
-        for (Http2TestServerConnection connection : connections.values()) {
+        System.err.printf("%s: stopping %d connections\n", name, connections.size());
+        for (Http2TestServerConnection connection : connections) {
             connection.close(ErrorFrame.NO_ERROR);
         }
         try {
@@ -282,13 +288,66 @@ public class Http2TestServer implements AutoCloseable {
         return serverName;
     }
 
+    public void setRequestApprover(final Predicate<String> approver) {
+        this.newRequestApprover = approver;
+    }
+
+    Predicate<String> getRequestApprover() {
+        return this.newRequestApprover;
+    }
+
     private synchronized void putConnection(InetSocketAddress addr, Http2TestServerConnection c) {
         if (!stopping)
-            connections.put(addr, c);
+            connections.add(c);
     }
 
     private synchronized void removeConnection(InetSocketAddress addr, Http2TestServerConnection c) {
-        connections.remove(addr, c);
+        connections.remove(c);
+    }
+
+    record AcceptedConnection(Http2TestServer server,
+                              Socket socket) {
+        void startConnection() {
+            String name = server.name;
+            Http2TestServerConnection c = null;
+            InetSocketAddress addr = null;
+            try {
+                addr = (InetSocketAddress) socket.getRemoteSocketAddress();
+                System.err.println(name + ": creating connection");
+                c = server.createConnection(server, socket, server.exchangeSupplier);
+                server.putConnection(addr, c);
+                System.err.println(name + ": starting connection");
+                c.run();
+                System.err.println(name + ": connection started");
+            } catch (Throwable e) {
+                boolean stopping = server.stopping;
+                if (!stopping) {
+                    System.err.println(name + ": unexpected exception: " + e);
+                    e.printStackTrace();
+                }
+                // we should not reach here, but if we do
+                // the connection might not have been closed
+                // and if so then the client might wait
+                // forever.
+                if (c != null) {
+                    server.removeConnection(addr, c);
+                }
+                try {
+                    if (c != null) c.close(ErrorFrame.PROTOCOL_ERROR);
+                } catch (Exception x) {
+                    if (!stopping)
+                        System.err.println(name + ": failed to close connection: " + e);
+                } finally {
+                    try {
+                        socket.close();
+                    } catch (IOException x) {
+                        if (!stopping)
+                            System.err.println(name + ": failed to close socket: " + e);
+                    }
+                }
+                System.err.println(name + ": failed to start connection: " + e);
+            }
+        }
     }
 
     /**
@@ -298,38 +357,37 @@ public class Http2TestServer implements AutoCloseable {
         exec.submit(() -> {
             try {
                 while (!stopping) {
+                    System.err.println(name + ": accepting connections");
                     Socket socket = server.accept();
-                    Http2TestServerConnection c = null;
-                    InetSocketAddress addr = null;
+                    System.err.println(name + ": connection accepted");
                     try {
-                        addr = (InetSocketAddress) socket.getRemoteSocketAddress();
-                        c = createConnection(this, socket, exchangeSupplier);
-                        putConnection(addr, c);
-                        c.run();
+                        var accepted = new AcceptedConnection(this, socket);
+                        exec.submit(accepted::startConnection);
                     } catch (Throwable e) {
+                        if (!stopping) {
+                            System.err.println(name + ": unexpected exception: " + e);
+                            e.printStackTrace();
+                        }
                         // we should not reach here, but if we do
                         // the connection might not have been closed
                         // and if so then the client might wait
                         // forever.
-                        if (c != null) {
-                            removeConnection(addr, c);
-                            c.close(ErrorFrame.PROTOCOL_ERROR);
-                        } else {
-                            socket.close();
-                        }
-                        System.err.println("TestServer: start exception: " + e);
+                        System.err.println(name + ": start exception: " + e);
                     }
+                    System.err.println(name + ": stopping is: " + stopping);
                 }
             } catch (SecurityException se) {
-                System.err.println("TestServer: terminating, caught " + se);
+                System.err.println(name + ": terminating, caught " + se);
                 se.printStackTrace();
                 stopping = true;
                 try { server.close(); } catch (IOException ioe) { /* ignore */}
             } catch (Throwable e) {
                 if (!stopping) {
-                    System.err.println("TestServer: terminating, caught " + e);
+                    System.err.println(name + ": terminating, caught " + e);
                     e.printStackTrace();
                 }
+            } finally {
+                System.err.println(name + ": finished");
             }
         });
     }
@@ -343,6 +401,7 @@ public class Http2TestServer implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        System.err.println(name + ": closing");
         stop();
     }
 }

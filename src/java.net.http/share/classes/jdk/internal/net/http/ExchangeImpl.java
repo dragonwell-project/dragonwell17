@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,12 @@
 package jdk.internal.net.http;
 
 import java.io.IOException;
-import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.ResponseInfo;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+import jdk.internal.net.http.common.HttpBodySubscriberWrapper;
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
@@ -57,6 +58,10 @@ abstract class ExchangeImpl<T> {
 
     final Exchange<T> exchange;
 
+    // this will be set to true only when the peer explicitly states (through a GOAWAY frame or
+    // a relevant error code in reset frame) that the corresponding stream (id) wasn't processed
+    private volatile boolean unprocessedByPeer;
+
     ExchangeImpl(Exchange<T> e) {
         // e == null means a http/2 pushed stream
         this.exchange = e;
@@ -66,7 +71,7 @@ abstract class ExchangeImpl<T> {
         return exchange;
     }
 
-    HttpClient client() {
+    HttpClientImpl client() {
         return exchange.client();
     }
 
@@ -182,6 +187,22 @@ abstract class ExchangeImpl<T> {
                                                 Executor executor);
 
     /**
+     * Creates and wraps an {@link HttpResponse.BodySubscriber} from a {@link
+     * HttpResponse.BodyHandler} for the given {@link ResponseInfo}.
+     * An {@code HttpBodySubscriberWrapper} wraps a response body subscriber and makes
+     * sure its completed/onError methods are called only once, and that its onSusbscribe
+     * is called before onError. This is useful when errors occur asynchronously, and
+     * most typically when the error occurs before the {@code BodySubscriber} has
+     * subscribed.
+     * @param handler  a body handler
+     * @param response a response info
+     * @return a new {@code HttpBodySubscriberWrapper} to handle the response
+     */
+    HttpBodySubscriberWrapper<T> createResponseSubscriber(HttpResponse.BodyHandler<T> handler, ResponseInfo response) {
+        return new HttpBodySubscriberWrapper<>(handler.apply(response));
+    }
+
+    /**
      * Ignore/consume the body.
      */
     abstract CompletableFuture<Void> ignoreBody();
@@ -243,4 +264,17 @@ abstract class ExchangeImpl<T> {
     // Needed to handle cancellation during the upgrade from
     // Http1Exchange to Stream
     void upgraded() { }
+
+    // Called when server returns non 100 response to
+    // an Expect-Continue
+    void expectContinueFailed(int rcode) { }
+
+    final boolean isUnprocessedByPeer() {
+        return this.unprocessedByPeer;
+    }
+
+    // Marks the exchange as unprocessed by the peer
+    final void markUnprocessedByPeer() {
+        this.unprocessedByPeer = true;
+    }
 }
