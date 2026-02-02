@@ -28,9 +28,12 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jdk.jpackage.test.Functional.ThrowingRunnable;
@@ -61,28 +64,12 @@ public class WindowsHelper {
         return Path.of(cmd.getArgumentValue("--install-dir", cmd::name));
     }
 
-    // Tests have problems on windows where path in the temp dir are too long
-    // for the wix tools.  We can't use a tempDir outside the TKit's WorkDir, so
-    // we minimize both the tempRoot directory name (above) and the tempDir name
-    // (below) to the extension part (which is necessary to differenciate between
-    // the multiple PackageTypes that will be run for one JPackageCommand).
-    // It might be beter if the whole work dir name was shortened from:
-    // jtreg_open_test_jdk_tools_jpackage_share_jdk_jpackage_tests_BasicTest_java.
-    public static Path getTempDirectory(JPackageCommand cmd, Path tempRoot) {
-        String ext = cmd.outputBundle().getFileName().toString();
-        int i = ext.lastIndexOf(".");
-        if (i > 0 && i < (ext.length() - 1)) {
-            ext = ext.substring(i+1);
-        }
-        return tempRoot.resolve(ext);
-    }
-
     private static void runMsiexecWithRetries(Executor misexec) {
         Executor.Result result = null;
         for (int attempt = 0; attempt < 8; ++attempt) {
             result = misexec.executeWithoutExitCodeCheck();
 
-            if (result.exitCode == 1605) {
+            if (result.exitCode() == 1605) {
                 // ERROR_UNKNOWN_PRODUCT, attempt to uninstall not installed
                 // package
                 return;
@@ -91,7 +78,7 @@ public class WindowsHelper {
             // The given Executor may either be of an msiexec command or an
             // unpack.bat script containing the msiexec command. In the later
             // case, when misexec returns 1618, the unpack.bat may return 1603
-            if ((result.exitCode == 1618) || (result.exitCode == 1603)) {
+            if ((result.exitCode() == 1618) || (result.exitCode() == 1603)) {
                 // Another installation is already in progress.
                 // Wait a little and try again.
                 Long timeout = 1000L * (attempt + 3); // from 3 to 10 seconds
@@ -179,6 +166,90 @@ public class WindowsHelper {
         .addArgument(propertyName)
         .dumpOutput()
         .executeAndGetOutput().stream().collect(Collectors.joining("\n"));
+    }
+
+    public static void killProcess(long pid) {
+        Executor.of("taskkill", "/F", "/PID", Long.toString(pid)).dumpOutput(true).execute();
+    }
+
+    public static void killAppLauncherProcess(JPackageCommand cmd,
+            String launcherName, int expectedCount) {
+        var pids = findAppLauncherPIDs(cmd, launcherName);
+        try {
+            TKit.assertEquals(expectedCount, pids.length, String.format(
+                    "Check [%d] %s app launcher processes found running",
+                    expectedCount, Optional.ofNullable(launcherName).map(
+                            str -> "[" + str + "]").orElse("<main>")));
+        } finally {
+            if (pids.length != 0) {
+                killProcess(pids[0]);
+            }
+        }
+    }
+
+    private static long[] findAppLauncherPIDs(JPackageCommand cmd, String launcherName) {
+        // Get the list of PIDs and PPIDs of app launcher processes.
+        // wmic process where (name = "foo.exe") get ProcessID,ParentProcessID
+        List<String> output = Executor.of("wmic", "process", "where", "(name",
+                "=",
+                "\"" + cmd.appLauncherPath(launcherName).getFileName().toString() + "\"",
+                ")", "get", "ProcessID,ParentProcessID").dumpOutput(true).
+                saveOutput().executeAndGetOutput();
+
+        if ("No Instance(s) Available.".equals(output.get(0).trim())) {
+            return new long[0];
+        }
+
+        String[] headers = Stream.of(output.get(0).split("\\s+", 2)).map(
+                String::trim).map(String::toLowerCase).toArray(String[]::new);
+        Pattern pattern;
+        if (headers[0].equals("parentprocessid") && headers[1].equals(
+                "processid")) {
+            pattern = Pattern.compile("^(?<ppid>\\d+)\\s+(?<pid>\\d+)\\s+$");
+        } else if (headers[1].equals("parentprocessid") && headers[0].equals(
+                "processid")) {
+            pattern = Pattern.compile("^(?<pid>\\d+)\\s+(?<ppid>\\d+)\\s+$");
+        } else {
+            throw new RuntimeException(
+                    "Unrecognizable output of \'wmic process\' command");
+        }
+
+        List<long[]> processes = output.stream().skip(1).map(line -> {
+            Matcher m = pattern.matcher(line);
+            long[] pids = null;
+            if (m.matches()) {
+                pids = new long[]{Long.parseLong(m.group("pid")), Long.
+                    parseLong(m.group("ppid"))};
+            }
+            return pids;
+        }).filter(Objects::nonNull).toList();
+
+        switch (processes.size()) {
+            case 2 -> {
+                final long parentPID;
+                final long childPID;
+                if (processes.get(0)[0] == processes.get(1)[1]) {
+                    parentPID = processes.get(0)[0];
+                    childPID = processes.get(1)[0];
+                } else if (processes.get(1)[0] == processes.get(0)[1]) {
+                    parentPID = processes.get(1)[0];
+                    childPID = processes.get(0)[0];
+                } else {
+                    TKit.assertUnexpected("App launcher processes unrelated");
+                    return null; // Unreachable
+                }
+                return new long[]{parentPID, childPID};
+            }
+            case 1 -> {
+                return new long[]{processes.get(0)[0]};
+            }
+            default -> {
+                TKit.assertUnexpected(String.format(
+                        "Unexpected number of running processes [%d]",
+                        processes.size()));
+                return null; // Unreachable
+            }
+        }
     }
 
     private static boolean isUserLocalInstall(JPackageCommand cmd) {
@@ -353,7 +424,7 @@ public class WindowsHelper {
         var status = Executor.of("reg", "query", keyPath, "/v", valueName)
                 .saveOutput()
                 .executeWithoutExitCodeCheck();
-        if (status.exitCode == 1) {
+        if (status.exitCode() == 1) {
             // Should be the case of no such registry value or key
             String lookupString = "ERROR: The system was unable to find the specified registry key or value.";
             TKit.assertTextStream(lookupString)
@@ -394,15 +465,15 @@ public class WindowsHelper {
             "bin\\server\\jvm.dll"));
 
     // jtreg resets %ProgramFiles% environment variable by some reason.
-    private final static Path PROGRAM_FILES = Path.of(Optional.ofNullable(
+    private static final Path PROGRAM_FILES = Path.of(Optional.ofNullable(
             System.getenv("ProgramFiles")).orElse("C:\\Program Files"));
 
-    private final static Path USER_LOCAL = Path.of(System.getProperty(
+    private static final Path USER_LOCAL = Path.of(System.getProperty(
             "user.home"),
             "AppData", "Local");
 
-    private final static String SYSTEM_SHELL_FOLDERS_REGKEY = "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders";
-    private final static String USER_SHELL_FOLDERS_REGKEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders";
+    private static final String SYSTEM_SHELL_FOLDERS_REGKEY = "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders";
+    private static final String USER_SHELL_FOLDERS_REGKEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders";
 
     private static final Map<String, String> REGISTRY_VALUES = new HashMap<>();
 }
