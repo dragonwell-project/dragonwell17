@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @library /test/lib
  * @build ModulesInCustomFileSystem m1/* m2/*
  *        jdk.test.lib.util.JarUtils
- * @run testng/othervm ModulesInCustomFileSystem
+ * @run testng/othervm -Djava.io.tmpdir=. ModulesInCustomFileSystem
  * @summary Test ModuleFinder to find modules in a custom file system
  */
 
@@ -44,6 +44,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import jdk.test.lib.util.JarUtils;
 
@@ -108,8 +109,9 @@ public class ModulesInCustomFileSystem {
     private void listAllModules(ModuleFinder finder) throws Exception {
         for (ModuleReference mref : finder.findAll()) {
             System.out.println(mref.descriptor());
-            try (ModuleReader reader = mref.open()) {
-                reader.list().forEach(name -> System.out.format("  %s%n", name));
+            try (ModuleReader reader = mref.open();
+                 Stream<String> stream = reader.list()) {
+                stream.forEach(name -> System.out.format("  %s%n", name));
             }
         }
     }
