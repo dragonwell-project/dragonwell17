@@ -2064,12 +2064,22 @@ void JavaThread::make_zombies() {
 
 
 void JavaThread::deoptimize_marked_methods() {
-  if (!has_last_Java_frame()) return;
-  StackFrameStream fst(this, false /* update */, true /* process_frames */);
-  for (; !fst.is_done(); fst.next()) {
-    if (fst.current()->should_be_deoptimized()) {
-      Deoptimization::deoptimize(this, *fst.current());
+  if (has_last_Java_frame()) {
+    StackFrameStream fst(this, false /* update */, true /* process_frames */);
+    for (; !fst.is_done(); fst.next()) {
+      if (fst.current()->should_be_deoptimized()) {
+          Deoptimization::deoptimize(this, *fst.current());
+      }
     }
+  }
+
+  if (EnableCoroutine) {
+    CoroutineListLocker cll(this);
+    Coroutine* current = _coroutine_list;
+    do {
+      current->deoptimize_marked_methods();
+      current = current->next();
+    } while (current != _coroutine_list);
   }
 }
 

@@ -229,6 +229,7 @@ public:
   void compiledMethods_do(CodeBlobClosure* cf);
   void metadata_do(MetadataClosure* f);
   void frames_do(void f(frame*, const RegisterMap* map));
+  void deoptimize_marked_methods();
 
   static ByteSize thread_offset()             { return byte_offset_of(Coroutine, _thread); }
 
@@ -492,7 +493,7 @@ public:
 
   static WispThread* current(Thread* thread) {
     assert(thread->is_Java_thread(), "invariant") ;
-    return thread->is_Wisp_thread() ? (WispThread*) thread : 
+    return thread->is_Wisp_thread() ? (WispThread*) thread :
       ((JavaThread*) thread)->current_coroutine()->wisp_thread();
   }
 };
