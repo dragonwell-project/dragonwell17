@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,28 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package sun.security.provider;
 
-/*
- * The SHAKE256 extendable output function.
- */
-public final class SHAKE256 extends SHA3 {
-    public SHAKE256(int d) {
-        super("SHAKE256", d, (byte) 0x1F, 64);
-    }
+#ifndef ExecCommand_h
+#define ExecCommand_h
 
-    public void update(byte in) {
-        engineUpdate(in);
-    }
-    public void update(byte[] in, int off, int len) {
-        engineUpdate(in, off, len);
-    }
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    public byte[] digest() {
-        return engineDigest();
-    }
+#define EXEC_CALLBACK_IGNORE 0
+#define EXEC_CALLBACK_USE 1
+#define EXEC_CALLBACK_ERROR 2
 
-    public void reset() {
-        engineReset();
-    }
+typedef int (*ExecCommandCallbackType)(void*, char*);
+
+int execCommand(const char* const       argv[],
+                ExecCommandCallbackType callback,
+                void*                   callbackData);
+
+void closePipeEnd(int* pipefd, int idx);
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* #ifndef ExecCommand_h */

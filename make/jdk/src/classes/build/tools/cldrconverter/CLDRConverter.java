@@ -36,6 +36,7 @@ import java.util.*;
 import java.util.ResourceBundle.Control;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -88,6 +89,7 @@ public class CLDRConverter {
     static final String EXEMPLAR_CITY_PREFIX = "timezone.excity.";
     static final String ZONE_NAME_PREFIX = "timezone.displayname.";
     static final String METAZONE_ID_PREFIX = "metazone.id.";
+    static final String METAZONE_DSTOFFSET_PREFIX = "metazone.dstoffset.";
     static final String PARENT_LOCALE_PREFIX = "parentLocale.";
     static final String META_EMPTY_ZONE_NAME = "EMPTY_ZONE";
     static final String[] EMPTY_ZONE = {"", "", "", "", "", ""};
@@ -122,6 +124,11 @@ public class CLDRConverter {
     // rules maps
     static Map<String, String> pluralRules;
     static Map<String, String> dayPeriodRules;
+
+    // Map of explicit dst offsets for metazones
+    // key: time zone ID
+    // value: explicit dstOffset for the corresponding metazone name
+    static final Map<String, String> explicitDstOffsets = new HashMap<>(32);
 
     static enum DraftType {
         UNCONFIRMED,
@@ -757,6 +764,12 @@ public class CLDRConverter {
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         names.putAll(exCities);
 
+        // Explicit metazone offsets
+        if (id.equals("root")) {
+            explicitDstOffsets.forEach((k, v) ->
+                names.put(METAZONE_DSTOFFSET_PREFIX + k, v));
+        }
+
         // If there's no UTC entry at this point, add an empty one
         if (!names.isEmpty() && !names.containsKey("UTC")) {
             names.putIfAbsent(METAZONE_ID_PREFIX + META_EMPTY_ZONE_NAME, EMPTY_ZONE);
@@ -1109,7 +1122,8 @@ public class CLDRConverter {
     private static Stream<String> tzDataLinkEntry() {
         try {
             return Files.walk(Paths.get(tzDataDir), 1)
-                .filter(p -> !Files.isDirectory(p))
+                .filter(p -> p.toFile().isFile())
+                .filter(p -> p.getFileName().toString().matches("africa|antarctica|asia|australasia|backward|etcetera|europe|northamerica|southamerica"))
                 .flatMap(CLDRConverter::extractLinks)
                 .sorted();
         } catch (IOException e) {
@@ -1140,10 +1154,31 @@ public class CLDRConverter {
     // Note: the entries are alphabetically sorted, *except* the "world" region
     // code, i.e., "001". It should be the last entry for the same windows time
     // zone name entries. (cf. TimeZone_md.c)
+    //
+    // The default entries from CLDR's windowsZones.xml file can be modified
+    // with <tzDataDir>/tzmappings.override where mapping overrides
+    // can be specified.
+    private static Pattern OVERRIDE_PATTERN = Pattern.compile("(?<win>([^:]+:[^:]+)):(?<java>[^:]+):");
     private static void generateWindowsTZMappings() throws Exception {
         Files.createDirectories(Paths.get(DESTINATION_DIR, "windows", "conf"));
+        var override = Path.of(tzDataDir, "tzmappings.override");
+        if (override.toFile().exists()) {
+            Files.readAllLines(override).stream()
+                .map(String::trim)
+                .filter(o -> !o.isBlank() && !o.startsWith("#"))
+                .forEach(o -> {
+                    var m = OVERRIDE_PATTERN.matcher(o);
+                    if (m.matches()) {
+                        handlerWinZones.put(m.group("win"), m.group("java"));
+                    } else {
+                        System.out.printf("Unrecognized tzmappings override: %s. Ignored%n", o);
+                    }
+                });
+        }
         Files.write(Paths.get(DESTINATION_DIR, "windows", "conf", "tzmappings"),
             handlerWinZones.keySet().stream()
+                .filter(k -> k.endsWith(":001") ||
+                             !handlerWinZones.get(k).equals(handlerWinZones.get(k.replaceFirst(":\\w{2,3}$", ":001"))))
                 .map(k -> k + ":" + handlerWinZones.get(k) + ":")
                 .sorted(new Comparator<String>() {
                     public int compare(String t1, String t2) {

@@ -290,9 +290,8 @@
  * @summary Interoperability tests with Microsoft TLS root CAs
  * @library /test/lib
  * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop microsoftrsa2017 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp -Dcom.sun.security.ocsp.useget=false CAInterop microsoftrsa2017 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath CAInterop microsoftrsa2017 CRL
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop microsoftrsa2017 DEFAULT
+ * @run main/othervm/manual -Djava.security.debug=certpath,ocsp -Dcom.sun.security.ocsp.useget=false CAInterop microsoftrsa2017 DEFAULT
  */
 
 /*
@@ -425,28 +424,6 @@
  * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop teliarootcav2 OCSP
  * @run main/othervm/manual -Djava.security.debug=certpath,ocsp -Dcom.sun.security.ocsp.useget=false CAInterop teliarootcav2 OCSP
  * @run main/othervm/manual -Djava.security.debug=certpath CAInterop teliarootcav2 CRL
- */
-
-/*
- * @test id=emsignrootcag1
- * @bug 8319187
- * @summary Interoperability tests with eMudhra Root CA G1
- * @library /test/lib
- * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop emsignrootcag1 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp -Dcom.sun.security.ocsp.useget=false CAInterop emsignrootcag1 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath CAInterop emsignrootcag1 CRL
- */
-
-/*
- * @test id=emsigneccrootcag3
- * @bug 8319187
- * @summary Interoperability tests with eMudhra ECC Root CA G3
- * @library /test/lib
- * @build jtreg.SkippedException ValidatePathWithURL CAInterop
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp CAInterop emsigneccrootcag3 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath,ocsp -Dcom.sun.security.ocsp.useget=false CAInterop emsigneccrootcag3 OCSP
- * @run main/othervm/manual -Djava.security.debug=certpath CAInterop emsigneccrootcag3 CRL
  */
 
 /*
@@ -607,8 +584,8 @@ public class CAInterop {
                     new CATestURLs("https://valid.business.ca22.ssl.buypass.no",
                     "https://revoked.business.ca22.ssl.buypass.no");
             case "buypassclass3ca" ->
-                    new CATestURLs("https://valid.qcevident.ca23.ssl.buypass.no",
-                    "https://revoked.qcevident.ca23.ssl.buypass.no");
+                    new CATestURLs("https://valid.evident.ca23.ssl.buypass.no",
+                    "https://revoked.evident.ca23.ssl.buypass.no");
 
             case "comodorsaca" ->
                     new CATestURLs("https://comodorsacertificationauthority-ev.comodoca.com",
@@ -713,13 +690,6 @@ public class CAInterop {
             case "teliarootcav2" ->
                     new CATestURLs("https://juolukka.cover.telia.fi:10600",
                             "https://juolukka.cover.telia.fi:10601");
-
-            case "emsignrootcag1" ->
-                    new CATestURLs("https://testovg1.emsign.com/RootOVG1.html",
-                            "https://testovg1r.emsign.com/RootOVG1MR.html");
-            case "emsigneccrootcag3" ->
-                    new CATestURLs("https://testovg3.emsign.com/RootOVG3.html",
-                            "https://testovg3r.emsign.com/RootOVG3MR.html");
 
             case "certainlyrootr1" ->
                     new CATestURLs("https://valid.root-r1.certainly.com",
