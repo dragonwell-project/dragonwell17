@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -504,7 +504,14 @@ implements CertAttrSet<String>, Cloneable {
                     }
                 } else {
                     if (!hasNameType(altNames, GeneralNameInterface.NAME_DNS)) {
-                        altNames.add(new GeneralName(new DNSName(cn)));
+                        // Replacing wildcard character '*' with 'z' to check
+                        // the domain name template validity.
+                        new DNSName(cn.replace('*', 'z'));
+                        // If the above line doesn't throw, use Der constructor
+                        // which performs no format checks: we want to accept
+                        // DNS name with any wildcard here.
+                        altNames.add(new GeneralName(new DNSName(new DerValue(
+                                DerValue.tag_IA5String, cn))));
                     }
                 }
             } catch (IOException ioe) {
@@ -561,9 +568,15 @@ implements CertAttrSet<String>, Cloneable {
                 if (exName == null)
                     continue;
 
+                // Match a wildcard in DNSName only against the excluded subtree
+                int matchResult =
+                        exName.getType() == GeneralNameInterface.NAME_DNS
+                                ? ((DNSName) exName).constrains(name, true)
+                                : exName.constrains(name);
+
                 // if name matches or narrows any excluded subtree,
                 // return false
-                switch (exName.constrains(name)) {
+                switch (matchResult) {
                 case GeneralNameInterface.NAME_DIFF_TYPE:
                 case GeneralNameInterface.NAME_WIDENS: // name widens excluded
                 case GeneralNameInterface.NAME_SAME_TYPE:

@@ -125,6 +125,18 @@ address StubRoutines::_electronicCodeBook_encryptAESCrypt  = NULL;
 address StubRoutines::_electronicCodeBook_decryptAESCrypt  = NULL;
 address StubRoutines::_counterMode_AESCrypt                = NULL;
 address StubRoutines::_ghash_processBlocks                 = NULL;
+address StubRoutines::_kyberNtt                            = NULL;
+address StubRoutines::_kyberInverseNtt                     = NULL;
+address StubRoutines::_kyberNttMult                        = NULL;
+address StubRoutines::_kyberAddPoly_2                      = NULL;
+address StubRoutines::_kyberAddPoly_3                      = NULL;
+address StubRoutines::_kyber12To16                         = NULL;
+address StubRoutines::_kyberBarrettReduce                  = NULL;
+address StubRoutines::_dilithiumAlmostNtt                  = NULL;
+address StubRoutines::_dilithiumAlmostInverseNtt           = NULL;
+address StubRoutines::_dilithiumNttMult                    = NULL;
+address StubRoutines::_dilithiumMontMulByConstant          = NULL;
+address StubRoutines::_dilithiumDecomposePoly              = NULL;
 address StubRoutines::_base64_encodeBlock                  = NULL;
 address StubRoutines::_base64_decodeBlock                  = NULL;
 
@@ -137,6 +149,7 @@ address StubRoutines::_sha256_implCompressMB = NULL;
 address StubRoutines::_sha512_implCompress   = NULL;
 address StubRoutines::_sha512_implCompressMB = NULL;
 address StubRoutines::_sha3_implCompress     = NULL;
+address StubRoutines::_double_keccak         = NULL;
 address StubRoutines::_sha3_implCompressMB   = NULL;
 
 address StubRoutines::_updateBytesCRC32 = NULL;

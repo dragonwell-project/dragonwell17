@@ -277,6 +277,7 @@ private:
   static const TypeFunc* counterMode_aescrypt_Type();
 
   static const TypeFunc* digestBase_implCompress_Type(bool is_sha3);
+  static const TypeFunc* double_keccak_Type();
   static const TypeFunc* digestBase_implCompressMB_Type(bool is_sha3);
 
   static const TypeFunc* multiplyToLen_Type();
@@ -292,6 +293,18 @@ private:
   static const TypeFunc* vectorizedMismatch_Type();
 
   static const TypeFunc* ghash_processBlocks_Type();
+  static const TypeFunc* kyberNtt_Type();
+  static const TypeFunc* kyberInverseNtt_Type();
+  static const TypeFunc* kyberNttMult_Type();
+  static const TypeFunc* kyberAddPoly_2_Type();
+  static const TypeFunc* kyberAddPoly_3_Type();
+  static const TypeFunc* kyber12To16_Type();
+  static const TypeFunc* kyberBarrettReduce_Type();
+  static const TypeFunc* dilithiumAlmostNtt_Type();
+  static const TypeFunc* dilithiumAlmostInverseNtt_Type();
+  static const TypeFunc* dilithiumNttMult_Type();
+  static const TypeFunc* dilithiumMontMulByConstant_Type();
+  static const TypeFunc* dilithiumDecomposePoly_Type();
   static const TypeFunc* base64_encodeBlock_Type();
   static const TypeFunc* base64_decodeBlock_Type();
 
